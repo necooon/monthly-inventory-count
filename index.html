@@ -1048,6 +1048,7 @@
       localStorage.setItem('stockPlaces', JSON.stringify(customPlaces));
       localStorage.setItem('stockLocations', JSON.stringify(customPlaces));
       localStorage.setItem('stockCategories', JSON.stringify(customCategories));
+      localStorage.setItem('stockUnits', JSON.stringify(customUnits));
       localStorage.setItem('stockCheckUnits', JSON.stringify(customCheckUnits));
     }
 
@@ -1177,7 +1178,7 @@
       saveAndRender();
     }
 
-    function deleteMasterName(kind, name) {
+    async function deleteMasterName(kind, name) {
       if (kind === 'cycle') {
         if (customCycles.length <= 1) {
           alert('チェック頻度は1つ以上必要です。');
@@ -1187,6 +1188,7 @@
         if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムからこのチェック頻度が外れます。` : ''}`)) return;
         customCycles = customCycles.filter(v => v !== name);
         rewriteCheckUnits(u => u.cycle === name ? null : u);
+        customCheckUnits = customCheckUnits.filter(u => u.cycle !== name);
         inventoryCycleFilter = remapNamedFilter(inventoryCycleFilter, name, ALL_FILTER);
         catalogCycleFilter = remapNamedFilter(catalogCycleFilter, name, ALL_FILTER);
       } else if (kind === 'place') {
@@ -1198,6 +1200,7 @@
           persistInventoryCollapsedPlaces();
         }
         rewriteCheckUnits(u => u.place === name ? { cycle: u.cycle, place: '' } : u);
+        customCheckUnits = customCheckUnits.filter(u => u.place !== name);
         inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, name, ALL_FILTER);
         catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, name, ALL_FILTER);
       } else if (kind === 'category') {
@@ -1222,6 +1225,7 @@
         });
       }
       saveAndRender();
+      await flushCloudSave();
     }
 
     function appendSettingsSection(root, title, kind, names) {
@@ -1871,6 +1875,15 @@
       syncTimer = setTimeout(pushToCloud, 400);
     }
 
+    async function flushCloudSave() {
+      if (!isCloudReady()) return true;
+      clearTimeout(syncTimer);
+      syncTimer = null;
+      const ok = await pushToCloud();
+      if (!ok) alert('クラウドへの保存に失敗しました。接続を確認してください。');
+      return ok;
+    }
+
     function scheduleCloudPull() {
       if (applyingRemote || !isCloudReady()) return;
       clearTimeout(pullTimer);
@@ -1881,6 +1894,8 @@
       return JSON.stringify({
         cycles: customCycles,
         places: customPlaces,
+        categories: customCategories,
+        units: customUnits,
         checkUnits: customCheckUnits.map(u => ({ cycle: u.cycle, place: u.place })),
         items: stockItems.map(item => ({
           id: String(item.id),
@@ -1897,16 +1912,20 @@
       });
     }
 
-    function stateFromCloudRows(cycleRows, locRows, unitRows, itemRows, memberships) {
+    function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, stockUnitRows, itemRows, memberships) {
       const cycleNames = (cycleRows || []).map(row => row.name).filter(Boolean);
       const cycles = cycleNames.length ? cycleNames : [...DEFAULT_CYCLES];
       const cycleIdToName = Object.fromEntries((cycleRows || []).map(row => [row.id, row.name]));
       const placeNames = (locRows || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(name));
       const places = placeNames.length ? placeNames : [...DEFAULT_PLACES];
       const locIdToName = Object.fromEntries((locRows || []).map(loc => [loc.id, loc.name]));
+      const categoryNames = (categoryRows || []).map(row => row.name).filter(Boolean);
+      const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
+      const unitNames = (stockUnitRows || []).map(row => row.name).filter(name => name && !ITEM_UNITS.includes(name));
+      const units = unitNames;
       const unitIdToUnit = {};
       const checkUnits = [];
-      (unitRows || []).forEach(row => {
+      (checkUnitRows || []).forEach(row => {
         const cycle = cycleIdToName[row.cycle_id];
         if (!cycle) return;
         const place = row.location_id ? (locIdToName[row.location_id] || '') : '';
@@ -1944,7 +1963,7 @@
           lastOrderedOn: row.last_ordered_on
         });
       });
-      return { cycles, places, checkUnits: resolvedUnits, items };
+      return { cycles, places, categories, units, checkUnits: resolvedUnits, items };
     }
 
     async function fetchCloudState() {
@@ -1970,12 +1989,26 @@
         .order('sort_order');
       if (locError) throw locError;
 
-      const { data: unitRows, error: unitError } = await supabaseClient
+      const { data: categoryRows, error: categoryError } = await supabaseClient
+        .from('categories')
+        .select('id,name,sort_order')
+        .eq('household_id', householdId)
+        .order('sort_order');
+      if (categoryError) throw categoryError;
+
+      const { data: stockUnitRows, error: stockUnitError } = await supabaseClient
+        .from('units')
+        .select('id,name,sort_order')
+        .eq('household_id', householdId)
+        .order('sort_order');
+      if (stockUnitError) throw stockUnitError;
+
+      const { data: checkUnitRows, error: checkUnitError } = await supabaseClient
         .from('check_units')
         .select('id,cycle_id,location_id,sort_order')
         .eq('household_id', householdId)
         .order('sort_order');
-      if (unitError) throw unitError;
+      if (checkUnitError) throw checkUnitError;
 
       const { data: rows, error: itemError } = await supabaseClient
         .from('items')
@@ -1990,7 +2023,7 @@
         .eq('household_id', householdId);
       if (!membershipError) memberships = membershipRows || [];
 
-      return stateFromCloudRows(cycleRows, locs, unitRows, rows, memberships);
+      return stateFromCloudRows(cycleRows, locs, checkUnitRows, categoryRows, stockUnitRows, rows, memberships);
     }
 
     function applyFetchedState(state) {
@@ -2001,8 +2034,12 @@
         cycle: customCycles[0] || DEFAULT_CYCLES[0],
         place
       }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
+      customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
+      DEFAULT_CATEGORIES.forEach(name => ensureName(customCategories, name));
+      customUnits = (state.units && state.units.length ? state.units : [])
+        .map(name => String(name).trim())
+        .filter(name => name && !ITEM_UNITS.includes(name));
       stockItems = state.items.map(migrateItem);
-      customCategories = [...DEFAULT_CATEGORIES];
       stockItems.forEach(item => {
         if (item.category) ensureCategory(item.category);
         rememberUnit(item.unit);
@@ -2025,7 +2062,7 @@
     }
 
     async function pushToCloud() {
-      if (!isCloudReady()) return;
+      if (!isCloudReady()) return false;
       try {
         const { error: householdError } = await supabaseClient.from('households').upsert({
           id: householdId,
@@ -2040,6 +2077,18 @@
         })), 'household_id,name');
 
         await upsertNamedRows('locations', customPlaces.map((name, index) => ({
+          household_id: householdId,
+          name,
+          sort_order: index
+        })), 'household_id,name');
+
+        await upsertNamedRows('categories', customCategories.map((name, index) => ({
+          household_id: householdId,
+          name,
+          sort_order: index
+        })), 'household_id,name');
+
+        await upsertNamedRows('units', customUnits.map((name, index) => ({
           household_id: householdId,
           name,
           sort_order: index
@@ -2183,6 +2232,12 @@
           .filter(loc => !customPlaces.includes(loc.name))
           .map(loc => loc.id);
         if (extraLocIds.length) {
+          const { error: itemLocClearError } = await supabaseClient
+            .from('items')
+            .update({ location_id: null })
+            .eq('household_id', householdId)
+            .in('location_id', extraLocIds);
+          if (itemLocClearError) throw itemLocClearError;
           await supabaseClient.from('check_units').delete().in('location_id', extraLocIds);
           const { error: locDeleteError } = await supabaseClient.from('locations').delete().in('id', extraLocIds);
           if (locDeleteError) throw locDeleteError;
@@ -2197,8 +2252,36 @@
           if (cycleDeleteError) throw cycleDeleteError;
         }
 
+        const { data: cloudCategories, error: categoryReadError } = await supabaseClient
+          .from('categories')
+          .select('id,name')
+          .eq('household_id', householdId);
+        if (categoryReadError) throw categoryReadError;
+        const extraCategoryIds = (cloudCategories || [])
+          .filter(row => !customCategories.includes(row.name))
+          .map(row => row.id);
+        if (extraCategoryIds.length) {
+          const { error: categoryDeleteError } = await supabaseClient.from('categories').delete().in('id', extraCategoryIds);
+          if (categoryDeleteError) throw categoryDeleteError;
+        }
+
+        const { data: cloudStockUnits, error: stockUnitReadError } = await supabaseClient
+          .from('units')
+          .select('id,name')
+          .eq('household_id', householdId);
+        if (stockUnitReadError) throw stockUnitReadError;
+        const extraStockUnitIds = (cloudStockUnits || [])
+          .filter(row => !customUnits.includes(row.name))
+          .map(row => row.id);
+        if (extraStockUnitIds.length) {
+          const { error: stockUnitDeleteError } = await supabaseClient.from('units').delete().in('id', extraStockUnitIds);
+          if (stockUnitDeleteError) throw stockUnitDeleteError;
+        }
+
+        return true;
       } catch (e) {
         console.error('cloud save failed', e);
+        return false;
       }
     }
 
@@ -2213,6 +2296,8 @@
         const remoteSnap = JSON.stringify({
           cycles: state.cycles,
           places: state.places,
+          categories: state.categories,
+          units: state.units,
           checkUnits: state.checkUnits.map(u => ({ cycle: u.cycle, place: u.place })),
           items: state.items.map(item => ({
             id: String(item.id),
@@ -2310,6 +2395,16 @@
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'check_units', filter: 'household_id=eq.' + householdId },
+          () => { scheduleCloudPull(); }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'categories', filter: 'household_id=eq.' + householdId },
+          () => { scheduleCloudPull(); }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'units', filter: 'household_id=eq.' + householdId },
           () => { scheduleCloudPull(); }
         )
         .subscribe();
