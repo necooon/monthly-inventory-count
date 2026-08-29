@@ -756,6 +756,16 @@
     background: #ffebee;
     color: #c62828;
   }
+  .settings-move {
+    background: #f5f5f5;
+    color: #333;
+    min-width: 44px;
+    padding: 8px;
+  }
+  .settings-move:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
   .settings-add {
     width: 100%;
     padding: 12px;
@@ -1037,6 +1047,9 @@
     }
     .settings-row button {
       flex: 1 1 calc(50% - 4px);
+    }
+    .settings-row button.settings-move {
+      flex: 0 0 44px;
     }
   }
 
@@ -1618,6 +1631,28 @@
       return true;
     }
 
+    function masterListForKind(kind) {
+      if (kind === 'cycle') return customCycles;
+      if (kind === 'place') return customPlaces;
+      if (kind === 'category') return customCategories;
+      return null;
+    }
+
+    async function moveMasterName(kind, name, delta) {
+      const list = kind === 'category' ? settingsCategoryNames() : masterListForKind(kind);
+      if (!list) return;
+      const idx = list.indexOf(name);
+      const next = idx + delta;
+      if (idx < 0 || next < 0 || next >= list.length) return;
+      const swapped = list[idx];
+      list[idx] = list[next];
+      list[next] = swapped;
+      if (kind === 'cycle') customCycles = list;
+      else if (kind === 'place') customPlaces = list;
+      else if (kind === 'category') customCategories = list;
+      await saveMasterChange();
+    }
+
     function loadSettingsOpenSections() {
       try {
         const parsed = JSON.parse(localStorage.getItem('settingsOpenSections'));
@@ -1678,6 +1713,25 @@
         deleteBtn.disabled = isLocked;
         deleteBtn.onclick = () => deleteMasterName(kind, name);
         row.appendChild(label);
+        if (options.reorder) {
+          const index = names.indexOf(name);
+          const upBtn = document.createElement('button');
+          upBtn.type = 'button';
+          upBtn.className = 'settings-move';
+          upBtn.textContent = '↑';
+          upBtn.setAttribute('aria-label', name + 'を上へ');
+          upBtn.disabled = isLocked || index <= 0;
+          upBtn.onclick = () => moveMasterName(kind, name, -1);
+          const downBtn = document.createElement('button');
+          downBtn.type = 'button';
+          downBtn.className = 'settings-move';
+          downBtn.textContent = '↓';
+          downBtn.setAttribute('aria-label', name + 'を下へ');
+          downBtn.disabled = isLocked || index >= names.length - 1;
+          downBtn.onclick = () => moveMasterName(kind, name, 1);
+          row.appendChild(upBtn);
+          row.appendChild(downBtn);
+        }
         row.appendChild(editBtn);
         row.appendChild(deleteBtn);
         section.appendChild(row);
@@ -1701,10 +1755,12 @@
         hint: '月次・週次など、いつ数えるかの区分です。'
       });
       appendSettingsSection(root, '場所', 'place', customPlaces.slice(), {
-        hint: '棚卸しのときに回る場所です。同じ在庫を複数の場所に出せます。'
+        hint: '棚卸しのときに回る場所です。↑↓で並び順を変えられます。',
+        reorder: true
       });
       appendSettingsSection(root, 'カテゴリ', 'category', settingsCategoryNames(), {
-        hint: '買い物リストのまとめに使います。'
+        hint: '買い物リストのまとめに使います。↑↓で並び順を変えられます。',
+        reorder: true
       });
       const danger = document.createElement('div');
       danger.className = 'settings-section';
