@@ -680,10 +680,34 @@
   .settings-section {
     margin-bottom: 28px;
   }
-  .settings-section h3 {
+  .settings-section h3,
+  .settings-section > summary {
     margin: 0 0 6px;
     color: #333;
     font-size: 1.05em;
+    font-weight: bold;
+  }
+  .settings-section > summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+  .settings-section > summary::-webkit-details-marker {
+    display: none;
+  }
+  .settings-section > summary::before {
+    content: '▶';
+    flex-shrink: 0;
+    width: 1em;
+    font-size: 0.85em;
+    color: #666;
+  }
+  .settings-section[open] > summary::before {
+    content: '▼';
   }
   .settings-hint {
     margin: 0 0 10px;
@@ -1081,13 +1105,13 @@
 
   <!-- 設定 -->
   <div class="page" id="page-settings">
-    <section class="settings-section" aria-labelledby="settings-items-heading">
-      <h3 id="settings-items-heading">アイテム</h3>
+    <details class="settings-section" data-settings-section="items" open aria-labelledby="settings-items-heading">
+      <summary id="settings-items-heading">アイテム</summary>
       <p class="settings-hint">登録した品目の確認・編集ができます。</p>
       <div class="filter-bar" id="items-filters"></div>
       <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
       <div id="item-catalog-list"></div>
-    </section>
+    </details>
     <div id="settings-list"></div>
   </div>
 
@@ -1224,6 +1248,8 @@
     const UNSET_CATEGORY_LABEL = '未分類';
     const UNIT_SEP = '::';
     const ADD_NEW_VALUE = 'ADD_NEW';
+    const RENAME_VALUE = 'RENAME';
+    const DELETE_VALUE = 'DELETE';
 
     let customUnits = loadNameList('stockUnits', DEFAULT_UNITS);
 
@@ -1240,6 +1266,7 @@
     let inventoryCycleFilter = ALL_FILTER;
     let inventoryPlaceFilter = ALL_FILTER;
     let inventoryCollapsedPlaces = loadInventoryCollapsedPlaces();
+    let settingsOpenSections = loadSettingsOpenSections();
     let catalogCycleFilter = ALL_FILTER;
     let catalogPlaceFilter = ALL_FILTER;
     let catalogCategoryFilter = ALL_FILTER;
@@ -1318,19 +1345,6 @@
         if (c && !seen.has(c)) {
           seen.add(c);
           names.push(c);
-        }
-      });
-      return names;
-    }
-
-    function settingsUnitNames() {
-      const seen = new Set(customUnits);
-      const names = customUnits.slice();
-      stockItems.forEach(item => {
-        const u = String(item.unit || '').trim();
-        if (u && !seen.has(u)) {
-          seen.add(u);
-          names.push(u);
         }
       });
       return names;
@@ -1468,6 +1482,7 @@
       else if (kind === 'category') ensureCategory(trimmed);
       else ensureUnit(trimmed);
       await saveMasterChange();
+      return trimmed;
     }
 
     async function saveMasterChange() {
@@ -1539,6 +1554,7 @@
         });
       }
       await saveMasterChange();
+      return next;
     }
 
     async function deleteMasterName(kind, name) {
@@ -1589,15 +1605,43 @@
         });
       }
       await saveMasterChange();
+      return true;
+    }
+
+    function loadSettingsOpenSections() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem('settingsOpenSections'));
+        if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
+      } catch (e) { /* ignore */ }
+      return new Set(['items']);
+    }
+
+    function persistSettingsOpenSections() {
+      localStorage.setItem('settingsOpenSections', JSON.stringify([...settingsOpenSections]));
+    }
+
+    function bindSettingsSectionOpen(details, key) {
+      details.dataset.settingsSection = key;
+      const shouldOpen = settingsOpenSections.has(key);
+      if (details.dataset.settingsToggleBound !== '1') {
+        details.dataset.settingsToggleBound = '1';
+        details.addEventListener('toggle', () => {
+          if (details.open) settingsOpenSections.add(key);
+          else settingsOpenSections.delete(key);
+          persistSettingsOpenSections();
+        });
+      }
+      if (details.open !== shouldOpen) details.open = shouldOpen;
     }
 
     function appendSettingsSection(root, title, kind, names, options = {}) {
       const locked = options.locked || new Set();
-      const section = document.createElement('div');
+      const section = document.createElement('details');
       section.className = 'settings-section';
-      const heading = document.createElement('h3');
+      const heading = document.createElement('summary');
       heading.textContent = title;
       section.appendChild(heading);
+      bindSettingsSectionOpen(section, kind);
       if (options.hint) {
         const hint = document.createElement('p');
         hint.className = 'settings-hint';
@@ -1638,6 +1682,8 @@
     }
 
     function renderSettings() {
+      const itemsSection = document.querySelector('#page-settings [data-settings-section="items"]');
+      if (itemsSection) bindSettingsSectionOpen(itemsSection, 'items');
       const root = document.getElementById('settings-list');
       if (!root) return;
       root.innerHTML = '';
@@ -1650,7 +1696,6 @@
       appendSettingsSection(root, 'カテゴリ', 'category', settingsCategoryNames(), {
         hint: '買い物リストのまとめに使います。'
       });
-      appendSettingsSection(root, '単位', 'unit', settingsUnitNames());
       const danger = document.createElement('div');
       danger.className = 'settings-section';
       const heading = document.createElement('h3');
@@ -1969,25 +2014,68 @@
       ensureUnit(name);
     }
 
+    function isUnitActionValue(value) {
+      return value === ADD_NEW_VALUE || value === RENAME_VALUE || value === DELETE_VALUE;
+    }
+
+    function appendUnitActionOption(select, value, label) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.style.fontWeight = 'bold';
+      select.appendChild(option);
+    }
+
+    function otherUnitSelect(select) {
+      return select.id === 'edit-item-unit'
+        ? document.getElementById('new-item-unit')
+        : document.getElementById('edit-item-unit');
+    }
+
     async function addNewUnit() {
       const raw = await showPrompt('新しい単位を入力してください（例：束）');
       if (!raw || raw.trim() === '') return null;
       const trimmed = raw.trim();
       ensureUnit(trimmed);
-      refreshUnitSelects(trimmed);
       persistMasters();
       scheduleCloudSave();
       return trimmed;
     }
 
     async function handleUnitSelectChange(select) {
-      if (select.value === 'ADD_NEW') {
+      const previous = select.dataset.currentUnit || '';
+      if (select.value === ADD_NEW_VALUE) {
         const added = await addNewUnit();
-        if (added) {
-          fillUnitSelect(select, added);
-        } else {
-          fillUnitSelect(select, allUnits()[0] || '個');
+        fillUnitSelect(select, added || previous || defaultUnitName());
+        const other = otherUnitSelect(select);
+        if (other) fillUnitSelect(other, other.dataset.currentUnit || defaultUnitName());
+      } else if (select.value === RENAME_VALUE) {
+        fillUnitSelect(select, previous);
+        if (previous) {
+          const next = await renameMasterName('unit', previous);
+          const chosen = next || previous;
+          fillUnitSelect(select, chosen);
+          const other = otherUnitSelect(select);
+          if (other) {
+            const otherVal = other.dataset.currentUnit === previous ? chosen : other.dataset.currentUnit;
+            fillUnitSelect(other, otherVal || defaultUnitName());
+          }
         }
+      } else if (select.value === DELETE_VALUE) {
+        fillUnitSelect(select, previous);
+        if (previous) {
+          await deleteMasterName('unit', previous);
+          const names = allUnits();
+          const chosen = names.includes(previous) ? previous : (names[0] || defaultUnitName());
+          fillUnitSelect(select, chosen);
+          const other = otherUnitSelect(select);
+          if (other) {
+            const otherVal = other.dataset.currentUnit;
+            fillUnitSelect(other, names.includes(otherVal) ? otherVal : (names[0] || defaultUnitName()));
+          }
+        }
+      } else {
+        select.dataset.currentUnit = select.value;
       }
       syncUnitReadouts();
     }
@@ -1995,33 +2083,42 @@
     function refreshUnitSelects(preferredValue) {
       const addSelect = document.getElementById('new-item-unit');
       const editSelect = document.getElementById('edit-item-unit');
-      const addVal = preferredValue || (addSelect.value !== 'ADD_NEW' ? addSelect.value : null);
-      const editVal = preferredValue || (editSelect.value !== 'ADD_NEW' ? editSelect.value : null);
-      fillUnitSelect(addSelect, addVal);
-      fillUnitSelect(editSelect, editVal);
+      const pick = (select) => {
+        if (preferredValue) return preferredValue;
+        const cur = select.dataset.currentUnit;
+        if (cur && !isUnitActionValue(cur)) return cur;
+        return !isUnitActionValue(select.value) ? select.value : null;
+      };
+      fillUnitSelect(addSelect, pick(addSelect));
+      fillUnitSelect(editSelect, pick(editSelect));
     }
 
     function fillUnitSelect(select, selectedValue) {
+      if (!select) return;
       select.innerHTML = '';
       const units = allUnits();
-      if (selectedValue && !units.includes(selectedValue)) units.unshift(selectedValue);
+      if (selectedValue && !isUnitActionValue(selectedValue) && !units.includes(selectedValue)) {
+        units.unshift(selectedValue);
+      }
       units.forEach(unit => {
         const option = document.createElement('option');
         option.value = unit;
         option.textContent = unit;
         select.appendChild(option);
       });
-      const addOption = document.createElement('option');
-      addOption.value = 'ADD_NEW';
-      addOption.textContent = '＋新しい単位を追加...';
-      addOption.style.fontWeight = 'bold';
-      select.appendChild(addOption);
-      select.value = selectedValue && units.includes(selectedValue) ? selectedValue : (units[0] || '個');
+      appendUnitActionOption(select, ADD_NEW_VALUE, '＋新しい単位を追加...');
+      if (units.length) {
+        appendUnitActionOption(select, RENAME_VALUE, 'この単位の名前を変更...');
+        appendUnitActionOption(select, DELETE_VALUE, 'この単位を削除...');
+      }
+      const chosen = selectedValue && units.includes(selectedValue) ? selectedValue : (units[0] || defaultUnitName());
+      select.value = chosen;
+      select.dataset.currentUnit = chosen;
       syncUnitReadouts();
     }
 
     function unitDisplay(value) {
-      return value && value !== 'ADD_NEW' ? value : '';
+      return value && !isUnitActionValue(value) ? value : '';
     }
 
     function syncUnitReadouts() {
