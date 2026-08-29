@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月次ストック棚卸（場所別）</title>
+<style>
+  body { 
+    font-family: sans-serif; 
+    padding: 20px; 
+    max-width: 500px; 
+    margin: auto; 
+    background-color: #f9f9f9; 
+  }
+  h2 { 
+    color: #333; 
+    text-align: center; 
+  }
+  
+  /* タブ（場所絞り込み）のデザイン */
+  .filter-container { 
+    display: flex; 
+    gap: 10px; 
+    margin-bottom: 20px; 
+    overflow-x: auto; 
+    padding-bottom: 5px; 
+  }
+  .filter-btn { 
+    padding: 8px 16px; 
+    border: 1px solid #ccc; 
+    background: white; 
+    border-radius: 20px; 
+    cursor: pointer; 
+    white-space: nowrap; 
+    font-size: 14px; 
+  }
+  .filter-btn.active { 
+    background: #2196F3; 
+    color: white; 
+    border-color: #2196F3; 
+    font-weight: bold; 
+  }
+  
+  .item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 15px; 
+    background: white; 
+    margin-bottom: 10px; 
+    border-radius: 8px; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+  }
+  .item.empty { 
+    border-left: 5px solid #f44336; 
+    background-color: #ffebee; 
+  }
+  
+  /* 発注バッジのデザイン */
+  .order-badge {
+    background-color: #f44336;
+    color: white;
+    font-size: 0.7em;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-left: 10px;
+    animation: blink 1s infinite alternate;
+  }
+  @keyframes blink {
+    from { opacity: 1; }
+    to { opacity: 0.5; }
+  }
+
+  .item-info { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px;
+  }
+  .item-name { 
+    font-weight: bold; 
+    font-size: 1.1em; 
+    display: flex;
+    align-items: center;
+  }
+  .item-location { 
+    font-size: 0.75em; 
+    color: #555; 
+    background: #e0e0e0; 
+    padding: 3px 8px; 
+    border-radius: 12px; 
+    display: inline-block; 
+    width: fit-content; 
+  }
+  /* 発注数の表示スタイル */
+  .order-amount {
+    font-size: 0.85em;
+    color: #d32f2f;
+    font-weight: bold;
+  }
+  
+  .controls { 
+    display: flex; 
+    align-items: center; 
+  }
+  .controls button { 
+    padding: 5px 15px; 
+    font-size: 18px; 
+    border: none; 
+    background: #e0e0e0; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    margin: 0 5px; 
+  }
+  .controls button:active { 
+    background: #ccc; 
+  }
+  .count-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 10px;
+  }
+  .count-input { 
+    font-size: 1.2em; 
+    width: 60px; 
+    text-align: center; 
+    font-weight: bold;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+  }
+  /* 数値入力のスピンボタンを非表示にする（すっきり見せるため） */
+  .count-input::-webkit-outer-spin-button,
+  .count-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .count-input[type=number] {
+    -moz-appearance: textfield;
+  }
+  .target-count {
+    font-size: 0.7em;
+    color: #666;
+    cursor: pointer;
+    text-decoration: underline dotted;
+  }
+  .delete-btn { 
+    background: #ff9800 !important; 
+    color: white !important; 
+    font-size: 12px !important; 
+    margin-left: 10px !important; 
+  }
+
+  /* 追加ボタン（リスト上部） */
+  .open-modal-btn {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  /* モーダル（別ページ風の追加画面）のデザイン */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+  }
+  .modal-content input, .modal-content select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .btn-cancel {
+    padding: 10px 15px;
+    background: #ccc;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-save {
+    padding: 10px 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+
+  /* AIアドバイス機能のデザイン */
+  .ai-advisor-container {
+    margin-bottom: 25px;
+    background: #e3f2fd;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #bbdefb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  .ai-btn {
+    padding: 10px 15px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-btn:hover {
+    background: #1976D2;
+  }
+  .ai-result {
+    margin-top: 15px;
+    padding: 10px;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #333;
+    display: none;
+    line-height: 1.5;
+  }
+  .loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+    display: none;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+  <h2>📦 場所別ストック棚卸</h2>
+  
+  <!-- 場所の絞り込みタブ -->
+  <div class="filter-container" id="location-filters"></div>
+
+  <!-- AI購入アドバイザー -->
+  <div class="ai-advisor-container">
+    <div style="font-weight: bold; color: #1565c0; margin-bottom: 10px;">✨ AI 購入アドバイザー</div>
+    <p style="font-size: 0.8em; color: #555; margin-bottom: 10px;">発注が必要なアイテムについて、AIがお得な買い方やアドバイスを提案します。</p>
+    <button class="ai-btn" onclick="getAIAdvice()">
+      <span>アドバイスをもらう</span>
+      <div class="loading-spinner" id="ai-loading"></div>
+    </button>
+    <div class="ai-result" id="ai-result"></div>
+  </div>
+
+  <!-- 新規追加ボタン（リスト上部） -->
+  <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
+
+  <!-- リスト表示エリア -->
+  <div id="stock-list"></div>
+
+  <!-- アイテム追加用モーダル -->
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal-content">
+      <h3>新しいアイテムを追加</h3>
+      <input type="text" id="new-item-name" placeholder="品名（例：シャンプー）">
+      
+      <select id="new-item-location" onchange="handleLocationSelectChange(this)">
+        <!-- JavaScriptで動的に生成されます -->
+      </select>
+      
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="btn-save" onclick="addItem()">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 保管場所のマスターデータ（ローカルストレージから読み込み可能に）
+    let customLocations = JSON.parse(localStorage.getItem('stockLocations')) || ['洗面所', 'キッチン', 'トイレ', 'その他'];
+    let currentFilter = 'すべて';
+
+    // データの読み込み
+    let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) || [
+      { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', target: 4 },
+      { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', target: 2 },
+      { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', target: 2 }
+    ];
+
+    // 旧データ構造からのマイグレーション（targetプロパティがない場合に追加）
+    stockItems = stockItems.map(item => {
+      if (item.target === undefined) {
+        return { ...item, target: 1 }; // デフォルトの必要数を1とする
+      }
+      return item;
+    });
+
+    // モーダルを開く
+    function openModal() {
+      document.getElementById('add-modal').style.display = 'flex';
+      updateLocationSelect();
+      document.getElementById('new-item-name').focus();
+    }
+
+    // モーダルを閉じる
+    function closeModal() {
+      document.getElementById('add-modal').style.display = 'none';
+      document.getElementById('new-item-name').value = '';
+    }
+
+    // 新しい場所を追加する処理（モーダル内とタブ両方から呼ばれる）
+    function addNewLocation() {
+      const newLoc = prompt('新しい保管場所の名前を入力してください:');
+      if (newLoc && newLoc.trim() !== '' && !customLocations.includes(newLoc.trim())) {
+        customLocations.push(newLoc.trim());
+        localStorage.setItem('stockLocations', JSON.stringify(customLocations));
+        updateLocationSelect();
+        renderFilters();
+        return newLoc.trim();
+      }
+      return null;
+    }
+
+    // モーダル内のセレクトボックス変更時の処理
+    function handleLocationSelectChange(select) {
+      if (select.value === "ADD_NEW") {
+        const addedLoc = addNewLocation();
+        if (addedLoc) {
+          select.value = addedLoc;
+        } else {
+          // キャンセルされた場合は最初の項目に戻す
+          select.value = customLocations[0];
+        }
+      }
+    }
+
+    // アイテム追加フォームの場所選択プルダウンを更新する関数
+    function updateLocationSelect() {
+      const select = document.getElementById('new-item-location');
+      select.innerHTML = '';
+      
+      customLocations.forEach(loc => {
+        const option = document.createElement('option');
+        option.value = loc;
+        option.textContent = loc;
+        select.appendChild(option);
+      });
+      
+      // 場所追加用の特別なオプション
+      const addOption = document.createElement('option');
+      addOption.value = "ADD_NEW";
+      addOption.textContent = "＋新しい場所を追加...";
+      addOption.style.fontWeight = "bold";
+      select.appendChild(addOption);
+    }
+
+    // 絞り込みタブを描画する関数
+    function renderFilters() {
+      const filterDiv = document.getElementById('location-filters');
+      filterDiv.innerHTML = '';
+      
+      const allLocations = ['すべて', ...customLocations];
+
+      allLocations.forEach(loc => {
+        const btn = document.createElement('button');
+        btn.className = `filter-btn ${currentFilter === loc ? 'active' : ''}`;
+        btn.textContent = loc;
+        btn.onclick = () => {
+          currentFilter = loc;
+          renderFilters();
+          saveAndRender();
+        };
+        filterDiv.appendChild(btn);
+      });
+
+      // 保管場所の追加ボタン（タブの右端）
+      const addLocBtn = document.createElement('button');
+      addLocBtn.className = 'filter-btn';
+      addLocBtn.style.borderStyle = 'dashed';
+      addLocBtn.textContent = '＋場所を追加';
+      addLocBtn.onclick = addNewLocation;
+      filterDiv.appendChild(addLocBtn);
+    }
+
+    // データを保存してリストを描画する関数
+    function saveAndRender() {
+      localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
+      const listDiv = document.getElementById('stock-list');
+      listDiv.innerHTML = '';
+
+      // 現在選択されている場所でフィルターをかける
+      const filteredItems = currentFilter === 'すべて' 
+        ? [...stockItems] 
+        : stockItems.filter(item => item.location === currentFilter);
+
+      // 発注が必要なものが上にくるようにソート
+      filteredItems.sort((a, b) => {
+        const aNeedsOrder = a.count < a.target;
+        const bNeedsOrder = b.count < b.target;
+        if (aNeedsOrder && !bNeedsOrder) return -1;
+        if (!aNeedsOrder && bNeedsOrder) return 1;
+        return 0; // 両方とも発注が必要、または不要な場合は元の順序を維持
+      });
+
+      filteredItems.forEach(item => {
+        const needsOrder = item.count < item.target;
+        // 発注数の計算（必要数 - 現在の個数）
+        const orderAmount = needsOrder ? (item.target - item.count) : 0;
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `item ${needsOrder ? 'empty' : ''}`;
+        
+        itemDiv.innerHTML = `
+          <div class="item-info">
+            <span class="item-name">
+              ${item.name}
+              ${needsOrder ? '<span class="order-badge">発注！</span>' : ''}
+            </span>
+            <span class="item-location">${item.location}</span>
+            ${needsOrder ? `<span class="order-amount">発注数: ${orderAmount}</span>` : ''}
+          </div>
+          <div class="controls">
+            <button onclick="updateCount(${item.id}, -1)">-</button>
+            <div class="count-container">
+              <input type="number" class="count-input" value="${item.count}" min="0" onchange="updateCountDirect(${item.id}, this.value)">
+              <span class="target-count" onclick="updateTarget(${item.id})" title="クリックして必要数を変更">必要: ${item.target}</span>
+            </div>
+            <button onclick="updateCount(${item.id}, 1)">+</button>
+            <button class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
+          </div>
+        `;
+        listDiv.appendChild(itemDiv);
+      });
+    }
+
+    // 必要数を変更する関数
+    function updateTarget(id) {
+      const item = stockItems.find(i => i.id === id);
+      if (item) {
+        const newTarget = prompt(`${item.name} の必要数を入力してください:`, item.target);
+        if (newTarget !== null && !isNaN(newTarget) && newTarget.trim() !== '') {
+          item.target = Math.max(0, parseInt(newTarget, 10));
+          saveAndRender();
+        }
+      }
+    }
+
+    // 数量を直接入力して変更する関数
+    function updateCountDirect(id, value) {
+      const item = stockItems.find(i => i.id === id);
+      if (item) {
+        const newCount = parseInt(value, 10);
+        item.count = isNaN(newCount) || newCount < 0 ? 0 : newCount;
+        saveAndRender();
+      }
+    }
+
+    // 数量を増減する関数
+    function updateCount(id, change) {
+      const item = stockItems.find(i => i.id === id);
+      if (item) {
+        item.count = Math.max(0, item.count + change); // 0未満にはならない
+        saveAndRender();
+      }
+    }
+
+    // アイテムを追加する関数
+    function addItem() {
+      const nameInput = document.getElementById('new-item-name');
+      const locInput = document.getElementById('new-item-location');
+      const name = nameInput.value.trim();
+      const location = locInput.value;
+      
+      if (name) {
+        stockItems.push({ id: Date.now(), name: name, count: 0, location: location, target: 1 });
+        nameInput.value = '';
+        closeModal();
+        saveAndRender();
+      } else {
+        alert("品名を入力してください");
+      }
+    }
+
+    // アイテムを削除する関数
+    function deleteItem(id) {
+      if(confirm('このアイテムを削除しますか？')){
+        stockItems = stockItems.filter(i => i.id !== id);
+        saveAndRender();
+      }
+    }
+
+    // 初回読み込み時の処理
+    renderFilters();
+    saveAndRender();
+
+    // AIアドバイスを取得する関数
+    async function getAIAdvice() {
+      const resultDiv = document.getElementById('ai-result');
+      const loadingSpinner = document.getElementById('ai-loading');
+      
+      // 発注が必要なアイテムをリストアップ
+      const itemsToOrder = stockItems.filter(item => item.count < item.target);
+      
+      if (itemsToOrder.length === 0) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '現在、発注が必要なアイテムはありません。素晴らしい管理状態です！';
+        return;
+      }
+
+      // APIに送信するプロンプトの作成
+      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${item.target}, 現在数: ${item.count}, 不足分: ${item.target - item.count})`).join('\n');
+      const prompt = `私は家庭の日用品の在庫管理をしています。現在、以下のアイテムが不足しており、購入が必要です。
+      
+${itemListText}
+
+これらのアイテムを効率的、あるいはお得に購入するためのアドバイス（例えば、まとめ買いの目安、代替品、ドラッグストアやオンラインショップでの購入のコツなど）を、簡潔に3つほど教えてください。`;
+
+      // UIをローディング状態にする
+      loadingSpinner.style.display = 'inline-block';
+      resultDiv.style.display = 'none';
+
+      const apiKey = ""; // API key will be provided by Canvas runtime
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        systemInstruction: {
+          parts: [{ text: "あなたは主婦・主夫の味方である、親切で賢い家事アドバイザーです。簡潔で分かりやすい言葉で回答してください。HTMLタグ(<b>, <ul>, <li>など)を使って読みやすく装飾してください。" }]
+        }
+      };
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        
+        if (data.candidates && data.candidates.length > 0) {
+          const aiText = data.candidates[0].content.parts[0].text;
+          resultDiv.innerHTML = aiText;
+        } else {
+          resultDiv.innerHTML = '申し訳ありません、アドバイスの取得に失敗しました。';
+        }
+      } catch (error) {
+        console.error('Error fetching AI advice:', error);
+        resultDiv.innerHTML = 'エラーが発生しました。時間を置いて再度お試しください。';
+      } finally {
+        // ローディング状態を解除
+        loadingSpinner.style.display = 'none';
+        resultDiv.style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
