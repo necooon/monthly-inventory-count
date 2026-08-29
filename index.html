@@ -1152,13 +1152,10 @@
           </div>
         </div>
         <div class="field">
-          <label>場所</label>
-          <div class="check-unit-picker" id="edit-item-places"></div>
-          <button type="button" class="link-add-unit" onclick="addNameFromForm('place', 'edit-item-places')">＋新しい場所を追加...</button>
+          <label for="edit-item-places">場所</label>
+          <select id="edit-item-places" onchange="handlePlaceSelectChange(this)"></select>
         </div>
       </div>
-      <label for="edit-item-last-order">前回の発注日</label>
-      <input type="date" id="edit-item-last-order">
       <label for="edit-item-unit">単位</label>
       <select id="edit-item-unit" onchange="handleUnitSelectChange(this)"></select>
       <label for="edit-item-target">必要数量</label>
@@ -1201,13 +1198,10 @@
           </div>
         </div>
         <div class="field">
-          <label>場所</label>
-          <div class="check-unit-picker" id="new-item-places"></div>
-          <button type="button" class="link-add-unit" onclick="addNameFromForm('place', 'new-item-places')">＋新しい場所を追加...</button>
+          <label for="new-item-places">場所</label>
+          <select id="new-item-places" onchange="handlePlaceSelectChange(this)"></select>
         </div>
       </div>
-      <label for="new-item-last-order">前回の発注日</label>
-      <input type="date" id="new-item-last-order">
       <label for="new-item-unit">単位</label>
       <select id="new-item-unit" onchange="handleUnitSelectChange(this)"></select>
       <label for="new-item-target">必要数量</label>
@@ -1869,7 +1863,6 @@
       fillUnitSelect(document.getElementById('new-item-unit'), '個');
       document.getElementById('new-item-target').value = 1;
       document.getElementById('new-item-threshold').value = 0;
-      document.getElementById('new-item-last-order').value = '';
       syncBodyScrollLock();
       document.getElementById('new-item-name').focus();
     }
@@ -1880,7 +1873,6 @@
       document.getElementById('new-item-name').value = '';
       document.getElementById('new-item-target').value = 1;
       document.getElementById('new-item-threshold').value = 0;
-      document.getElementById('new-item-last-order').value = '';
       syncBodyScrollLock();
     }
 
@@ -1948,11 +1940,16 @@
     function fillCyclePlacePickers(prefix, selectedUnits) {
       const units = selectedUnits || [];
       fillNamePicker(prefix + '-cycles', customCycles, [...new Set(units.map(u => u.cycle).filter(Boolean))]);
-      fillNamePicker(prefix + '-places', customPlaces, [...new Set(units.map(u => u.place).filter(Boolean))]);
+      const places = [...new Set(units.map(u => u.place).filter(Boolean))];
+      fillPlaceSelect(document.getElementById(prefix + '-places'), places[0] || '');
     }
 
     function selectedPlacesFromPrefix(prefix) {
-      return getSelectedNames(prefix + '-places');
+      const select = document.getElementById(prefix + '-places');
+      if (!select) return [];
+      const value = String(select.value || '').trim();
+      if (!value || value === ADD_NEW_VALUE) return [];
+      return [value];
     }
 
     function unitsFromCyclePlacePickers(prefix) {
@@ -2199,24 +2196,36 @@
       addOption.style.fontWeight = 'bold';
       select.appendChild(addOption);
       select.value = current && names.includes(current) ? current : '';
+      select.dataset.currentPlace = select.value;
     }
 
     async function handlePlaceSelectChange(select) {
-      if (select.value !== ADD_NEW_VALUE) return;
+      if (select.value !== ADD_NEW_VALUE) {
+        select.dataset.currentPlace = select.value;
+        return;
+      }
+      const previous = select.dataset.currentPlace || '';
       const raw = await showPrompt('新しい場所の名前を入力してください');
       if (!raw || !raw.trim()) {
-        fillPlaceSelect(select, '');
+        fillPlaceSelect(select, previous);
         return;
       }
       const trimmed = raw.trim();
       if (trimmed === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(trimmed)) {
         alert('その名前は場所に使えません。');
-        fillPlaceSelect(select, '');
+        fillPlaceSelect(select, previous);
         return;
       }
       const added = ensurePlace(trimmed);
       persistMasters();
       fillPlaceSelect(select, added);
+      const other = select.id === 'edit-item-places'
+        ? document.getElementById('new-item-places')
+        : document.getElementById('edit-item-places');
+      if (other) {
+        const otherVal = other.value === ADD_NEW_VALUE ? '' : other.value;
+        fillPlaceSelect(other, otherVal);
+      }
     }
 
     function itemMatchesCyclePlace(item, cycleFilter, placeFilter) {
@@ -3336,7 +3345,6 @@
       document.getElementById('edit-item-threshold').value = item.orderThreshold;
       fillCategorySelect(document.getElementById('edit-item-category'), item.category);
       fillCyclePlacePickers('edit-item', itemCheckUnits(item));
-      document.getElementById('edit-item-last-order').value = normalizeDate(item.lastOrderedOn) || '';
       syncUnitReadouts();
       document.getElementById('edit-modal').style.display = 'flex';
       syncBodyScrollLock();
@@ -3377,7 +3385,6 @@
       rememberUnit(unit);
       item.target = parseNonNeg(document.getElementById('edit-item-target').value);
       item.orderThreshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
-      item.lastOrderedOn = normalizeDate(document.getElementById('edit-item-last-order').value);
       setItemCheckUnits(item, units);
       closeEditModal();
       saveAndRender();
@@ -3440,7 +3447,6 @@
       const unit = document.getElementById('new-item-unit').value;
       const target = parseNonNeg(document.getElementById('new-item-target').value);
       const orderThreshold = parseNonNeg(document.getElementById('new-item-threshold').value);
-      const lastOrderedOn = normalizeDate(document.getElementById('new-item-last-order').value);
 
       if (!name) {
         alert("アイテム名を入力してください");
@@ -3465,7 +3471,7 @@
         orderThreshold,
         unit,
         entered: false,
-        lastOrderedOn
+        lastOrderedOn: null
       };
       if (item.category) ensureCategory(item.category);
       setItemCheckUnits(item, units);
