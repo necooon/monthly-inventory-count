@@ -452,10 +452,18 @@
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
+  .inventory-action-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .inventory-action-row .open-modal-btn {
+    flex: 1;
+    margin-bottom: 0;
+  }
   .reset-btn {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 16px;
+    flex-shrink: 0;
+    padding: 12px 14px;
     background: white;
     color: #c62828;
     border: 1px solid #ef9a9a;
@@ -463,6 +471,7 @@
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
   }
   .reset-btn:active {
     background: #ffebee;
@@ -692,10 +701,10 @@
   <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
   <nav class="drawer" id="drawer">
     <div class="drawer-title">メニュー</div>
-    <button class="drawer-item" id="nav-items" onclick="showPage('items')">📋 アイテム一覧</button>
+    <button class="drawer-item" id="nav-items" onclick="showPage('items')">📋 All Item</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 Check List</button>
-    <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
-    <button class="drawer-item" id="nav-settings" onclick="showPage('settings')">⚙️ 設定</button>
+    <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 Shopping</button>
+    <button class="drawer-item" id="nav-settings" onclick="showPage('settings')">⚙️ Setting</button>
     <button class="drawer-item danger" onclick="resetAllInventory()">🔄 リセット</button>
   </nav>
 
@@ -709,9 +718,10 @@
   <!-- チェック画面 -->
   <div class="page" id="page-inventory">
   <div class="filter-bar" id="location-filters"></div>
-  <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
-  <!-- 新規追加ボタン（リスト上部） -->
-  <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
+  <div class="inventory-action-row">
+    <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
+    <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
+  </div>
 
   <!-- リスト表示エリア -->
   <div id="stock-list"></div>
@@ -896,10 +906,10 @@
     let householdId = HOUSEHOLD_ID;
 
     const PAGE_TITLES = {
-      items: '📋 アイテム一覧',
+      items: '📋 All Item',
       inventory: 'Stock & Check',
-      order: '🛒 発注リスト',
-      settings: '⚙️ 設定'
+      order: '🛒 Shopping',
+      settings: '⚙️ Setting'
     };
     const PAGE_IDS = ['items', 'inventory', 'order', 'settings'];
     if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
