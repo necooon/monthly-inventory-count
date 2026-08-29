@@ -202,6 +202,30 @@
   .item.inventory-item {
     cursor: default;
   }
+  .item.inventory-item {
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    gap: 0;
+  }
+  .inventory-line {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(52px, 76px) 40px minmax(2em, 2.8em);
+    align-items: center;
+    column-gap: 4px;
+    width: 100%;
+  }
+  .inventory-line .item-name {
+    min-width: 0;
+  }
+  .inventory-line .count-shared-note {
+    grid-column: 3 / 7;
+    margin: 0;
+  }
+  .item.inventory-item .item-edit-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
   .item-head {
     display: flex;
     align-items: flex-start;
@@ -493,24 +517,32 @@
   }
   .count-row {
     display: grid;
-    grid-template-columns: minmax(52px, auto) minmax(0, 1fr) minmax(3em, auto);
+    grid-template-columns: 44px minmax(0, 1fr) 44px minmax(3em, auto);
     align-items: center;
     column-gap: 6px;
     width: 100%;
   }
-  .zero-btn {
-    min-width: 56px;
+  .count-step {
+    min-width: 44px;
     min-height: 44px;
-    padding: 0 4px !important;
-    font-size: 12px !important;
+    padding: 0 !important;
+    font-size: 22px !important;
     font-weight: bold;
-    background: #eceff1 !important;
-    color: #37474f !important;
+    background: #e3f2fd !important;
+    color: #1565c0 !important;
     border-radius: 8px !important;
-    white-space: nowrap;
   }
-  .zero-btn:active {
-    background: #cfd8dc !important;
+  .count-step:active {
+    background: #bbdefb !important;
+  }
+  .count-step:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .count-input.unentered {
+    border-color: #cfd8dc;
+    font-weight: normal;
+    color: #546e7a;
   }
   .unit-suffix {
     display: block;
@@ -653,7 +685,7 @@
     gap: 10px;
     margin-bottom: 20px;
   }
-  .inventory-action-row .open-modal-btn {
+  .inventory-action-row .reset-btn {
     flex: 1 1 160px;
     margin-bottom: 0;
   }
@@ -1034,8 +1066,7 @@
     .inventory-action-row {
       flex-direction: column;
     }
-    .inventory-action-row .open-modal-btn,
-    .reset-btn {
+    .inventory-action-row .reset-btn {
       flex: 1 1 100%;
       width: 100%;
     }
@@ -1092,9 +1123,8 @@
     <span id="inventory-progress-label"></span>
     <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" id="inventory-progress-fill"></div></div>
   </div>
-  <div class="inventory-action-row">
+  <div class="inventory-action-row" id="inventory-action-row" hidden>
     <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
-    <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
   </div>
 
   <!-- リスト表示エリア -->
@@ -1806,8 +1836,6 @@
       if (page === 'items') page = 'settings';
       currentPage = page;
       localStorage.setItem('currentPage', page);
-      document.getElementById('page-title').textContent = APP_TITLE;
-      document.title = APP_TITLE;
       PAGE_IDS.forEach(p => {
         document.getElementById(`page-${p}`).classList.toggle('active', p === page);
         const nav = document.getElementById(`nav-${p}`);
@@ -2058,13 +2086,20 @@
       const category = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
       const chips = values => values.map(v => `<span class="item-location">${v}</span>`).join('');
       const hidePlace = options && options.hidePlace;
-      return `
-        <div class="item-fields">
-          <div class="item-field"><span class="item-field-label">チェック頻度</span><span class="item-location-wrap">${chips(cycles)}</span></div>
-          <div class="item-field"><span class="item-field-label">カテゴリ</span><span class="item-location-wrap">${chips([category])}</span></div>
-          ${hidePlace ? '' : `<div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>`}
-        </div>
-      `;
+      const hideCycle = options && options.hideCycle;
+      const hideCategory = options && options.hideCategory;
+      const rows = [];
+      if (!hideCycle) {
+        rows.push(`<div class="item-field"><span class="item-field-label">チェック頻度</span><span class="item-location-wrap">${chips(cycles)}</span></div>`);
+      }
+      if (!hideCategory) {
+        rows.push(`<div class="item-field"><span class="item-field-label">カテゴリ</span><span class="item-location-wrap">${chips([category])}</span></div>`);
+      }
+      if (!hidePlace) {
+        rows.push(`<div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>`);
+      }
+      if (!rows.length) return '';
+      return `<div class="item-fields">${rows.join('')}</div>`;
     }
 
     function allUnits() {
@@ -2434,10 +2469,12 @@
 
     function updateResetLocationButton() {
       const btn = document.getElementById('reset-location-btn');
+      const row = document.getElementById('inventory-action-row');
       const label = inventoryFilterLabel();
       const show = !!label;
       btn.hidden = !show;
       btn.textContent = show ? `「${label}」をリセット` : 'リセット';
+      if (row) row.hidden = !show;
     }
 
     function resetEnteredItems(cycleFilter, placeFilter) {
@@ -3123,10 +3160,28 @@
       return places.slice().sort((a, b) => placeSortIndex(a) - placeSortIndex(b) || a.localeCompare(b, 'ja'))[0];
     }
 
+    function updatePageTitle() {
+      const titleEl = document.getElementById('page-title');
+      if (!titleEl) return;
+      if (currentPage !== 'inventory') {
+        titleEl.textContent = APP_TITLE;
+        document.title = APP_TITLE;
+        return;
+      }
+      const items = getScopeItems();
+      const remaining = items.filter(item => !item.entered).length;
+      const place = inventoryPlaceFilter !== ALL_FILTER ? placeLabel(inventoryPlaceFilter === UNSET_PLACE_FILTER ? '' : inventoryPlaceFilter) : '';
+      const rest = remaining === 0 ? '完了' : `未入力 ${remaining}`;
+      const text = place ? `${place} · ${rest}` : rest;
+      titleEl.textContent = text;
+      document.title = text;
+    }
+
     function updateInventoryProgress() {
       const wrap = document.getElementById('inventory-progress');
       const label = document.getElementById('inventory-progress-label');
       const fill = document.getElementById('inventory-progress-fill');
+      updatePageTitle();
       if (!wrap || !label || !fill) return;
       const items = getScopeItems();
       if (!items.length) {
@@ -3134,8 +3189,11 @@
         return;
       }
       const done = items.filter(item => item.entered).length;
+      const remaining = items.length - done;
       wrap.hidden = false;
-      label.textContent = `${done} / ${items.length} 件入力済み`;
+      label.textContent = inventoryUnenteredOnly
+        ? (remaining === 0 ? '未入力はありません' : `残り ${remaining} 件`)
+        : `${done} / ${items.length} 件入力済み`;
       fill.style.width = `${Math.round((done / items.length) * 100)}%`;
     }
 
@@ -3257,35 +3315,22 @@
           const itemDiv = document.createElement('div');
           itemDiv.className = `item inventory-item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
           itemDiv.dataset.itemId = item.id;
-          const countDisplay = item.entered ? item.count : '';
-          const lastOrderText = formatLastOrder(item.lastOrderedOn);
+          const countDisplay = item.entered ? String(item.count) : '';
           const showCount = primaryCountPlace(item) === place;
-          const countHtml = showCount ? `
-                <div class="controls">
-                  <div class="count-container">
-                    <div class="count-row">
-                      <button type="button" class="zero-btn" data-item-id="${item.id}" onclick="setCountZero(event, this.dataset.itemId)">在庫0</button>
-                      <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" placeholder="" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
-                      <span class="unit-suffix">${item.unit}</span>
-                    </div>
-                  </div>
-                </div>` : `<p class="count-shared-note">在庫は共通です。数量は「${primaryCountPlace(item)}」で入力してください。${item.entered ? `（現在 ${formatQty(item.count, item.unit)}）` : '（未入力）'}</p>`;
+          const minusDisabled = item.entered && item.count <= 0;
+          const countControls = showCount ? `
+                      <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1減らす" ${minusDisabled ? 'disabled' : ''} onclick="adjustCount(event, this.dataset.itemId, -1)">−</button>
+                      <input type="text" class="count-input${item.entered ? '' : ' unentered'}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" placeholder="未入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
+                      <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1増やす" onclick="adjustCount(event, this.dataset.itemId, 1)">＋</button>
+                      <span class="unit-suffix">${item.unit}</span>` : `<span class="count-shared-note">「${primaryCountPlace(item)}」で入力${item.entered ? ` · ${formatQty(item.count, item.unit)}` : ' · 未入力'}</span>`;
           itemDiv.innerHTML = `
-            <div class="item-info">
-              <div class="item-head">
-                <span class="item-name">
-                  <span class="item-name-text">${item.name}</span>
-                  ${itemNeedsOrder ? '<span class="order-badge">発注</span>' : ''}
-                </span>
-                <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
-              </div>
-              <div class="item-row">
-                <div class="item-side">
-                  ${itemFieldsHtml(item, { hidePlace: true })}
-                  ${lastOrderText ? `<span class="item-last-order">前回発注: ${lastOrderText}</span>` : ''}
-                </div>
-                ${countHtml}
-              </div>
+            <div class="inventory-line">
+              <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
+              <span class="item-name">
+                <span class="item-name-text">${item.name}</span>
+                ${itemNeedsOrder ? '<span class="order-badge">発注</span>' : ''}
+              </span>
+              ${countControls}
             </div>
           `;
           body.appendChild(itemDiv);
@@ -3498,12 +3543,18 @@
     }
 
     // 数量を直接入力して変更する関数
-    function setCountZero(event, id) {
+    function adjustCount(event, id, delta) {
       event.stopPropagation();
-      updateCountDirect(id, '0');
+      const item = findItemById(id);
+      if (!item) return;
+      const step = Number(delta);
+      if (item.entered && item.count <= 0 && step < 0) return;
+      const current = item.entered ? item.count : 0;
+      const next = Math.max(0, current + step);
+      updateCountDirect(id, String(next), { keepFocus: true });
     }
 
-    function updateCountDirect(id, value) {
+    function updateCountDirect(id, value, options) {
       const item = findItemById(id);
       if (!item) return;
       const trimmed = String(value).trim();
@@ -3518,7 +3569,8 @@
         item.entered = true;
         moveToUnentered = true;
       }
-      const nextId = moveToUnentered ? nextUnenteredIdAfter(id) : null;
+      const jump = moveToUnentered && !(options && options.keepFocus);
+      const nextId = jump ? nextUnenteredIdAfter(id) : null;
       saveAndRender();
       if (nextId != null) {
         requestAnimationFrame(() => focusCountInput(nextId));
