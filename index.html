@@ -147,6 +147,20 @@
     border-color: #2196F3;
     box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
   }
+  .item.draggable-item .item-name {
+    cursor: grab;
+    touch-action: none;
+  }
+  .item.item-dragging {
+    opacity: 0.55;
+  }
+  .order-group.item-drop-target > .order-group-title,
+  .order-group.item-drop-target > .order-group-items {
+    box-shadow: inset 0 0 0 2px #1565c0;
+  }
+  .order-group.item-drop-target > .order-group-items {
+    border-radius: 0 0 8px 8px;
+  }
   .item .controls {
     cursor: default;
     flex-shrink: 0;
@@ -242,6 +256,27 @@
     color: #666;
     font-weight: normal;
     font-size: 0.9em;
+  }
+  .order-group-grip {
+    flex-shrink: 0;
+    color: #999;
+    font-size: 0.85em;
+    letter-spacing: -2px;
+    user-select: none;
+    padding-right: 2px;
+  }
+  .order-group.draggable-place .order-group-title {
+    cursor: grab;
+    touch-action: none;
+  }
+  .order-group.place-dragging {
+    opacity: 0.55;
+  }
+  .order-group.drag-over-top .order-group-title {
+    box-shadow: inset 0 3px 0 #1565c0;
+  }
+  .order-group.drag-over-bottom .order-group-title {
+    box-shadow: inset 0 -3px 0 #1565c0;
   }
   .order-group:first-child .order-group-title {
     margin-top: 0;
@@ -436,7 +471,7 @@
     text-align: right; 
     font-weight: bold;
     border: 1px solid #90caf9;
-    background: #e3f2fd;
+    background: transparent;
     border-radius: 8px;
     padding: 8px 8px 8px 6px;
     box-sizing: border-box;
@@ -446,7 +481,7 @@
     outline: none;
     border-color: #1565c0;
     box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
-    background: white;
+    background: transparent;
   }
   .count-input::placeholder {
     color: #90a4ae;
@@ -922,6 +957,10 @@
     let inventoryCycleFilter = ALL_FILTER;
     let inventoryPlaceFilter = ALL_FILTER;
     let inventoryCollapsedPlaces = loadInventoryCollapsedPlaces();
+    let inventoryGroupOrder = loadInventoryGroupOrder();
+    let inventoryPlaceDrag = null;
+    let inventoryItemDrag = null;
+    let suppressInventoryItemClick = false;
     let catalogCycleFilter = ALL_FILTER;
     let catalogPlaceFilter = ALL_FILTER;
     let catalogCategoryFilter = ALL_FILTER;
@@ -1150,6 +1189,13 @@
         const idx = customPlaces.indexOf(oldName);
         if (idx < 0) return;
         customPlaces[idx] = next;
+        inventoryGroupOrder = inventoryGroupOrder.map(p => p === oldName ? next : p);
+        if (inventoryCollapsedPlaces.has(oldName)) {
+          inventoryCollapsedPlaces.delete(oldName);
+          inventoryCollapsedPlaces.add(next);
+          persistInventoryCollapsedPlaces();
+        }
+        persistInventoryGroupOrder();
         rewriteCheckUnits(u => u.place === oldName ? { cycle: u.cycle, place: next } : u);
         inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, oldName, next);
         catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, oldName, next);
@@ -1188,6 +1234,12 @@
         const count = stockItems.filter(item => itemCheckUnits(item).some(u => u.place === name)).length;
         if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムの場所は未選択になります。` : ''}`)) return;
         customPlaces = customPlaces.filter(v => v !== name);
+        inventoryGroupOrder = inventoryGroupOrder.filter(p => p !== name);
+        if (inventoryCollapsedPlaces.has(name)) {
+          inventoryCollapsedPlaces.delete(name);
+          persistInventoryCollapsedPlaces();
+        }
+        persistInventoryGroupOrder();
         rewriteCheckUnits(u => u.place === name ? { cycle: u.cycle, place: '' } : u);
         inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, name, ALL_FILTER);
         catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, name, ALL_FILTER);
@@ -1988,6 +2040,7 @@
       applyingRemote = true;
       customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
       customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
+      reconcileInventoryGroupOrder();
       customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
         cycle: customCycles[0] || DEFAULT_CYCLES[0],
         place
@@ -2324,10 +2377,275 @@
       return places.length ? places : [UNSET_PLACE_FILTER];
     }
 
-    function inventoryPlaceOrder() {
+    function inventoryPlaceOrderFromCustomPlaces() {
       const names = customPlaces.filter(Boolean);
       if (!names.includes(UNSET_PLACE_FILTER)) names.push(UNSET_PLACE_FILTER);
       return names;
+    }
+
+    function loadInventoryGroupOrder() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem('inventoryGroupOrder'));
+        if (Array.isArray(parsed)) return parsed.map(v => String(v));
+      } catch (e) { /* ignore */ }
+      return [];
+    }
+
+    function persistInventoryGroupOrder() {
+      localStorage.setItem('inventoryGroupOrder', JSON.stringify(inventoryGroupOrder));
+    }
+
+    function reconcileInventoryGroupOrder() {
+      const base = inventoryPlaceOrderFromCustomPlaces();
+      if (!inventoryGroupOrder.length) return;
+      const ordered = inventoryGroupOrder.filter(p => base.includes(p));
+      base.forEach(p => {
+        if (!ordered.includes(p)) ordered.push(p);
+      });
+      inventoryGroupOrder = ordered;
+      persistInventoryGroupOrder();
+    }
+
+    function getEffectiveInventoryGroupOrder() {
+      const base = inventoryPlaceOrderFromCustomPlaces();
+      if (!inventoryGroupOrder.length) return [...base];
+      const ordered = inventoryGroupOrder.filter(p => base.includes(p));
+      base.forEach(p => {
+        if (!ordered.includes(p)) ordered.push(p);
+      });
+      return ordered;
+    }
+
+    function syncCustomPlacesFromGroupOrder(order) {
+      const ordered = order.filter(p => p !== UNSET_PLACE_FILTER && customPlaces.includes(p));
+      const rest = customPlaces.filter(p => !ordered.includes(p));
+      customPlaces = [...ordered, ...rest];
+    }
+
+    function canReorderInventoryPlaces() {
+      return inventoryCycleFilter === ALL_FILTER && inventoryPlaceFilter === ALL_FILTER;
+    }
+
+    function reorderInventoryPlaceGroups(fromPlace, toPlace, insertBefore) {
+      if (!fromPlace || !toPlace || fromPlace === toPlace) return;
+      const order = getEffectiveInventoryGroupOrder();
+      const fromIdx = order.indexOf(fromPlace);
+      const toIdx = order.indexOf(toPlace);
+      if (fromIdx < 0 || toIdx < 0) return;
+      order.splice(fromIdx, 1);
+      let insertAt = order.indexOf(toPlace);
+      if (insertAt < 0) return;
+      if (!insertBefore) insertAt += 1;
+      order.splice(insertAt, 0, fromPlace);
+      inventoryGroupOrder = order;
+      syncCustomPlacesFromGroupOrder(order);
+      persistInventoryGroupOrder();
+      saveAndRender();
+    }
+
+    function clearInventoryPlaceDropIndicators() {
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        group.classList.remove('drag-over-top', 'drag-over-bottom');
+      });
+    }
+
+    function updateInventoryPlaceDropIndicators(clientY, draggedPlace) {
+      clearInventoryPlaceDropIndicators();
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        if (group.dataset.place === draggedPlace) return;
+        const rect = group.getBoundingClientRect();
+        if (clientY < rect.top || clientY > rect.bottom) return;
+        group.classList.add(clientY < rect.top + rect.height / 2 ? 'drag-over-top' : 'drag-over-bottom');
+      });
+    }
+
+    function resolveInventoryPlaceDropTarget(clientY, draggedPlace) {
+      let target = null;
+      let insertBefore = true;
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        const place = group.dataset.place;
+        if (!place || place === draggedPlace) return;
+        const rect = group.getBoundingClientRect();
+        if (clientY < rect.top || clientY > rect.bottom) return;
+        target = place;
+        insertBefore = clientY < rect.top + rect.height / 2;
+      });
+      return target ? { place: target, insertBefore } : null;
+    }
+
+    function setupInventoryPlaceGroupDrag(group, place) {
+      if (!canReorderInventoryPlaces()) return;
+      group.classList.add('draggable-place');
+      const title = group.querySelector('.order-group-title');
+      if (!title || title.dataset.dragBound) return;
+      title.dataset.dragBound = '1';
+
+      title.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        inventoryPlaceDrag = {
+          place,
+          group,
+          startY: e.clientY,
+          active: false,
+          pointerId: e.pointerId,
+          moved: false
+        };
+        title.setPointerCapture(e.pointerId);
+      });
+
+      title.addEventListener('pointermove', (e) => {
+        if (!inventoryPlaceDrag || inventoryPlaceDrag.pointerId !== e.pointerId) return;
+        if (!inventoryPlaceDrag.active) {
+          if (Math.abs(e.clientY - inventoryPlaceDrag.startY) < 8) return;
+          inventoryPlaceDrag.active = true;
+          inventoryPlaceDrag.moved = true;
+          inventoryPlaceDrag.group.classList.add('place-dragging');
+        }
+        updateInventoryPlaceDropIndicators(e.clientY, inventoryPlaceDrag.place);
+      });
+
+      const finishDrag = (e) => {
+        if (!inventoryPlaceDrag || inventoryPlaceDrag.pointerId !== e.pointerId) return;
+        if (title.hasPointerCapture(e.pointerId)) title.releasePointerCapture(e.pointerId);
+        const drag = inventoryPlaceDrag;
+        inventoryPlaceDrag = null;
+        clearInventoryPlaceDropIndicators();
+        drag.group.classList.remove('place-dragging');
+        if (drag.active) {
+          const drop = resolveInventoryPlaceDropTarget(e.clientY, drag.place);
+          if (drop) reorderInventoryPlaceGroups(drag.place, drop.place, drop.insertBefore);
+          return;
+        }
+        if (!drag.moved) toggleInventoryPlaceGroup(place);
+      };
+
+      title.addEventListener('pointerup', finishDrag);
+      title.addEventListener('pointercancel', finishDrag);
+    }
+
+    function canMoveInventoryItems() {
+      return inventoryPlaceFilter === ALL_FILTER;
+    }
+
+    function itemUnitsForInventoryPlace(item, placeLabel) {
+      const place = placeLabel === UNSET_PLACE_FILTER ? '' : placeLabel;
+      return itemCheckUnits(item).filter(u =>
+        (inventoryCycleFilter === ALL_FILTER || u.cycle === inventoryCycleFilter) &&
+        (place ? u.place === place : !u.place)
+      );
+    }
+
+    function moveItemToInventoryPlace(itemId, fromPlaceLabel, toPlaceLabel) {
+      if (fromPlaceLabel === toPlaceLabel) return;
+      const item = findItemById(itemId);
+      if (!item) return;
+      const matching = itemUnitsForInventoryPlace(item, fromPlaceLabel);
+      if (!matching.length) return;
+      const toPlace = toPlaceLabel === UNSET_PLACE_FILTER ? '' : toPlaceLabel;
+      const replaceKeys = new Set(matching.map(u => unitKey(u)));
+      const next = [];
+      itemCheckUnits(item).forEach(u => {
+        if (!replaceKeys.has(unitKey(u))) {
+          next.push(u);
+          return;
+        }
+        const moved = ensureCheckUnit(u.cycle, toPlace);
+        if (moved && !next.some(x => unitsEqual(x, moved))) next.push(moved);
+      });
+      if (!next.length) {
+        alert('チェック頻度を維持できませんでした');
+        return;
+      }
+      setItemCheckUnits(item, next);
+      saveAndRender();
+    }
+
+    function clearInventoryItemDropIndicators() {
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        group.classList.remove('item-drop-target');
+      });
+    }
+
+    function updateInventoryItemDropIndicators(clientY, fromPlace) {
+      clearInventoryItemDropIndicators();
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        const place = group.dataset.place;
+        if (!place || place === fromPlace) return;
+        const rect = group.getBoundingClientRect();
+        if (clientY >= rect.top && clientY <= rect.bottom) {
+          group.classList.add('item-drop-target');
+        }
+      });
+    }
+
+    function resolveInventoryItemDropTarget(clientY, fromPlace) {
+      let target = null;
+      document.querySelectorAll('#stock-list .order-group').forEach(group => {
+        const place = group.dataset.place;
+        if (!place || place === fromPlace) return;
+        const rect = group.getBoundingClientRect();
+        if (clientY >= rect.top && clientY <= rect.bottom) target = place;
+      });
+      return target;
+    }
+
+    function setupInventoryItemDrag(itemDiv, item, placeLabel) {
+      if (!canMoveInventoryItems()) return;
+      itemDiv.classList.add('draggable-item');
+      itemDiv.dataset.inventoryPlace = placeLabel;
+      const handle = itemDiv.querySelector('.item-name');
+      if (!handle || handle.dataset.itemDragBound) return;
+      handle.dataset.itemDragBound = '1';
+
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.stopPropagation();
+        inventoryItemDrag = {
+          itemId: item.id,
+          fromPlace: placeLabel,
+          element: itemDiv,
+          startX: e.clientX,
+          startY: e.clientY,
+          active: false,
+          moved: false,
+          pointerId: e.pointerId
+        };
+        handle.setPointerCapture(e.pointerId);
+      });
+
+      handle.addEventListener('pointermove', (e) => {
+        if (!inventoryItemDrag || inventoryItemDrag.pointerId !== e.pointerId) return;
+        if (!inventoryItemDrag.active) {
+          if (Math.hypot(e.clientX - inventoryItemDrag.startX, e.clientY - inventoryItemDrag.startY) < 10) return;
+          inventoryItemDrag.active = true;
+          inventoryItemDrag.moved = true;
+          inventoryItemDrag.element.classList.add('item-dragging');
+        }
+        updateInventoryItemDropIndicators(e.clientY, inventoryItemDrag.fromPlace);
+      });
+
+      const finishItemDrag = (e) => {
+        if (!inventoryItemDrag || inventoryItemDrag.pointerId !== e.pointerId) return;
+        if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
+        const drag = inventoryItemDrag;
+        inventoryItemDrag = null;
+        clearInventoryItemDropIndicators();
+        drag.element.classList.remove('item-dragging');
+        if (drag.active) {
+          suppressInventoryItemClick = true;
+          setTimeout(() => { suppressInventoryItemClick = false; }, 0);
+          const target = resolveInventoryItemDropTarget(e.clientY, drag.fromPlace);
+          if (target) moveItemToInventoryPlace(drag.itemId, drag.fromPlace, target);
+          e.stopPropagation();
+        }
+      };
+
+      handle.addEventListener('pointerup', finishItemDrag);
+      handle.addEventListener('pointercancel', finishItemDrag);
+    }
+
+    function inventoryPlaceOrder() {
+      return getEffectiveInventoryGroupOrder();
     }
 
     function loadInventoryCollapsedPlaces() {
@@ -2407,11 +2725,11 @@
         const group = document.createElement('div');
         group.className = `order-group${collapsed ? ' collapsed' : ''}`;
         group.dataset.place = place;
+        const draggable = canReorderInventoryPlaces();
         const title = document.createElement('button');
         title.type = 'button';
         title.className = 'order-group-title';
-        title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
-        title.onclick = () => toggleInventoryPlaceGroup(place);
+        title.innerHTML = `${draggable ? '<span class="order-group-grip" aria-hidden="true">⋮⋮</span>' : ''}<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
         group.appendChild(title);
         const body = document.createElement('div');
         body.className = 'order-group-items';
@@ -2437,7 +2755,7 @@
                   <div class="count-container">
                     <div class="count-row">
                       <button type="button" class="zero-btn" data-item-id="${item.id}" onclick="setCountZero(event, this.dataset.itemId)">在庫0</button>
-                      <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
+                      <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
                       <span class="unit-suffix">${item.unit}</span>
                     </div>
                   </div>
@@ -2446,12 +2764,15 @@
             </div>
           `;
           itemDiv.addEventListener('click', (e) => {
+            if (suppressInventoryItemClick) return;
             if (e.target.closest('.count-container')) return;
             selectAndEditItem(item.id);
           });
+          setupInventoryItemDrag(itemDiv, item, place);
           body.appendChild(itemDiv);
         });
         group.appendChild(body);
+        setupInventoryPlaceGroupDrag(group, place);
         listDiv.appendChild(group);
       });
     }
