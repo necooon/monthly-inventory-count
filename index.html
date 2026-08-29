@@ -709,9 +709,8 @@
           <button type="button" class="link-add-unit" onclick="addNameFromForm('cycle', 'edit-item-cycles')">＋新しいチェック頻度を追加...</button>
         </div>
         <div class="field">
-          <label>場所</label>
-          <div class="check-unit-picker" id="edit-item-places"></div>
-          <button type="button" class="link-add-unit" onclick="addNameFromForm('place', 'edit-item-places')">＋新しい場所を追加...</button>
+          <label for="edit-item-place">場所</label>
+          <select id="edit-item-place" onchange="handlePlaceSelectChange(this)"></select>
         </div>
       </div>
       <label for="edit-item-last-order">前回の発注日</label>
@@ -1158,12 +1157,28 @@
     function fillCyclePlacePickers(prefix, selectedUnits) {
       const units = selectedUnits || [];
       fillNamePicker(prefix + '-cycles', customCycles, [...new Set(units.map(u => u.cycle).filter(Boolean))]);
-      fillNamePicker(prefix + '-places', customPlaces, [...new Set(units.map(u => u.place).filter(Boolean))]);
+      const placeSelect = document.getElementById(prefix + '-place');
+      if (placeSelect) {
+        const named = [...new Set(units.map(u => u.place).filter(Boolean))];
+        fillPlaceSelect(placeSelect, named[0] || '');
+      } else {
+        fillNamePicker(prefix + '-places', customPlaces, [...new Set(units.map(u => u.place).filter(Boolean))]);
+      }
+    }
+
+    function selectedPlacesFromPrefix(prefix) {
+      const placeSelect = document.getElementById(prefix + '-place');
+      if (placeSelect) {
+        const value = placeSelect.value;
+        if (!value || value === ADD_NEW_VALUE) return [];
+        return [value];
+      }
+      return getSelectedNames(prefix + '-places');
     }
 
     function unitsFromCyclePlacePickers(prefix) {
       const cycles = getSelectedNames(prefix + '-cycles');
-      const places = getSelectedNames(prefix + '-places');
+      const places = selectedPlacesFromPrefix(prefix);
       const units = [];
       if (cycles.length && !places.length) {
         cycles.forEach(cycle => {
@@ -1189,16 +1204,17 @@
       });
     }
 
-    function itemFieldsHtml(item) {
+    function itemFieldsHtml(item, options) {
       const cycles = [...new Set(itemCheckUnits(item).map(u => u.cycle))];
       const places = [...new Set(itemCheckUnits(item).map(u => placeLabel(u.place)))];
       const category = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
       const chips = values => values.map(v => `<span class="item-location">${v}</span>`).join('');
+      const hidePlace = options && options.hidePlace;
       return `
         <div class="item-fields">
           <div class="item-field"><span class="item-field-label">チェック頻度</span><span class="item-location-wrap">${chips(cycles)}</span></div>
           <div class="item-field"><span class="item-field-label">カテゴリ</span><span class="item-location-wrap">${chips([category])}</span></div>
-          <div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>
+          ${hidePlace ? '' : `<div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>`}
         </div>
       `;
     }
@@ -1326,6 +1342,47 @@
       const added = ensureCategory(raw.trim());
       persistMasters();
       fillCategorySelect(select, added);
+    }
+
+    function fillPlaceSelect(select, selectedValue) {
+      if (!select) return;
+      const names = customPlaces.filter(name => name && name !== REMOVED_LOCATION);
+      const current = String(selectedValue || '').trim();
+      select.innerHTML = '';
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = UNSET_PLACE_FILTER;
+      select.appendChild(none);
+      names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+      const addOption = document.createElement('option');
+      addOption.value = ADD_NEW_VALUE;
+      addOption.textContent = '＋新しい場所を追加...';
+      addOption.style.fontWeight = 'bold';
+      select.appendChild(addOption);
+      select.value = current && names.includes(current) ? current : '';
+    }
+
+    async function handlePlaceSelectChange(select) {
+      if (select.value !== ADD_NEW_VALUE) return;
+      const raw = await showPrompt('新しい場所の名前を入力してください');
+      if (!raw || !raw.trim()) {
+        fillPlaceSelect(select, '');
+        return;
+      }
+      const trimmed = raw.trim();
+      if (trimmed === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(trimmed)) {
+        alert('その名前は場所に使えません。');
+        fillPlaceSelect(select, '');
+        return;
+      }
+      const added = ensurePlace(trimmed);
+      persistMasters();
+      fillPlaceSelect(select, added);
     }
 
     function itemMatchesCyclePlace(item, cycleFilter, placeFilter) {
@@ -1975,6 +2032,22 @@
       return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, inventoryPlaceFilter));
     }
 
+    function inventoryPlacesForItem(item) {
+      const units = itemCheckUnits(item).filter(u =>
+        (inventoryCycleFilter === ALL_FILTER || u.cycle === inventoryCycleFilter) &&
+        (inventoryPlaceFilter === ALL_FILTER ||
+          (inventoryPlaceFilter === UNSET_PLACE_FILTER ? !u.place : u.place === inventoryPlaceFilter))
+      );
+      const places = [...new Set(units.map(u => u.place ? u.place : UNSET_PLACE_FILTER))];
+      return places.length ? places : [UNSET_PLACE_FILTER];
+    }
+
+    function inventoryPlaceOrder() {
+      const names = customPlaces.filter(Boolean);
+      if (!names.includes(UNSET_PLACE_FILTER)) names.push(UNSET_PLACE_FILTER);
+      return names;
+    }
+
     function nextUnenteredIdAfter(id) {
       const visible = getFilteredItems();
       const idx = visible.findIndex(item => String(item.id) === String(id));
@@ -2010,44 +2083,66 @@
       renderItemsCatalog();
       updateResetLocationButton();
 
+      const groups = new Map();
       filteredItems.forEach(item => {
-        const itemNeedsOrder = needsOrder(item);
-        
-        const itemDiv = document.createElement('div');
-        itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
-        itemDiv.dataset.itemId = item.id;
+        inventoryPlacesForItem(item).forEach(place => {
+          if (!groups.has(place)) groups.set(place, []);
+          groups.get(place).push(item);
+        });
+      });
+      const placeOrder = inventoryPlaceOrder();
+      const keys = [...groups.keys()].sort((a, b) => {
+        const ia = placeOrder.indexOf(a);
+        const ib = placeOrder.indexOf(b);
+        const sa = ia < 0 ? 999 : ia;
+        const sb = ib < 0 ? 999 : ib;
+        return sa - sb || a.localeCompare(b, 'ja');
+      });
 
-        const countDisplay = item.entered ? item.count : '';
-
-        const lastOrderText = formatLastOrder(item.lastOrderedOn);
-        itemDiv.innerHTML = `
-          <div class="item-info">
-            <span class="item-name">
-              <span class="item-name-text">${item.name}</span>
-              ${itemNeedsOrder ? '<span class="order-badge">発注！</span>' : ''}
-            </span>
-            <div class="item-row">
-              <div class="item-side">
-                ${itemFieldsHtml(item)}
-                ${lastOrderText ? `<span class="item-last-order">前回発注: ${lastOrderText}</span>` : ''}
-              </div>
-              <div class="controls">
-                <div class="count-container">
-                  <div class="count-row">
-                    <button type="button" class="zero-btn" data-item-id="${item.id}" onclick="setCountZero(event, this.dataset.itemId)">在庫0</button>
-                    <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
-                    <span class="unit-suffix">${item.unit}</span>
+      keys.forEach(place => {
+        const group = document.createElement('div');
+        group.className = 'order-group';
+        const title = document.createElement('div');
+        title.className = 'order-group-title';
+        title.textContent = place;
+        group.appendChild(title);
+        groups.get(place).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(item => {
+          const itemNeedsOrder = needsOrder(item);
+          const itemDiv = document.createElement('div');
+          itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
+          itemDiv.dataset.itemId = item.id;
+          const countDisplay = item.entered ? item.count : '';
+          const lastOrderText = formatLastOrder(item.lastOrderedOn);
+          itemDiv.innerHTML = `
+            <div class="item-info">
+              <span class="item-name">
+                <span class="item-name-text">${item.name}</span>
+                ${itemNeedsOrder ? '<span class="order-badge">発注！</span>' : ''}
+              </span>
+              <div class="item-row">
+                <div class="item-side">
+                  ${itemFieldsHtml(item, { hidePlace: true })}
+                  ${lastOrderText ? `<span class="item-last-order">前回発注: ${lastOrderText}</span>` : ''}
+                </div>
+                <div class="controls">
+                  <div class="count-container">
+                    <div class="count-row">
+                      <button type="button" class="zero-btn" data-item-id="${item.id}" onclick="setCountZero(event, this.dataset.itemId)">在庫0</button>
+                      <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
+                      <span class="unit-suffix">${item.unit}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        `;
-        itemDiv.addEventListener('click', (e) => {
-          if (e.target.closest('.count-container')) return;
-          selectAndEditItem(item.id);
+          `;
+          itemDiv.addEventListener('click', (e) => {
+            if (e.target.closest('.count-container')) return;
+            selectAndEditItem(item.id);
+          });
+          group.appendChild(itemDiv);
         });
-        listDiv.appendChild(itemDiv);
+        listDiv.appendChild(group);
       });
     }
 
