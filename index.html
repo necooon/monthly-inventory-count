@@ -344,7 +344,7 @@
   .count-row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
   .unit-suffix {
     font-size: 0.85em;
@@ -370,13 +370,28 @@
     flex-shrink: 0;
   }
   .count-input { 
-    font-size: 1.2em; 
-    width: 60px; 
+    font-size: 1.35em; 
+    width: 72px; 
+    min-height: 44px;
     text-align: center; 
     font-weight: bold;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
+    border: 1px solid #90caf9;
+    background: #e3f2fd;
+    border-radius: 8px;
+    padding: 8px 6px;
+    box-sizing: border-box;
+    caret-color: #1565c0;
+  }
+  .count-input:focus {
+    outline: none;
+    border-color: #1565c0;
+    box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
+    background: white;
+  }
+  .count-input::placeholder {
+    color: #90a4ae;
+    font-weight: normal;
+    font-size: 0.85em;
   }
   /* 数値入力のスピンボタンを非表示にする（すっきり見せるため） */
   .count-input::-webkit-outer-spin-button,
@@ -410,6 +425,24 @@
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .reset-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 16px;
+    background: white;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .reset-btn:active {
+    background: #ffebee;
+  }
+  .drawer-item.danger {
+    color: #c62828;
   }
   
   /* モーダル（別ページ風の追加画面）のデザイン */
@@ -547,6 +580,7 @@
     <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 保管場所</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 棚卸</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
+    <button class="drawer-item danger" onclick="resetAllInventory()">🔄 棚卸をリセット</button>
   </nav>
 
   <!-- 保管場所一覧 -->
@@ -559,6 +593,7 @@
   <div class="page" id="page-inventory">
   <button type="button" class="back-btn" onclick="showPage('locations')">← 保管場所一覧</button>
   <div class="filter-bar" id="location-filters"></div>
+  <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>この場所の棚卸をリセット</button>
   <!-- 新規追加ボタン（リスト上部） -->
   <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
 
@@ -888,6 +923,42 @@
         saveAndRender();
       };
       filterDiv.appendChild(select);
+      updateResetLocationButton();
+    }
+
+    function updateResetLocationButton() {
+      const btn = document.getElementById('reset-location-btn');
+      const show = currentFilter !== 'すべて' && customLocations.includes(currentFilter);
+      btn.hidden = !show;
+      btn.textContent = show ? `「${currentFilter}」の棚卸をリセット` : 'この場所の棚卸をリセット';
+    }
+
+    function resetEnteredItems(location) {
+      const targetItems = location
+        ? stockItems.filter(item => item.location === location)
+        : stockItems;
+      if (targetItems.length === 0) {
+        alert(location ? 'この場所にはアイテムがありません' : 'リセットするアイテムがありません');
+        return;
+      }
+      const scope = location ? `「${location}」の` : 'すべての';
+      if (!confirm(`${scope}棚卸をリセットしますか？\n品名・場所・必要数はそのまま残し、すべて未入力になります。`)) {
+        return;
+      }
+      targetItems.forEach(item => {
+        item.entered = false;
+      });
+      saveAndRender();
+    }
+
+    function resetAllInventory() {
+      closeDrawer();
+      resetEnteredItems(null);
+    }
+
+    function resetCurrentLocation() {
+      if (currentFilter === 'すべて' || !customLocations.includes(currentFilter)) return;
+      resetEnteredItems(currentFilter);
     }
 
     function needsOrder(item) {
@@ -1245,6 +1316,7 @@
 
       renderOrderList();
       renderLocationList();
+      updateResetLocationButton();
 
       filteredItems.forEach(item => {
         const itemNeedsOrder = needsOrder(item);
@@ -1267,14 +1339,12 @@
                 <span class="item-threshold">発注基準: ${formatQty(item.orderThreshold, item.unit)}</span>
               </div>
               <div class="controls">
-                <button type="button" onclick="updateCount(${item.id}, -1)">-</button>
                 <div class="count-container">
                   <div class="count-row">
-                    <input type="number" class="count-input" value="${countDisplay}" min="0" onchange="updateCountDirect(${item.id}, this.value)">
+                    <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
                     <span class="unit-suffix">${item.unit}</span>
                   </div>
                 </div>
-                <button type="button" onclick="updateCount(${item.id}, 1)">+</button>
                 <button type="button" class="edit-btn" onclick="selectAndEditItem(${item.id})">編集</button>
               </div>
             </div>
@@ -1381,31 +1451,38 @@
       if (editingItemId) deleteItem(editingItemId);
     }
 
-    // 数量を直接入力して変更する関数
-    function updateCountDirect(id, value) {
-      const item = stockItems.find(i => i.id === id);
-      if (item) {
-        const newCount = parseInt(value, 10);
-        if (value === '' || isNaN(newCount)) {
-          item.count = 0;
-          item.entered = false;
-        } else {
-          item.count = newCount < 0 ? 0 : newCount;
-          item.entered = true;
-        }
-        saveAndRender();
+    function findItemById(id) {
+      const key = String(id);
+      return stockItems.find(i => String(i.id) === key);
+    }
+
+    function handleCountKey(event) {
+      if (event.isComposing) return;
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
       }
     }
 
-    // 数量を増減する関数
-    function updateCount(id, change) {
-      const item = stockItems.find(i => i.id === id);
-      if (item) {
-        const base = item.entered ? item.count : 0;
-        item.count = Math.max(0, base + change);
+    function filterCountInput(input) {
+      input.value = input.value.replace(/[^\d]/g, '');
+    }
+
+    // 数量を直接入力して変更する関数
+    function updateCountDirect(id, value) {
+      const item = findItemById(id);
+      if (!item) return;
+      const trimmed = String(value).trim();
+      if (trimmed === '') {
+        item.count = 0;
+        item.entered = false;
+      } else {
+        const newCount = parseInt(trimmed, 10);
+        if (isNaN(newCount)) return;
+        item.count = newCount < 0 ? 0 : newCount;
         item.entered = true;
-        saveAndRender();
       }
+      saveAndRender();
     }
 
     // アイテムを追加する関数
