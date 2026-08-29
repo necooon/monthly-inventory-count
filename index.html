@@ -1276,6 +1276,7 @@
     let cloudPushInProgress = false;
     let pullAfterPush = false;
     let skipScheduledCloudSave = false;
+    let localSyncEpoch = 0;
     let householdId = HOUSEHOLD_ID;
 
     const APP_TITLE = 'Check＆Stock';
@@ -1485,7 +1486,7 @@
       return trimmed;
     }
 
-    async function saveMasterChange() {
+    async function persistAndFlushCloud() {
       skipScheduledCloudSave = true;
       try {
         saveAndRender();
@@ -1493,6 +1494,10 @@
         skipScheduledCloudSave = false;
       }
       await flushCloudSave();
+    }
+
+    async function saveMasterChange() {
+      await persistAndFlushCloud();
     }
 
     async function renameMasterName(kind, oldName) {
@@ -2850,11 +2855,7 @@
           .eq('household_id', householdId);
         if (itemReadError) throw itemReadError;
         const localIds = new Set(stockItems.map(item => String(item.id)));
-        const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(id));
-        if (extraItemIds.length) {
-          const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
-          if (itemDeleteError) throw itemDeleteError;
-        }
+        const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
 
         const membershipRows = [];
         stockItems.forEach(item => {
@@ -2880,6 +2881,10 @@
             .from('item_check_units')
             .insert(membershipRows);
           if (membershipInsertError) throw membershipInsertError;
+        }
+        if (extraItemIds.length) {
+          const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
+          if (itemDeleteError) throw itemDeleteError;
         }
 
         const localUnitKeys = new Set(customCheckUnits.map(unitKey));
@@ -2912,8 +2917,10 @@
 
     async function pullFromCloud() {
       if (!isCloudReady()) return;
+      const epoch = localSyncEpoch;
       try {
         const state = await fetchCloudState();
+        if (epoch !== localSyncEpoch) return;
         if (!state) {
           await pushToCloud();
           return;
@@ -2940,6 +2947,7 @@
         if (remoteSnap === localCloudSnapshot()) {
           return;
         }
+        if (epoch !== localSyncEpoch) return;
         applyFetchedState(state);
       } catch (e) {
         console.error('cloud load failed', e);
@@ -3135,7 +3143,10 @@
       localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
       persistMasters();
       localStorage.setItem('stockUnits', JSON.stringify(customUnits));
-      if (!applyingRemote && !skipScheduledCloudSave) scheduleCloudSave();
+      if (!applyingRemote) {
+        localSyncEpoch += 1;
+        if (!skipScheduledCloudSave) scheduleCloudSave();
+      }
       const listDiv = document.getElementById('stock-list');
       listDiv.innerHTML = '';
 
@@ -3500,13 +3511,13 @@
     }
 
     // アイテムを削除する関数
-    function deleteItem(id) {
-      if(confirm('このアイテムを削除しますか？')){
-        stockItems = stockItems.filter(i => i.id !== id);
-        selectedItemId = null;
-        closeEditModal();
-        saveAndRender();
-      }
+    async function deleteItem(id) {
+      if (!confirm('このアイテムを削除しますか？')) return;
+      const key = String(id);
+      stockItems = stockItems.filter(i => String(i.id) !== key);
+      selectedItemId = null;
+      closeEditModal();
+      await persistAndFlushCloud();
     }
 
     // 初回読み込み時の処理
