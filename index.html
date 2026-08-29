@@ -310,6 +310,15 @@
     padding-top: 3px;
     white-space: nowrap;
   }
+  .order-group-title {
+    font-weight: bold;
+    color: #1565c0;
+    font-size: 0.95em;
+    margin: 16px 0 8px;
+  }
+  .order-group:first-child .order-group-title {
+    margin-top: 0;
+  }
   .field-pair.cycle-place-pair {
     grid-template-columns: 1fr;
   }
@@ -772,6 +781,7 @@
 
   <!-- 発注画面 -->
   <div class="page" id="page-order">
+  <div class="filter-bar" id="order-filters"></div>
   <!-- AI購入アドバイザー -->
   <div class="ai-advisor-container">
     <div style="font-weight: bold; color: #1565c0; margin-bottom: 10px;">✨ AI 購入アドバイザー</div>
@@ -805,6 +815,8 @@
       <h3>アイテムを編集</h3>
       <label for="edit-item-name">アイテム名</label>
       <input type="text" id="edit-item-name" placeholder="アイテム名">
+      <label for="edit-item-category">カテゴリ</label>
+      <select id="edit-item-category" onchange="handleCategorySelectChange(this)"></select>
       <div class="field-pair cycle-place-pair">
         <div class="field">
           <label>チェック頻度</label>
@@ -854,6 +866,8 @@
       <h3>新しいアイテムを追加</h3>
       <label for="new-item-name">アイテム名</label>
       <input type="text" id="new-item-name" placeholder="アイテム名（例：シャンプー）">
+      <label for="new-item-category">カテゴリ</label>
+      <select id="new-item-category" onchange="handleCategorySelectChange(this)"></select>
       <div class="field-pair cycle-place-pair">
         <div class="field">
           <label>チェック頻度</label>
@@ -918,9 +932,13 @@
     const HOUSEHOLD_ID = 'personal';
     const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
     const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
+    const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
+    const CATEGORY_PLACE_NAMES = new Set(DEFAULT_CATEGORIES);
     const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'];
     const REMOVED_LOCATION = 'その他';
     const ALL_FILTER = 'すべて';
+    const UNSET_PLACE_FILTER = '未選択';
+    const UNSET_CATEGORY_LABEL = '未分類';
     const UNIT_SEP = '::';
     const ADD_NEW_VALUE = 'ADD_NEW';
 
@@ -930,15 +948,21 @@
 
     let customCycles = loadNameList('stockCycles', DEFAULT_CYCLES);
     let customPlaces = loadNameList('stockPlaces', loadNameList('stockLocations', DEFAULT_PLACES));
-    customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION);
+    customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(loc));
     if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
 
+    let customCategories = loadNameList('stockCategories', DEFAULT_CATEGORIES);
+    DEFAULT_CATEGORIES.forEach(name => ensureName(customCategories, name));
+
     let customCheckUnits = loadCheckUnitMaster();
+    customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
 
     let inventoryCycleFilter = ALL_FILTER;
     let inventoryPlaceFilter = ALL_FILTER;
     let catalogCycleFilter = ALL_FILTER;
     let catalogPlaceFilter = ALL_FILTER;
+    let catalogCategoryFilter = ALL_FILTER;
+    let orderCategoryFilter = ALL_FILTER;
     let currentPage = localStorage.getItem('currentPage') || 'locations';
     let selectedItemId = null;
     let editingItemId = null;
@@ -971,7 +995,7 @@
     }
 
     function unitKey(unit) {
-      return unit.cycle + UNIT_SEP + unit.place;
+      return unit.cycle + UNIT_SEP + (unit.place || '');
     }
 
     function parseUnitKey(key) {
@@ -980,31 +1004,59 @@
       if (idx < 0) return null;
       const cycle = String(key).slice(0, idx).trim();
       const place = String(key).slice(idx + UNIT_SEP.length).trim();
-      if (!cycle || !place) return null;
+      if (!cycle) return null;
       return { cycle, place };
     }
 
     function formatUnitLabel(unit) {
-      return unit.cycle + '・' + unit.place;
+      return unit.cycle + '・' + placeLabel(unit.place);
+    }
+
+    function placeLabel(place) {
+      return place ? place : UNSET_PLACE_FILTER;
+    }
+
+    function normalizeCategory(value) {
+      const name = String(value || '').trim();
+      if (!name || name === UNSET_CATEGORY_LABEL) return '';
+      return name;
+    }
+
+    function allCategories() {
+      const seen = new Set();
+      const names = [];
+      [...DEFAULT_CATEGORIES, ...customCategories, ...stockItems.map(item => item.category)].forEach(name => {
+        const trimmed = normalizeCategory(name);
+        if (!trimmed || seen.has(trimmed)) return;
+        seen.add(trimmed);
+        names.push(trimmed);
+      });
+      return names;
+    }
+
+    function ensureCategory(name) {
+      const trimmed = normalizeCategory(name);
+      if (!trimmed) return '';
+      return ensureName(customCategories, trimmed);
     }
 
     function unitsEqual(a, b) {
-      return !!(a && b && a.cycle === b.cycle && a.place === b.place);
+      return !!(a && b && a.cycle === b.cycle && (a.place || '') === (b.place || ''));
     }
 
     function normalizeUnit(raw) {
       if (!raw) return null;
-      if (typeof raw === 'object' && raw.cycle && raw.place) {
+      if (typeof raw === 'object' && raw.cycle) {
         const cycle = String(raw.cycle).trim();
-        const place = String(raw.place).trim();
-        if (!cycle || !place || place === REMOVED_LOCATION) return null;
+        const place = String(raw.place || '').trim();
+        if (!cycle || place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
         return { cycle, place };
       }
       if (typeof raw === 'string') {
         const parsed = parseUnitKey(raw);
         if (parsed) return parsed;
         const place = raw.trim();
-        if (!place || place === REMOVED_LOCATION) return null;
+        if (!place || place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
         return { cycle: DEFAULT_CYCLES[0], place };
       }
       return null;
@@ -1037,6 +1089,7 @@
       localStorage.setItem('stockCycles', JSON.stringify(customCycles));
       localStorage.setItem('stockPlaces', JSON.stringify(customPlaces));
       localStorage.setItem('stockLocations', JSON.stringify(customPlaces));
+      localStorage.setItem('stockCategories', JSON.stringify(customCategories));
       localStorage.setItem('stockCheckUnits', JSON.stringify(customCheckUnits));
     }
 
@@ -1059,8 +1112,10 @@
 
     function ensureCheckUnit(cycleName, placeName) {
       const cycle = ensureCycle(cycleName);
-      const place = ensurePlace(placeName);
-      if (!cycle || !place) return null;
+      if (!cycle) return null;
+      const place = String(placeName || '').trim();
+      if (place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
+      if (place) ensurePlace(place);
       const unit = { cycle, place };
       if (!customCheckUnits.some(u => unitsEqual(u, unit))) customCheckUnits.push(unit);
       return unit;
@@ -1163,6 +1218,7 @@
         preset.push({ cycle: inventoryCycleFilter, place: inventoryPlaceFilter });
       }
       fillCyclePlacePickers('new-item', preset.length ? preset : (customCheckUnits[0] ? [customCheckUnits[0]] : []));
+      fillCategorySelect(document.getElementById('new-item-category'), '');
       fillUnitSelect(document.getElementById('new-item-unit'), '個');
       document.getElementById('new-item-target').value = 1;
       document.getElementById('new-item-threshold').value = 0;
@@ -1278,23 +1334,20 @@
     }
 
     function itemCheckUnits(item) {
-      const fallback = customCheckUnits[0] || (customPlaces[0] ? { cycle: customCycles[0] || DEFAULT_CYCLES[0], place: customPlaces[0] } : null);
       let units = [];
       if (Array.isArray(item.checkUnits)) units = item.checkUnits.map(normalizeUnit).filter(Boolean);
-      else if (item.location) {
+      else if (item.location && !CATEGORY_PLACE_NAMES.has(item.location)) {
         const one = normalizeUnit(item.location);
         if (one) units = [one];
       }
       units = dedupeUnits(units).filter(u => customCheckUnits.some(master => unitsEqual(master, u)));
-      if (units.length === 0 && fallback) units = [fallback];
       return units;
     }
 
     function setItemCheckUnits(item, units) {
       const next = dedupeUnits((units || []).map(normalizeUnit).filter(Boolean))
         .filter(u => customCheckUnits.some(master => unitsEqual(master, u)));
-      const fallback = customCheckUnits[0];
-      item.checkUnits = next.length ? next : (fallback ? [fallback] : []);
+      item.checkUnits = next;
       item.location = item.checkUnits[0] ? item.checkUnits[0].place : '';
     }
 
@@ -1340,12 +1393,19 @@
       const cycles = getSelectedNames(prefix + '-cycles');
       const places = getSelectedNames(prefix + '-places');
       const units = [];
-      cycles.forEach(cycle => {
-        places.forEach(place => {
-          const unit = ensureCheckUnit(cycle, place);
+      if (cycles.length && !places.length) {
+        cycles.forEach(cycle => {
+          const unit = ensureCheckUnit(cycle, '');
           if (unit) units.push(unit);
         });
-      });
+      } else {
+        cycles.forEach(cycle => {
+          places.forEach(place => {
+            const unit = ensureCheckUnit(cycle, place);
+            if (unit) units.push(unit);
+          });
+        });
+      }
       return { cycles, places, units };
     }
 
@@ -1359,12 +1419,14 @@
 
     function itemFieldsHtml(item) {
       const cycles = [...new Set(itemCheckUnits(item).map(u => u.cycle))];
-      const places = [...new Set(itemCheckUnits(item).map(u => u.place))];
+      const places = [...new Set(itemCheckUnits(item).map(u => placeLabel(u.place)))];
+      const category = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
       const chips = values => values.map(v => `<span class="item-location">${v}</span>`).join('');
       return `
         <div class="item-fields">
           <div class="item-field"><span class="item-field-label">チェック頻度</span><span class="item-location-wrap">${chips(cycles)}</span></div>
-          <div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places)}</span></div>
+          <div class="item-field"><span class="item-field-label">カテゴリ</span><span class="item-location-wrap">${chips([category])}</span></div>
+          <div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>
         </div>
       `;
     }
@@ -1459,15 +1521,64 @@
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     }
 
+    function fillCategorySelect(select, selectedValue) {
+      if (!select) return;
+      const names = allCategories();
+      const current = normalizeCategory(selectedValue);
+      select.innerHTML = '';
+      const none = document.createElement('option');
+      none.value = '';
+      none.textContent = UNSET_CATEGORY_LABEL;
+      select.appendChild(none);
+      names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+      const addOption = document.createElement('option');
+      addOption.value = ADD_NEW_VALUE;
+      addOption.textContent = '＋新しいカテゴリを追加...';
+      addOption.style.fontWeight = 'bold';
+      select.appendChild(addOption);
+      select.value = current && names.includes(current) ? current : '';
+    }
+
+    async function handleCategorySelectChange(select) {
+      if (select.value !== ADD_NEW_VALUE) return;
+      const raw = await showPrompt('新しいカテゴリの名前を入力してください');
+      if (!raw || !raw.trim()) {
+        fillCategorySelect(select, '');
+        return;
+      }
+      const added = ensureCategory(raw.trim());
+      persistMasters();
+      fillCategorySelect(select, added);
+    }
+
     function itemMatchesCyclePlace(item, cycleFilter, placeFilter) {
-      return itemCheckUnits(item).some(u =>
+      const units = itemCheckUnits(item);
+      if (!units.length) {
+        return cycleFilter === ALL_FILTER && (placeFilter === ALL_FILTER || placeFilter === UNSET_PLACE_FILTER);
+      }
+      return units.some(u =>
         (cycleFilter === ALL_FILTER || u.cycle === cycleFilter) &&
-        (placeFilter === ALL_FILTER || u.place === placeFilter)
+        (placeFilter === ALL_FILTER || (placeFilter === UNSET_PLACE_FILTER ? !u.place : u.place === placeFilter))
       );
     }
 
+    function itemMatchesCategory(item, categoryFilter) {
+      if (categoryFilter === ALL_FILTER) return true;
+      const category = normalizeCategory(item.category);
+      if (categoryFilter === UNSET_CATEGORY_LABEL) return !category;
+      return category === categoryFilter;
+    }
+
     function getCatalogItems() {
-      const items = stockItems.filter(item => itemMatchesCyclePlace(item, catalogCycleFilter, catalogPlaceFilter));
+      const items = stockItems.filter(item =>
+        itemMatchesCyclePlace(item, catalogCycleFilter, catalogPlaceFilter) &&
+        itemMatchesCategory(item, catalogCategoryFilter)
+      );
       return items.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
     }
 
@@ -1501,7 +1612,11 @@
         catalogCycleFilter = value;
         saveAndRender();
       });
-      catalogPlaceFilter = appendFilterSelect(filterDiv, '場所', customPlaces, catalogPlaceFilter, value => {
+      catalogCategoryFilter = appendFilterSelect(filterDiv, 'カテゴリ', allCategories(), catalogCategoryFilter, value => {
+        catalogCategoryFilter = value;
+        saveAndRender();
+      });
+      catalogPlaceFilter = appendFilterSelect(filterDiv, '場所', [UNSET_PLACE_FILTER, ...customPlaces], catalogPlaceFilter, value => {
         catalogPlaceFilter = value;
         saveAndRender();
       });
@@ -1540,14 +1655,14 @@
       if (inventoryCycleFilter !== ALL_FILTER && !customCycles.includes(inventoryCycleFilter)) {
         inventoryCycleFilter = ALL_FILTER;
       }
-      if (inventoryPlaceFilter !== ALL_FILTER && !customPlaces.includes(inventoryPlaceFilter)) {
+      if (inventoryPlaceFilter !== ALL_FILTER && inventoryPlaceFilter !== UNSET_PLACE_FILTER && !customPlaces.includes(inventoryPlaceFilter)) {
         inventoryPlaceFilter = ALL_FILTER;
       }
       inventoryCycleFilter = appendFilterSelect(filterDiv, 'チェック頻度', customCycles, inventoryCycleFilter, value => {
         inventoryCycleFilter = value;
         saveAndRender();
       });
-      inventoryPlaceFilter = appendFilterSelect(filterDiv, '場所', customPlaces, inventoryPlaceFilter, value => {
+      inventoryPlaceFilter = appendFilterSelect(filterDiv, '場所', [UNSET_PLACE_FILTER, ...customPlaces], inventoryPlaceFilter, value => {
         inventoryPlaceFilter = value;
         saveAndRender();
       });
@@ -1635,7 +1750,7 @@
 
     function openLocationInventory(unit) {
       inventoryCycleFilter = unit.cycle;
-      inventoryPlaceFilter = unit.place;
+      inventoryPlaceFilter = unit.place ? unit.place : UNSET_PLACE_FILTER;
       renderFilters();
       showPage('inventory');
     }
@@ -1679,7 +1794,7 @@
           card.onclick = () => openLocationInventory(unit);
           card.innerHTML = `
             <div class="location-card-header">
-              <span class="location-card-name">${unit.place}</span>
+              <span class="location-card-name">${placeLabel(unit.place)}</span>
               <span class="status-badge ${stats.statusClass}">${stats.status}</span>
             </div>
             <div class="location-stats">
@@ -1745,6 +1860,7 @@
         items: stockItems.map(item => ({
           id: String(item.id),
           name: item.name,
+          category: normalizeCategory(item.category),
           count: item.count,
           checkUnits: itemCheckUnits(item),
           target: item.target,
@@ -1760,15 +1876,16 @@
       const cycleNames = (cycleRows || []).map(row => row.name).filter(Boolean);
       const cycles = cycleNames.length ? cycleNames : [...DEFAULT_CYCLES];
       const cycleIdToName = Object.fromEntries((cycleRows || []).map(row => [row.id, row.name]));
-      const placeNames = (locRows || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION);
+      const placeNames = (locRows || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(name));
       const places = placeNames.length ? placeNames : [...DEFAULT_PLACES];
       const locIdToName = Object.fromEntries((locRows || []).map(loc => [loc.id, loc.name]));
       const unitIdToUnit = {};
       const checkUnits = [];
       (unitRows || []).forEach(row => {
         const cycle = cycleIdToName[row.cycle_id];
-        const place = locIdToName[row.location_id];
-        if (!cycle || !place || place === REMOVED_LOCATION) return;
+        if (!cycle) return;
+        const place = row.location_id ? (locIdToName[row.location_id] || '') : '';
+        if (place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return;
         const unit = { cycle, place };
         unitIdToUnit[row.id] = unit;
         if (!checkUnits.some(u => unitsEqual(u, unit))) checkUnits.push(unit);
@@ -1787,14 +1904,14 @@
       const items = (itemRows || []).map(row => {
         const key = String(row.id);
         const fromJoin = unitsByItem[key];
-        const fallbackPlace = locIdToName[row.location_id] || places[0];
-        const fallback = { cycle: cycles[0] || DEFAULT_CYCLES[0], place: fallbackPlace };
+        const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
         return migrateItem({
           id: isNaN(Number(row.id)) ? row.id : Number(row.id),
           name: row.name,
+          category: row.category,
           count: row.count,
           location: fallbackPlace,
-          checkUnits: fromJoin && fromJoin.length ? fromJoin : [fallback],
+          checkUnits: fromJoin && fromJoin.length ? fromJoin : [],
           target: row.target_qty,
           orderThreshold: row.order_threshold,
           unit: row.unit,
@@ -1837,7 +1954,7 @@
 
       const { data: rows, error: itemError } = await supabaseClient
         .from('items')
-        .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on')
+        .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category')
         .eq('household_id', householdId);
       if (itemError) throw itemError;
 
@@ -1854,13 +1971,17 @@
     function applyFetchedState(state) {
       applyingRemote = true;
       customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
-      customPlaces = state.places.length ? state.places : [...DEFAULT_PLACES];
-      customCheckUnits = state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
+      customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
+      customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
         cycle: customCycles[0] || DEFAULT_CYCLES[0],
         place
-      }));
+      }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
       stockItems = state.items.map(migrateItem);
-      stockItems.forEach(item => rememberUnit(item.unit));
+      customCategories = [...DEFAULT_CATEGORIES];
+      stockItems.forEach(item => {
+        if (item.category) ensureCategory(item.category);
+        rememberUnit(item.unit);
+      });
       persistMasters();
       renderFilters();
       saveAndRender();
@@ -1912,16 +2033,35 @@
           .eq('household_id', householdId);
         if (locReadError) throw locReadError;
         const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
-        const fallbackLocId = locs && locs[0] ? locs[0].id : null;
-        if (!fallbackLocId) throw new Error('no locations');
 
-        const checkUnitRows = customCheckUnits.map((unit, index) => ({
+        const placedRows = customCheckUnits.map((unit, index) => ({
           household_id: householdId,
           cycle_id: cycleNameToId[unit.cycle],
-          location_id: nameToId[unit.place] || fallbackLocId,
+          location_id: unit.place ? nameToId[unit.place] : null,
           sort_order: index
         })).filter(row => row.cycle_id && row.location_id);
-        await upsertNamedRows('check_units', checkUnitRows, 'household_id,cycle_id,location_id');
+        await upsertNamedRows('check_units', placedRows, 'household_id,cycle_id,location_id');
+
+        for (const unit of customCheckUnits.filter(u => u.cycle && !u.place)) {
+          const cycleId = cycleNameToId[unit.cycle];
+          if (!cycleId) continue;
+          const { data: existingNull } = await supabaseClient
+            .from('check_units')
+            .select('id')
+            .eq('household_id', householdId)
+            .eq('cycle_id', cycleId)
+            .is('location_id', null)
+            .maybeSingle();
+          if (!existingNull) {
+            const { error: nullInsertError } = await supabaseClient.from('check_units').insert({
+              household_id: householdId,
+              cycle_id: cycleId,
+              location_id: null,
+              sort_order: 0
+            });
+            if (nullInsertError && nullInsertError.code !== '23505') throw nullInsertError;
+          }
+        }
 
         const { data: cloudUnits, error: unitReadError } = await supabaseClient
           .from('check_units')
@@ -1931,20 +2071,20 @@
         const unitKeyToId = {};
         (cloudUnits || []).forEach(row => {
           const cycle = (cycleRows || []).find(c => c.id === row.cycle_id);
-          const loc = (locs || []).find(l => l.id === row.location_id);
-          if (!cycle || !loc) return;
-          unitKeyToId[unitKey({ cycle: cycle.name, place: loc.name })] = row.id;
+          if (!cycle) return;
+          const loc = row.location_id ? (locs || []).find(l => l.id === row.location_id) : null;
+          const place = loc ? loc.name : '';
+          unitKeyToId[unitKey({ cycle: cycle.name, place })] = row.id;
         });
-        const fallbackUnitId = cloudUnits && cloudUnits[0] ? cloudUnits[0].id : null;
-        if (!fallbackUnitId) throw new Error('no check units');
 
         const itemRows = stockItems.map(item => {
           const units = itemCheckUnits(item);
-          const first = units[0];
+          const firstPlaced = units.find(u => u.place);
           return {
             id: String(item.id),
             household_id: householdId,
-            location_id: (first && nameToId[first.place]) || fallbackLocId,
+            location_id: (firstPlaced && nameToId[firstPlaced.place]) || null,
+            category: normalizeCategory(item.category),
             name: item.name,
             count: item.count,
             target_qty: item.target,
@@ -1977,7 +2117,8 @@
         const membershipRows = [];
         stockItems.forEach(item => {
           itemCheckUnits(item).forEach(unit => {
-            const checkUnitId = unitKeyToId[unitKey(unit)] || fallbackUnitId;
+            const checkUnitId = unitKeyToId[unitKey(unit)];
+            if (!checkUnitId) return;
             membershipRows.push({
               item_id: String(item.id),
               check_unit_id: checkUnitId,
@@ -2002,9 +2143,10 @@
         const localUnitKeys = new Set(customCheckUnits.map(unitKey));
         const extraUnitIds = (cloudUnits || []).filter(row => {
           const cycle = (cycleRows || []).find(c => c.id === row.cycle_id);
-          const loc = (locs || []).find(l => l.id === row.location_id);
-          if (!cycle || !loc) return true;
-          return !localUnitKeys.has(unitKey({ cycle: cycle.name, place: loc.name }));
+          if (!cycle) return true;
+          const loc = row.location_id ? (locs || []).find(l => l.id === row.location_id) : null;
+          const place = loc ? loc.name : '';
+          return !localUnitKeys.has(unitKey({ cycle: cycle.name, place }));
         }).map(row => row.id);
         if (extraUnitIds.length) {
           await supabaseClient.from('item_check_units').delete().in('check_unit_id', extraUnitIds);
@@ -2050,6 +2192,7 @@
           items: state.items.map(item => ({
             id: String(item.id),
             name: item.name,
+            category: normalizeCategory(item.category),
             count: item.count,
             checkUnits: itemCheckUnits(item),
             target: item.target,
@@ -2075,18 +2218,31 @@
       if (next.unit === undefined) next.unit = '個';
       if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
       next.lastOrderedOn = normalizeDate(next.lastOrderedOn);
+      let categoryFromPlaces = '';
       let units = [];
-      if (Array.isArray(next.checkUnits)) units = next.checkUnits.map(normalizeUnit).filter(Boolean);
-      else if (next.location) {
+      const rawUnits = Array.isArray(next.checkUnits) ? next.checkUnits : [];
+      rawUnits.forEach(raw => {
+        const place = raw && typeof raw === 'object' ? String(raw.place || '').trim() : '';
+        const cycle = raw && typeof raw === 'object' ? String(raw.cycle || '').trim() : '';
+        if (CATEGORY_PLACE_NAMES.has(place)) {
+          if (!categoryFromPlaces) categoryFromPlaces = place;
+          if (cycle) units.push({ cycle, place: '' });
+          return;
+        }
+        const normalized = normalizeUnit(raw);
+        if (normalized) units.push(normalized);
+      });
+      if (!rawUnits.length && next.location && !CATEGORY_PLACE_NAMES.has(next.location)) {
         const one = normalizeUnit(next.location);
         if (one) units = [one];
       }
+      if (CATEGORY_PLACE_NAMES.has(String(next.location || '').trim()) && !categoryFromPlaces) {
+        categoryFromPlaces = String(next.location).trim();
+      }
+      next.category = normalizeCategory(next.category) || categoryFromPlaces;
+      if (next.category) ensureCategory(next.category);
       units = dedupeUnits(units);
       units.forEach(u => ensureCheckUnit(u.cycle, u.place));
-      if (units.length === 0) {
-        const fallback = customCheckUnits[0] || ensureCheckUnit(DEFAULT_CYCLES[0], customPlaces[0] || DEFAULT_PLACES[0]);
-        if (fallback) units = [fallback];
-      }
       next.checkUnits = units;
       next.location = units[0] ? units[0].place : '';
       next.complete = !!(next.entered && next.count > next.orderThreshold);
@@ -2222,40 +2378,72 @@
     // 発注リストを描画する関数
     function renderOrderList() {
       const orderDiv = document.getElementById('order-list');
+      const filterDiv = document.getElementById('order-filters');
       orderDiv.innerHTML = '';
+      if (filterDiv) {
+        filterDiv.innerHTML = '';
+        orderCategoryFilter = appendFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => {
+          orderCategoryFilter = value;
+          saveAndRender();
+        });
+      }
 
-      const itemsToOrder = stockItems.filter(needsOrder);
+      const itemsToOrder = stockItems.filter(item => needsOrder(item) && itemMatchesCategory(item, orderCategoryFilter));
 
       if (itemsToOrder.length === 0) {
         orderDiv.innerHTML = '<div class="empty-message">発注が必要なアイテムはありません 🎉</div>';
         return;
       }
 
+      const groups = new Map();
       itemsToOrder.forEach(item => {
-        const orderAmount = Math.max(0, item.target - item.count);
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'item empty order-item';
-        const lastOrder = formatLastOrder(item.lastOrderedOn);
-        itemDiv.innerHTML = `
-          <div class="item-info">
-            <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-            ${itemFieldsHtml(item)}
-            <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
-            <span class="order-amount">発注数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
-          </div>
-          <div class="controls">
-            <label title="発注済みにすると在庫を必要数まで補充します">
-              <input type="checkbox" class="order-check" onchange="markAsOrdered(${item.id})">
-            </label>
-          </div>
-        `;
-        orderDiv.appendChild(itemDiv);
+        const key = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item);
+      });
+      const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
+      const keys = [...groups.keys()].sort((a, b) => {
+        const ia = categoryOrder.indexOf(a);
+        const ib = categoryOrder.indexOf(b);
+        const sa = ia < 0 ? 999 : ia;
+        const sb = ib < 0 ? 999 : ib;
+        return sa - sb || a.localeCompare(b, 'ja');
+      });
+
+      keys.forEach(key => {
+        const group = document.createElement('div');
+        group.className = 'order-group';
+        const title = document.createElement('div');
+        title.className = 'order-group-title';
+        title.textContent = key;
+        group.appendChild(title);
+        groups.get(key).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(item => {
+          const orderAmount = Math.max(0, item.target - item.count);
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'item empty order-item';
+          const lastOrder = formatLastOrder(item.lastOrderedOn);
+          itemDiv.innerHTML = `
+            <div class="item-info">
+              <span class="item-name"><span class="item-name-text">${item.name}</span></span>
+              ${itemFieldsHtml(item)}
+              <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
+              <span class="order-amount">発注数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
+            </div>
+            <div class="controls">
+              <label title="発注済みにすると在庫を必要数まで補充します">
+                <input type="checkbox" class="order-check" data-item-id="${item.id}" onchange="markAsOrdered(this.dataset.itemId)">
+              </label>
+            </div>
+          `;
+          group.appendChild(itemDiv);
+        });
+        orderDiv.appendChild(group);
       });
     }
 
     // 発注済みにして在庫を必要数まで補充する関数
     function markAsOrdered(id) {
-      const item = stockItems.find(i => i.id === id);
+      const item = findItemById(id);
       if (item) {
         item.count = item.target;
         item.entered = true;
@@ -2282,6 +2470,7 @@
       document.getElementById('edit-item-target').value = item.target;
       document.getElementById('edit-item-threshold').value = item.orderThreshold;
       document.getElementById('edit-item-last-order').value = normalizeDate(item.lastOrderedOn) || '';
+      fillCategorySelect(document.getElementById('edit-item-category'), item.category);
       fillCyclePlacePickers('edit-item', itemCheckUnits(item));
       document.getElementById('edit-modal').style.display = 'flex';
       document.getElementById('edit-item-name').focus();
@@ -2302,8 +2491,8 @@
         return;
       }
       const picked = unitsFromCyclePlacePickers('edit-item');
-      if (!picked.cycles.length || !picked.places.length) {
-        alert('チェック頻度と場所を1つ以上選んでください');
+      if (!picked.cycles.length) {
+        alert('チェック頻度を1つ以上選んでください');
         return;
       }
       persistMasters();
@@ -2322,6 +2511,8 @@
         item.entered = true;
       }
       item.name = name;
+      item.category = normalizeCategory(document.getElementById('edit-item-category').value);
+      if (item.category) ensureCategory(item.category);
       item.unit = unit;
       rememberUnit(unit);
       item.target = parseNonNeg(document.getElementById('edit-item-target').value);
@@ -2395,8 +2586,8 @@
         alert("アイテム名を入力してください");
         return;
       }
-      if (!picked.cycles.length || !picked.places.length) {
-        alert('チェック頻度と場所を1つ以上選んでください');
+      if (!picked.cycles.length) {
+        alert('チェック頻度を1つ以上選んでください');
         return;
       }
       if (!unit || unit === 'ADD_NEW') {
@@ -2408,6 +2599,7 @@
       const item = {
         id: Date.now(),
         name,
+        category: normalizeCategory(document.getElementById('new-item-category').value),
         count: 0,
         target,
         orderThreshold,
@@ -2415,6 +2607,7 @@
         entered: false,
         lastOrderedOn
       };
+      if (item.category) ensureCategory(item.category);
       setItemCheckUnits(item, units);
       stockItems.push(item);
       closeModal();
@@ -2451,8 +2644,8 @@
       }
 
       // APIに送信するプロンプトの作成
-      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${formatQty(item.target, item.unit)}, 現在数: ${formatQty(item.count, item.unit)}, 補充基準: ${formatQty(item.orderThreshold, item.unit)}, 不足分: ${formatQty(item.target - item.count, item.unit)})`).join('\n');
-      const prompt = `私は家庭の日用品の在庫管理をしています。現在、以下のアイテムが不足しており、購入が必要です。
+      const itemListText = itemsToOrder.map(item => `- [${normalizeCategory(item.category) || UNSET_CATEGORY_LABEL}] ${item.name} (必要数: ${formatQty(item.target, item.unit)}, 現在数: ${formatQty(item.count, item.unit)}, 補充基準: ${formatQty(item.orderThreshold, item.unit)}, 不足分: ${formatQty(item.target - item.count, item.unit)})`).join('\n');
+      const prompt = `私は家庭の在庫管理をしています。現在、以下のアイテムが不足しており、購入が必要です。カテゴリ（医薬品・日用品・食品など）ごとにまとめて買い物できると助かります。
       
 ${itemListText}
 
