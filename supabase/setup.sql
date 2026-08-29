@@ -1,4 +1,4 @@
--- 食品・日用品ストック棚卸向けスキーマ
+-- Stock & Check 向けスキーマ
 -- Supabase SQL Editor で実行してください（既存の jsonb 版 households があれば自動移行します）
 
 create table if not exists public.households (
@@ -194,6 +194,123 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.item_check_units;
+exception
+  when duplicate_object then null;
+end $$;
+
+-- チェック周期・チェック単位（周期×場所）・前回発注日
+alter table public.items add column if not exists last_ordered_on date;
+
+create table if not exists public.cycles (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null references public.households(id) on delete cascade,
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (household_id, name)
+);
+
+create table if not exists public.check_units (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null references public.households(id) on delete cascade,
+  cycle_id uuid not null references public.cycles(id) on delete restrict,
+  location_id uuid not null references public.locations(id) on delete restrict,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (household_id, cycle_id, location_id)
+);
+
+create index if not exists cycles_household_id_idx on public.cycles (household_id, sort_order);
+create index if not exists check_units_household_id_idx on public.check_units (household_id, sort_order);
+create index if not exists check_units_cycle_id_idx on public.check_units (cycle_id);
+create index if not exists check_units_location_id_idx on public.check_units (location_id);
+
+insert into public.cycles (household_id, name, sort_order)
+select h.id, v.name, v.sort_order
+from public.households h
+cross join (values ('月単位', 0), ('週単位', 1)) as v(name, sort_order)
+on conflict (household_id, name) do nothing;
+
+insert into public.check_units (household_id, cycle_id, location_id, sort_order)
+select l.household_id, c.id, l.id, l.sort_order
+from public.locations l
+join public.cycles c on c.household_id = l.household_id and c.name = '月単位'
+on conflict (household_id, cycle_id, location_id) do nothing;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'item_check_units' and column_name = 'location_id'
+  ) then
+    if not exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'item_check_units' and column_name = 'check_unit_id'
+    ) then
+      alter table public.item_check_units add column check_unit_id uuid;
+    end if;
+
+    update public.item_check_units icu
+    set check_unit_id = cu.id
+    from public.check_units cu
+    join public.cycles c on c.id = cu.cycle_id and c.name = '月単位'
+    where icu.check_unit_id is null
+      and cu.location_id = icu.location_id
+      and cu.household_id = icu.household_id;
+
+    delete from public.item_check_units where check_unit_id is null;
+
+    alter table public.item_check_units drop constraint if exists item_check_units_pkey;
+    alter table public.item_check_units drop constraint if exists item_check_units_location_id_fkey;
+    drop index if exists public.item_check_units_location_id_idx;
+    alter table public.item_check_units drop column if exists location_id;
+    alter table public.item_check_units alter column check_unit_id set not null;
+    alter table public.item_check_units drop constraint if exists item_check_units_check_unit_id_fkey;
+    alter table public.item_check_units
+      add constraint item_check_units_check_unit_id_fkey
+      foreign key (check_unit_id) references public.check_units(id) on delete restrict;
+    alter table public.item_check_units add primary key (item_id, check_unit_id);
+    create index if not exists item_check_units_check_unit_id_idx on public.item_check_units (check_unit_id);
+  end if;
+end $$;
+
+insert into public.item_check_units (item_id, check_unit_id, household_id)
+select i.id, cu.id, i.household_id
+from public.items i
+join public.check_units cu on cu.location_id = i.location_id and cu.household_id = i.household_id
+join public.cycles c on c.id = cu.cycle_id and c.name = '月単位'
+on conflict (item_id, check_unit_id) do nothing;
+
+alter table public.cycles enable row level security;
+alter table public.check_units enable row level security;
+
+drop policy if exists "cycles_select" on public.cycles;
+drop policy if exists "cycles_insert" on public.cycles;
+drop policy if exists "cycles_update" on public.cycles;
+drop policy if exists "cycles_delete" on public.cycles;
+create policy "cycles_select" on public.cycles for select using (true);
+create policy "cycles_insert" on public.cycles for insert with check (true);
+create policy "cycles_update" on public.cycles for update using (true);
+create policy "cycles_delete" on public.cycles for delete using (true);
+
+drop policy if exists "check_units_select" on public.check_units;
+drop policy if exists "check_units_insert" on public.check_units;
+drop policy if exists "check_units_update" on public.check_units;
+drop policy if exists "check_units_delete" on public.check_units;
+create policy "check_units_select" on public.check_units for select using (true);
+create policy "check_units_insert" on public.check_units for insert with check (true);
+create policy "check_units_update" on public.check_units for update using (true);
+create policy "check_units_delete" on public.check_units for delete using (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.cycles;
+exception
+  when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table public.check_units;
 exception
   when duplicate_object then null;
 end $$;
