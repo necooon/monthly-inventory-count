@@ -314,3 +314,14 @@ begin
 exception
   when duplicate_object then null;
 end $$;
+
+alter table public.items add column if not exists category text not null default '';
+alter table public.check_units alter column location_id drop not null;
+alter table public.items alter column location_id drop not null;
+alter table public.check_units drop constraint if exists check_units_household_id_cycle_id_location_id_key;
+create unique index if not exists check_units_hh_cycle_loc_uidx
+  on public.check_units (household_id, cycle_id, location_id)
+  where location_id is not null;
+create unique index if not exists check_units_hh_cycle_null_loc_uidx
+  on public.check_units (household_id, cycle_id)
+  where location_id is null;
