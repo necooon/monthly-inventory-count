@@ -918,7 +918,7 @@
     const HOUSEHOLD_ID = 'personal';
     const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
     const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
-    const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml'];
+    const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'];
     const REMOVED_LOCATION = 'その他';
     const ALL_FILTER = 'すべて';
     const UNIT_SEP = '::';
@@ -1657,6 +1657,7 @@
         if (!cyclesToShow.includes(unit.cycle)) cyclesToShow.push(unit.cycle);
       });
 
+      let shown = 0;
       cyclesToShow.forEach(cycle => {
         const units = customCheckUnits.filter(u => u.cycle === cycle);
         if (!units.length) return;
@@ -1666,8 +1667,12 @@
         title.className = 'cycle-group-title';
         title.textContent = cycle;
         group.appendChild(title);
+        let cards = 0;
         units.forEach(unit => {
           const stats = getLocationStats(unit);
+          if (stats.total === 0) return;
+          cards += 1;
+          shown += 1;
           const card = document.createElement('button');
           card.type = 'button';
           card.className = `location-card card-${stats.statusClass}`;
@@ -1694,8 +1699,11 @@
           `;
           group.appendChild(card);
         });
-        listDiv.appendChild(group);
+        if (cards) listDiv.appendChild(group);
       });
+      if (shown === 0) {
+        listDiv.innerHTML = '<div class="empty-message">アイテムのあるチェック単位がありません。</div>';
+      }
     }
 
     function initSupabase() {
