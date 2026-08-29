@@ -895,8 +895,8 @@
     const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
     const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
     const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
+    const DEFAULT_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'];
     const CATEGORY_PLACE_NAMES = new Set(DEFAULT_CATEGORIES);
-    const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'];
     const REMOVED_LOCATION = 'その他';
     const ALL_FILTER = 'すべて';
     const UNSET_PLACE_FILTER = '未選択';
@@ -904,9 +904,7 @@
     const UNIT_SEP = '::';
     const ADD_NEW_VALUE = 'ADD_NEW';
 
-    let customUnits = JSON.parse(localStorage.getItem('stockUnits')) || [];
-    if (!Array.isArray(customUnits)) customUnits = [];
-    customUnits = customUnits.map(u => String(u).trim()).filter(Boolean);
+    let customUnits = loadNameList('stockUnits', DEFAULT_UNITS);
 
     let customCycles = loadNameList('stockCycles', DEFAULT_CYCLES);
     let customPlaces = loadNameList('stockPlaces', loadNameList('stockLocations', DEFAULT_PLACES));
@@ -1009,12 +1007,23 @@
       const names = customUnits.slice();
       stockItems.forEach(item => {
         const u = String(item.unit || '').trim();
-        if (u && !ITEM_UNITS.includes(u) && !seen.has(u)) {
+        if (u && !seen.has(u)) {
           seen.add(u);
           names.push(u);
         }
       });
       return names;
+    }
+
+    function ensureUnit(name) {
+      const trimmed = String(name || '').trim();
+      if (!trimmed) return null;
+      return ensureName(customUnits, trimmed);
+    }
+
+    function defaultUnitName() {
+      if (customUnits.includes('個')) return '個';
+      return customUnits[0] || DEFAULT_UNITS[0] || '個';
     }
 
     function ensureCategory(name) {
@@ -1136,7 +1145,7 @@
       if (kind === 'cycle') ensureCycle(trimmed);
       else if (kind === 'place') ensurePlace(trimmed);
       else if (kind === 'category') ensureCategory(trimmed);
-      else rememberUnit(trimmed);
+      else ensureUnit(trimmed);
       await saveMasterChange();
     }
 
@@ -1199,10 +1208,6 @@
         catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, oldName, next);
         orderCategoryFilter = remapNamedFilter(orderCategoryFilter, oldName, next);
       } else {
-        if (ITEM_UNITS.includes(oldName)) {
-          alert('標準の単位は変更できません。');
-          return;
-        }
         if (customUnits.includes(oldName)) {
           customUnits[customUnits.indexOf(oldName)] = next;
         } else if (!customUnits.includes(next)) {
@@ -1250,15 +1255,16 @@
         catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, name, ALL_FILTER);
         orderCategoryFilter = remapNamedFilter(orderCategoryFilter, name, ALL_FILTER);
       } else {
-        if (ITEM_UNITS.includes(name)) {
-          alert('標準の単位は削除できません。');
+        if (customUnits.length <= 1) {
+          alert('単位は1つ以上必要です。');
           return;
         }
         const count = stockItems.filter(item => item.unit === name).length;
-        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムは「個」になります。` : ''}`)) return;
+        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムは「${defaultUnitName()}」になります。` : ''}`)) return;
+        const fallback = customUnits.find(u => u !== name) || defaultUnitName();
         customUnits = customUnits.filter(v => v !== name);
         stockItems.forEach(item => {
-          if (item.unit === name) item.unit = '個';
+          if (item.unit === name) item.unit = fallback;
         });
       }
       await saveMasterChange();
@@ -1556,29 +1562,28 @@
 
     function allUnits() {
       const seen = new Set();
-      const units = [];
-      const extras = [...customUnits, ...stockItems.map(item => item.unit).filter(Boolean)];
-      [...ITEM_UNITS, ...extras].forEach(unit => {
+      const names = [];
+      [...customUnits, ...stockItems.map(item => item.unit).filter(Boolean)].forEach(unit => {
         const name = String(unit).trim();
         if (!name || seen.has(name)) return;
         seen.add(name);
-        units.push(name);
+        names.push(name);
       });
-      return units;
+      return names;
     }
 
     function rememberUnit(name) {
-      if (!name || ITEM_UNITS.includes(name) || customUnits.includes(name)) return;
-      customUnits.push(name);
+      ensureUnit(name);
     }
 
     async function addNewUnit() {
       const raw = await showPrompt('新しい単位を入力してください（例：束）');
       if (!raw || raw.trim() === '') return null;
       const trimmed = raw.trim();
-      rememberUnit(trimmed);
+      ensureUnit(trimmed);
       refreshUnitSelects(trimmed);
-      localStorage.setItem('stockUnits', JSON.stringify(customUnits));
+      persistMasters();
+      scheduleCloudSave();
       return trimmed;
     }
 
@@ -1961,8 +1966,8 @@
       const locIdToName = Object.fromEntries((locRows || []).map(loc => [loc.id, loc.name]));
       const categoryNames = (categoryRows || []).map(row => row.name).filter(Boolean);
       const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
-      const unitNames = (stockUnitRows || []).map(row => row.name).filter(name => name && !ITEM_UNITS.includes(name));
-      const units = unitNames;
+      const unitNames = (stockUnitRows || []).map(row => row.name).filter(Boolean);
+      const units = unitNames.length ? unitNames : [...DEFAULT_UNITS];
       const unitIdToUnit = {};
       const checkUnits = [];
       (checkUnitRows || []).forEach(row => {
@@ -2075,13 +2080,11 @@
         place
       }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
       customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-      customUnits = (state.units && state.units.length ? state.units : [])
-        .map(name => String(name).trim())
-        .filter(name => name && !ITEM_UNITS.includes(name));
+      customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
       stockItems = state.items.map(migrateItem);
       stockItems.forEach(item => {
         if (item.category) ensureCategory(item.category);
-        rememberUnit(item.unit);
+        if (item.unit) ensureUnit(item.unit);
       });
       persistMasters();
       renderFilters();
