@@ -33,9 +33,19 @@ create table if not exists public.items (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.item_check_units (
+  item_id text not null references public.items(id) on delete cascade,
+  location_id uuid not null references public.locations(id) on delete restrict,
+  household_id text not null references public.households(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (item_id, location_id)
+);
+
 create index if not exists locations_household_id_idx on public.locations (household_id, sort_order);
 create index if not exists items_household_id_idx on public.items (household_id);
 create index if not exists items_location_id_idx on public.items (location_id);
+create index if not exists item_check_units_household_id_idx on public.item_check_units (household_id);
+create index if not exists item_check_units_location_id_idx on public.item_check_units (location_id);
 
 -- 旧 jsonb カラムからの移行
 do $$
@@ -116,9 +126,16 @@ begin
   end if;
 end $$;
 
+-- 既存 items.location_id からチェック単位の所属を移行
+insert into public.item_check_units (item_id, location_id, household_id)
+select i.id, i.location_id, i.household_id
+from public.items i
+on conflict (item_id, location_id) do nothing;
+
 alter table public.households enable row level security;
 alter table public.locations enable row level security;
 alter table public.items enable row level security;
+alter table public.item_check_units enable row level security;
 
 drop policy if exists "households_select" on public.households;
 drop policy if exists "households_insert" on public.households;
@@ -147,6 +164,15 @@ create policy "items_insert" on public.items for insert with check (true);
 create policy "items_update" on public.items for update using (true);
 create policy "items_delete" on public.items for delete using (true);
 
+drop policy if exists "item_check_units_select" on public.item_check_units;
+drop policy if exists "item_check_units_insert" on public.item_check_units;
+drop policy if exists "item_check_units_update" on public.item_check_units;
+drop policy if exists "item_check_units_delete" on public.item_check_units;
+create policy "item_check_units_select" on public.item_check_units for select using (true);
+create policy "item_check_units_insert" on public.item_check_units for insert with check (true);
+create policy "item_check_units_update" on public.item_check_units for update using (true);
+create policy "item_check_units_delete" on public.item_check_units for delete using (true);
+
 do $$
 begin
   alter publication supabase_realtime add table public.households;
@@ -162,6 +188,12 @@ end $$;
 do $$
 begin
   alter publication supabase_realtime add table public.items;
+exception
+  when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table public.item_check_units;
 exception
   when duplicate_object then null;
 end $$;

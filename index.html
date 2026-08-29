@@ -165,7 +165,7 @@
     cursor: default;
   }
 
-  /* 保管場所一覧 */
+  /* チェック単位一覧 */
   .location-card {
     display: block;
     width: 100%;
@@ -292,6 +292,42 @@
     border-radius: 12px; 
     display: inline-block; 
     width: fit-content; 
+    max-width: 100%;
+  }
+  .check-unit-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .check-unit-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: normal;
+    color: #333;
+    cursor: pointer;
+  }
+  .modal-content .check-unit-option input {
+    width: auto;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .link-add-unit {
+    background: none;
+    border: none;
+    color: #1565c0;
+    font-weight: bold;
+    font-size: 14px;
+    text-align: left;
+    padding: 4px 0 0;
+    cursor: pointer;
   }
   .item-threshold {
     font-size: 0.8em;
@@ -643,23 +679,23 @@
   <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
   <nav class="drawer" id="drawer">
     <div class="drawer-title">メニュー</div>
-    <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 保管場所</button>
+    <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 チェック単位</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 棚卸</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
     <button class="drawer-item danger" onclick="resetAllInventory()">🔄 棚卸をリセット</button>
   </nav>
 
-  <!-- 保管場所一覧 -->
+  <!-- チェック単位一覧 -->
   <div class="page" id="page-locations">
     <div id="location-list"></div>
-    <button class="open-modal-btn bottom" onclick="addNewLocation()">➕ 場所を追加</button>
+    <button class="open-modal-btn bottom" onclick="addNewLocation()">➕ チェック単位を追加</button>
   </div>
 
   <!-- 棚卸画面 -->
   <div class="page" id="page-inventory">
-  <button type="button" class="back-btn" onclick="showPage('locations')">← 保管場所一覧</button>
+  <button type="button" class="back-btn" onclick="showPage('locations')">← チェック単位一覧</button>
   <div class="filter-bar" id="location-filters"></div>
-  <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>この場所の棚卸をリセット</button>
+  <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>このチェック単位の棚卸をリセット</button>
   <!-- 新規追加ボタン（リスト上部） -->
   <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
 
@@ -696,16 +732,15 @@
     </div>
   </div>
 
-  <!-- アイテム編集用モーダル（必要数量・保管場所） -->
+  <!-- アイテム編集用モーダル -->
   <div class="modal-overlay" id="edit-modal">
     <div class="modal-content">
       <h3>アイテムを編集</h3>
       <label for="edit-item-name">アイテム名</label>
       <input type="text" id="edit-item-name" placeholder="アイテム名">
-      <label for="edit-item-location">保管場所</label>
-      <select id="edit-item-location" onchange="handleLocationSelectChange(this)">
-        <!-- JavaScriptで動的に生成されます -->
-      </select>
+      <label>チェック単位</label>
+      <div class="check-unit-picker" id="edit-item-units"></div>
+      <button type="button" class="link-add-unit" onclick="addNewLocationFromForm('edit-item-units')">＋新しいチェック単位を追加...</button>
       <div class="field-pair">
         <div class="field">
           <label for="edit-item-count">在庫数</label>
@@ -741,10 +776,9 @@
       <h3>新しいアイテムを追加</h3>
       <label for="new-item-name">アイテム名</label>
       <input type="text" id="new-item-name" placeholder="アイテム名（例：シャンプー）">
-      <label for="new-item-location">保管場所</label>
-      <select id="new-item-location" onchange="handleLocationSelectChange(this)">
-        <!-- JavaScriptで動的に生成されます -->
-      </select>
+      <label>チェック単位</label>
+      <div class="check-unit-picker" id="new-item-units"></div>
+      <button type="button" class="link-add-unit" onclick="addNewLocationFromForm('new-item-units')">＋新しいチェック単位を追加...</button>
       <label for="new-item-unit">単位</label>
       <select id="new-item-unit" onchange="handleUnitSelectChange(this)"></select>
       <label for="new-item-target">必要数量</label>
@@ -781,7 +815,7 @@
     if (!Array.isArray(customUnits)) customUnits = [];
     customUnits = customUnits.map(u => String(u).trim()).filter(Boolean);
 
-    // 保管場所のマスターデータ（「その他」は廃止）
+    // チェック単位のマスターデータ（「その他」は廃止）
     let customLocations = JSON.parse(localStorage.getItem('stockLocations')) || DEFAULT_LOCATIONS;
     customLocations = customLocations.filter(loc => loc !== REMOVED_LOCATION);
     if (customLocations.length === 0) customLocations = [...DEFAULT_LOCATIONS];
@@ -799,7 +833,7 @@
     let householdId = HOUSEHOLD_ID;
 
     const PAGE_TITLES = {
-      locations: '📍 保管場所一覧',
+      locations: '📍 チェック単位一覧',
       inventory: '食品・日用品のストック棚卸',
       order: '🛒 発注リスト'
     };
@@ -832,22 +866,14 @@
 
     // データの読み込み
     let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) || [
-      { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', target: 4, orderThreshold: 1, unit: '巻', entered: true },
-      { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', target: 2, orderThreshold: 1, unit: '本', entered: true },
-      { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', target: 2, orderThreshold: 0, unit: '本', entered: false }
+      { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', checkUnits: ['トイレ'], target: 4, orderThreshold: 1, unit: '巻', entered: true },
+      { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', checkUnits: ['洗面所'], target: 2, orderThreshold: 1, unit: '本', entered: true },
+      { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', checkUnits: ['キッチン'], target: 2, orderThreshold: 0, unit: '本', entered: false }
     ];
 
-    stockItems = stockItems.map(item => {
-      const next = { ...item };
-      if (next.target === undefined) next.target = 1;
-      if (next.location === REMOVED_LOCATION) next.location = customLocations[0];
-      if (next.entered === undefined) next.entered = true;
-      if (next.unit === undefined) next.unit = '個';
-      if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
-      next.complete = !!(next.entered && next.count > next.orderThreshold);
-      return next;
-    });
+    stockItems = stockItems.map(migrateItem);
     stockItems.forEach(item => rememberUnit(item.unit));
+    localStorage.setItem('stockLocations', JSON.stringify(customLocations));
 
     // 入力モーダルを表示して入力値を返す（prompt() の代替。IMEでの日本語入力が可能）
     let promptResolver = null;
@@ -881,13 +907,13 @@
     // モーダルを開く
     function openModal() {
       document.getElementById('add-modal').style.display = 'flex';
-      updateLocationSelect();
+      const preset = currentFilter !== 'すべて' && customLocations.includes(currentFilter)
+        ? [currentFilter]
+        : (customLocations[0] ? [customLocations[0]] : []);
+      fillCheckUnitPicker('new-item-units', preset);
       fillUnitSelect(document.getElementById('new-item-unit'), '個');
       document.getElementById('new-item-target').value = 1;
       document.getElementById('new-item-threshold').value = 0;
-      if (currentFilter !== 'すべて') {
-        document.getElementById('new-item-location').value = currentFilter;
-      }
       document.getElementById('new-item-name').focus();
     }
 
@@ -901,61 +927,83 @@
 
     // 新しい場所を追加する処理（モーダル内と絞り込み両方から呼ばれる）
     async function addNewLocation() {
-      const newLoc = await showPrompt('新しい保管場所の名前を入力してください');
+      const newLoc = await showPrompt('新しいチェック単位の名前を入力してください');
       if (!newLoc || newLoc.trim() === '') return null;
       const trimmed = newLoc.trim();
       if (trimmed === REMOVED_LOCATION) {
-        alert('「その他」は使えません。具体的な場所名を入力してください。');
+        alert('「その他」は使えません。具体的な名前を入力してください。');
         return null;
       }
       if (!customLocations.includes(trimmed)) {
         customLocations.push(trimmed);
-        refreshLocationSelects(trimmed);
+        refreshCheckUnitPickers(trimmed);
         renderFilters();
         saveAndRender();
         if (isCloudReady()) await pushToCloud();
         return trimmed;
       }
-      return null;
+      return trimmed;
     }
 
-    // モーダル内のセレクトボックス変更時の処理
-    async function handleLocationSelectChange(select) {
-      if (select.value === "ADD_NEW") {
-        const addedLoc = await addNewLocation();
-        if (addedLoc) {
-          select.value = addedLoc;
-        } else {
-          // キャンセルされた場合は最初の項目に戻す
-          select.value = customLocations[0];
-        }
-      }
+    async function addNewLocationFromForm(containerId) {
+      const selected = getSelectedCheckUnits(containerId);
+      const added = await addNewLocation();
+      if (added && !selected.includes(added)) selected.push(added);
+      fillCheckUnitPicker(containerId, selected);
     }
 
-    // 場所選択プルダウンを更新する関数（追加・編集モーダル共通）
-    function fillLocationSelect(select, selectedValue) {
-      select.innerHTML = '';
+    function itemCheckUnits(item) {
+      const fallback = customLocations[0] || DEFAULT_LOCATIONS[0];
+      let units = [];
+      if (Array.isArray(item.checkUnits)) units = item.checkUnits.slice();
+      else if (item.location) units = [item.location];
+      units = [...new Set(units.map(u => String(u).trim()).filter(u => u && u !== REMOVED_LOCATION))];
+      units = units.filter(u => customLocations.includes(u));
+      if (units.length === 0) units = fallback ? [fallback] : [];
+      return units;
+    }
 
-      customLocations.forEach(loc => {
-        const option = document.createElement('option');
-        option.value = loc;
-        option.textContent = loc;
-        select.appendChild(option);
+    function setItemCheckUnits(item, units) {
+      const next = [...new Set((units || []).filter(u => customLocations.includes(u)))];
+      item.checkUnits = next.length ? next : (customLocations[0] ? [customLocations[0]] : []);
+      item.location = item.checkUnits[0] || '';
+    }
+
+    function itemBelongsTo(item, unitName) {
+      return itemCheckUnits(item).includes(unitName);
+    }
+
+    function fillCheckUnitPicker(containerId, selectedUnits) {
+      const box = document.getElementById(containerId);
+      if (!box) return;
+      const selected = new Set(selectedUnits || []);
+      box.innerHTML = '';
+      customLocations.forEach(name => {
+        const label = document.createElement('label');
+        label.className = 'check-unit-option';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = name;
+        input.checked = selected.has(name);
+        const span = document.createElement('span');
+        span.textContent = name;
+        label.appendChild(input);
+        label.appendChild(span);
+        box.appendChild(label);
       });
-
-      const addOption = document.createElement('option');
-      addOption.value = "ADD_NEW";
-      addOption.textContent = "＋新しい場所を追加...";
-      addOption.style.fontWeight = "bold";
-      select.appendChild(addOption);
-
-      if (selectedValue && customLocations.includes(selectedValue)) {
-        select.value = selectedValue;
-      }
     }
 
-    function updateLocationSelect() {
-      fillLocationSelect(document.getElementById('new-item-location'));
+    function getSelectedCheckUnits(containerId) {
+      return Array.from(document.querySelectorAll('#' + containerId + ' input[type="checkbox"]:checked'))
+        .map(el => el.value);
+    }
+
+    function refreshCheckUnitPickers(extraSelected) {
+      ['new-item-units', 'edit-item-units'].forEach(id => {
+        const selected = getSelectedCheckUnits(id);
+        if (extraSelected && !selected.includes(extraSelected)) selected.push(extraSelected);
+        fillCheckUnitPicker(id, selected);
+      });
     }
 
     function allUnits() {
@@ -1048,16 +1096,6 @@
       return isNaN(parsed) || parsed < 0 ? 0 : parsed;
     }
 
-    function refreshLocationSelects(preferredValue) {
-      const addSelect = document.getElementById('new-item-location');
-      const editSelect = document.getElementById('edit-item-location');
-      const addVal = preferredValue || (addSelect.value !== 'ADD_NEW' ? addSelect.value : null);
-      const editVal = preferredValue || (editSelect.value !== 'ADD_NEW' ? editSelect.value : null);
-      fillLocationSelect(addSelect, addVal);
-      fillLocationSelect(editSelect, editVal);
-    }
-
-    // 絞り込みUIを描画する関数（セレクトで場所が増えてもスクロール可能）
     function renderFilters() {
       const filterDiv = document.getElementById('location-filters');
       filterDiv.innerHTML = '';
@@ -1068,12 +1106,12 @@
 
       const select = document.createElement('select');
       select.className = 'filter-select';
-      select.setAttribute('aria-label', '保管場所で絞り込み');
+      select.setAttribute('aria-label', 'チェック単位で絞り込み');
 
       ['すべて', ...customLocations].forEach(loc => {
         const option = document.createElement('option');
         option.value = loc;
-        option.textContent = loc === 'すべて' ? 'すべての場所' : loc;
+        option.textContent = loc === 'すべて' ? 'すべてのチェック単位' : loc;
         select.appendChild(option);
       });
       select.value = currentFilter;
@@ -1089,19 +1127,19 @@
       const btn = document.getElementById('reset-location-btn');
       const show = currentFilter !== 'すべて' && customLocations.includes(currentFilter);
       btn.hidden = !show;
-      btn.textContent = show ? `「${currentFilter}」の棚卸をリセット` : 'この場所の棚卸をリセット';
+      btn.textContent = show ? `「${currentFilter}」の棚卸をリセット` : 'このチェック単位の棚卸をリセット';
     }
 
-    function resetEnteredItems(location) {
-      const targetItems = location
-        ? stockItems.filter(item => item.location === location)
+    function resetEnteredItems(unitName) {
+      const targetItems = unitName
+        ? stockItems.filter(item => itemBelongsTo(item, unitName))
         : stockItems;
       if (targetItems.length === 0) {
-        alert(location ? 'この場所にはアイテムがありません' : 'リセットするアイテムがありません');
+        alert(unitName ? 'このチェック単位にはアイテムがありません' : 'リセットするアイテムがありません');
         return;
       }
-      const scope = location ? `「${location}」の` : 'すべての';
-      if (!confirm(`${scope}棚卸をリセットしますか？\nアイテム名・場所・必要数はそのまま残し、すべて未入力になります。`)) {
+      const scope = unitName ? `「${unitName}」の` : 'すべての';
+      if (!confirm(`${scope}棚卸をリセットしますか？\nアイテム名・チェック単位・必要数はそのまま残し、すべて未入力になります。`)) {
         return;
       }
       targetItems.forEach(item => {
@@ -1133,7 +1171,7 @@
     }
 
     function getLocationStats(location) {
-      const items = stockItems.filter(item => item.location === location);
+      const items = stockItems.filter(item => itemBelongsTo(item, location));
       const unenteredCount = items.filter(item => !item.entered).length;
       const orderCount = items.filter(needsOrder).length;
       let status = 'アイテムなし';
@@ -1165,7 +1203,7 @@
       listDiv.innerHTML = '';
 
       if (customLocations.length === 0) {
-        listDiv.innerHTML = '<div class="empty-message">保管場所がありません。追加してください。</div>';
+        listDiv.innerHTML = '<div class="empty-message">チェック単位がありません。追加してください。</div>';
         return;
       }
 
@@ -1237,7 +1275,7 @@
           id: String(item.id),
           name: item.name,
           count: item.count,
-          location: item.location,
+          checkUnits: itemCheckUnits(item),
           target: item.target,
           orderThreshold: item.orderThreshold,
           unit: item.unit,
@@ -1246,20 +1284,34 @@
       });
     }
 
-    function stateFromCloudRows(locs, rows) {
+    function stateFromCloudRows(locs, rows, memberships) {
       const names = (locs || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION);
       const locationNames = names.length ? names : [...DEFAULT_LOCATIONS];
       const idToName = Object.fromEntries((locs || []).map(loc => [loc.id, loc.name]));
-      const items = (rows || []).map(row => migrateItem({
-        id: isNaN(Number(row.id)) ? row.id : Number(row.id),
-        name: row.name,
-        count: row.count,
-        location: idToName[row.location_id] || locationNames[0],
-        target: row.target_qty,
-        orderThreshold: row.order_threshold,
-        unit: row.unit,
-        entered: row.entered
-      }));
+      const unitsByItem = {};
+      (memberships || []).forEach(row => {
+        const unitName = idToName[row.location_id];
+        if (!unitName || unitName === REMOVED_LOCATION) return;
+        const key = String(row.item_id);
+        if (!unitsByItem[key]) unitsByItem[key] = [];
+        if (!unitsByItem[key].includes(unitName)) unitsByItem[key].push(unitName);
+      });
+      const items = (rows || []).map(row => {
+        const key = String(row.id);
+        const fromJoin = unitsByItem[key];
+        const fallback = idToName[row.location_id] || locationNames[0];
+        return migrateItem({
+          id: isNaN(Number(row.id)) ? row.id : Number(row.id),
+          name: row.name,
+          count: row.count,
+          location: fallback,
+          checkUnits: fromJoin && fromJoin.length ? fromJoin : [fallback],
+          target: row.target_qty,
+          orderThreshold: row.order_threshold,
+          unit: row.unit,
+          entered: row.entered
+        });
+      });
       return { locations: locationNames, items };
     }
 
@@ -1285,7 +1337,14 @@
         .eq('household_id', householdId);
       if (itemError) throw itemError;
 
-      return stateFromCloudRows(locs, rows);
+      let memberships = [];
+      const { data: membershipRows, error: membershipError } = await supabaseClient
+        .from('item_check_units')
+        .select('item_id,location_id')
+        .eq('household_id', householdId);
+      if (!membershipError) memberships = membershipRows || [];
+
+      return stateFromCloudRows(locs, rows, memberships);
     }
 
     function applyFetchedState(state) {
@@ -1334,18 +1393,21 @@
         const fallbackLocId = locs && locs[0] ? locs[0].id : null;
         if (!fallbackLocId) throw new Error('no locations');
 
-        const itemRows = stockItems.map(item => ({
-          id: String(item.id),
-          household_id: householdId,
-          location_id: nameToId[item.location] || fallbackLocId,
-          name: item.name,
-          count: item.count,
-          target_qty: item.target,
-          order_threshold: item.orderThreshold,
-          unit: item.unit || '個',
-          entered: !!item.entered,
-          updated_at: new Date().toISOString()
-        }));
+        const itemRows = stockItems.map(item => {
+          const units = itemCheckUnits(item);
+          return {
+            id: String(item.id),
+            household_id: householdId,
+            location_id: nameToId[units[0]] || fallbackLocId,
+            name: item.name,
+            count: item.count,
+            target_qty: item.target,
+            order_threshold: item.orderThreshold,
+            unit: item.unit || '個',
+            entered: !!item.entered,
+            updated_at: new Date().toISOString()
+          };
+        });
         if (itemRows.length) {
           const { error: itemUpsertError } = await supabaseClient
             .from('items')
@@ -1365,10 +1427,36 @@
           if (itemDeleteError) throw itemDeleteError;
         }
 
+        const membershipRows = [];
+        stockItems.forEach(item => {
+          itemCheckUnits(item).forEach(unitName => {
+            const locId = nameToId[unitName] || fallbackLocId;
+            membershipRows.push({
+              item_id: String(item.id),
+              location_id: locId,
+              household_id: householdId
+            });
+          });
+        });
+        const { error: membershipClearError } = await supabaseClient
+          .from('item_check_units')
+          .delete()
+          .eq('household_id', householdId);
+        if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
+          throw membershipClearError;
+        }
+        if (!membershipClearError && membershipRows.length) {
+          const { error: membershipInsertError } = await supabaseClient
+            .from('item_check_units')
+            .insert(membershipRows);
+          if (membershipInsertError) throw membershipInsertError;
+        }
+
         const extraLocIds = (locs || [])
           .filter(loc => !customLocations.includes(loc.name))
           .map(loc => loc.id);
         if (extraLocIds.length) {
+          await supabaseClient.from('item_check_units').delete().in('location_id', extraLocIds);
           const { error: locDeleteError } = await supabaseClient.from('locations').delete().in('id', extraLocIds);
           if (locDeleteError) throw locDeleteError;
         }
@@ -1392,7 +1480,7 @@
             id: String(item.id),
             name: item.name,
             count: item.count,
-            location: item.location,
+            checkUnits: itemCheckUnits(item),
             target: item.target,
             orderThreshold: item.orderThreshold,
             unit: item.unit,
@@ -1411,10 +1499,19 @@
     function migrateItem(item) {
       const next = { ...item };
       if (next.target === undefined) next.target = 1;
-      if (next.location === REMOVED_LOCATION) next.location = customLocations[0];
       if (next.entered === undefined) next.entered = true;
       if (next.unit === undefined) next.unit = '個';
       if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
+      let units = [];
+      if (Array.isArray(next.checkUnits)) units = next.checkUnits.slice();
+      else if (next.location) units = [next.location];
+      units = [...new Set(units.map(u => String(u).trim()).filter(u => u && u !== REMOVED_LOCATION))];
+      units.forEach(u => {
+        if (u && !customLocations.includes(u)) customLocations.push(u);
+      });
+      if (units.length === 0) units = [customLocations[0] || DEFAULT_LOCATIONS[0]];
+      next.checkUnits = units;
+      next.location = units[0];
       next.complete = !!(next.entered && next.count > next.orderThreshold);
       return next;
     }
@@ -1442,6 +1539,11 @@
           { event: '*', schema: 'public', table: 'locations', filter: 'household_id=eq.' + householdId },
           () => { scheduleCloudPull(); }
         )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'item_check_units', filter: 'household_id=eq.' + householdId },
+          () => { scheduleCloudPull(); }
+        )
         .subscribe();
 
       syncUnsub = () => {
@@ -1451,7 +1553,7 @@
 
     function getFilteredItems() {
       if (currentFilter === 'すべて') return [...stockItems];
-      return stockItems.filter(item => item.location === currentFilter);
+      return stockItems.filter(item => itemBelongsTo(item, currentFilter));
     }
 
     function nextUnenteredIdAfter(id) {
@@ -1506,7 +1608,7 @@
             </span>
             <div class="item-row">
               <div class="item-side">
-                <span class="item-location">${item.location}</span>
+                <span class="item-location">${itemCheckUnits(item).join('、')}</span>
                 <span class="item-threshold">補充基準: ${formatQty(item.orderThreshold, item.unit)}</span>
               </div>
               <div class="controls">
@@ -1548,7 +1650,7 @@
         itemDiv.innerHTML = `
           <div class="item-info">
             <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-            <span class="item-location">${item.location}</span>
+            <span class="item-location">${itemCheckUnits(item).join('、')}</span>
             <span class="order-amount">発注数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
           </div>
           <div class="controls">
@@ -1588,7 +1690,7 @@
       fillUnitSelect(document.getElementById('edit-item-unit'), item.unit);
       document.getElementById('edit-item-target').value = item.target;
       document.getElementById('edit-item-threshold').value = item.orderThreshold;
-      fillLocationSelect(document.getElementById('edit-item-location'), item.location);
+      fillCheckUnitPicker('edit-item-units', itemCheckUnits(item));
       document.getElementById('edit-modal').style.display = 'flex';
       document.getElementById('edit-item-name').focus();
       document.getElementById('edit-item-name').select();
@@ -1607,9 +1709,9 @@
         alert('アイテム名を入力してください');
         return;
       }
-      const location = document.getElementById('edit-item-location').value;
-      if (location === 'ADD_NEW' || !customLocations.includes(location)) {
-        alert('保管場所を選択してください');
+      const units = getSelectedCheckUnits('edit-item-units');
+      if (!units.length) {
+        alert('チェック単位を1つ以上選んでください');
         return;
       }
       const unit = document.getElementById('edit-item-unit').value;
@@ -1630,7 +1732,7 @@
       rememberUnit(unit);
       item.target = parseNonNeg(document.getElementById('edit-item-target').value);
       item.orderThreshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
-      item.location = location;
+      setItemCheckUnits(item, units);
       closeEditModal();
       saveAndRender();
     }
@@ -1687,7 +1789,7 @@
     // アイテムを追加する関数
     function addItem() {
       const name = document.getElementById('new-item-name').value.trim();
-      const location = document.getElementById('new-item-location').value;
+      const units = getSelectedCheckUnits('new-item-units');
       const unit = document.getElementById('new-item-unit').value;
       const target = parseNonNeg(document.getElementById('new-item-target').value);
       const orderThreshold = parseNonNeg(document.getElementById('new-item-threshold').value);
@@ -1696,21 +1798,26 @@
         alert("アイテム名を入力してください");
         return;
       }
+      if (!units.length) {
+        alert('チェック単位を1つ以上選んでください');
+        return;
+      }
       if (!unit || unit === 'ADD_NEW') {
         alert('単位を選択してください');
         return;
       }
       rememberUnit(unit);
-      stockItems.push({
+      const item = {
         id: Date.now(),
         name,
         count: 0,
-        location,
         target,
         orderThreshold,
         unit,
         entered: false
-      });
+      };
+      setItemCheckUnits(item, units);
+      stockItems.push(item);
       closeModal();
       saveAndRender();
     }
