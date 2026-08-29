@@ -366,12 +366,35 @@ where coalesce(i.category, '') <> ''
 on conflict (household_id, name) do nothing;
 
 insert into public.units (household_id, name, sort_order)
+select h.id, v.name, v.sort_order
+from public.households h
+cross join (values
+  ('個', 0),
+  ('本', 1),
+  ('袋', 2),
+  ('箱', 3),
+  ('缶', 4),
+  ('瓶', 5),
+  ('パック', 6),
+  ('セット', 7),
+  ('巻', 8),
+  ('ロール', 9),
+  ('枚', 10),
+  ('束', 11),
+  ('ケース', 12),
+  ('kg', 13),
+  ('g', 14),
+  ('L', 15),
+  ('ml', 16),
+  ('食', 17),
+  ('チューブ', 18)
+) as v(name, sort_order)
+on conflict (household_id, name) do nothing;
+
+insert into public.units (household_id, name, sort_order)
 select i.household_id, i.unit, 1000 + row_number() over (partition by i.household_id order by i.unit)
 from public.items i
 where coalesce(i.unit, '') <> ''
-  and i.unit not in (
-    '個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'
-  )
 on conflict (household_id, name) do nothing;
 
 alter table public.categories enable row level security;
