@@ -19,7 +19,8 @@
 
   /* ヘッダーとハンバーガーメニュー */
   .app-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 10px;
   }
@@ -31,10 +32,13 @@
     border-radius: 8px;
     padding: 6px 12px;
     cursor: pointer;
+    grid-column: 3;
+    justify-self: end;
   }
   .app-header h2 {
-    flex: 1;
+    grid-column: 2;
     margin: 0;
+    text-align: center;
   }
   .drawer-overlay {
     display: none;
@@ -46,13 +50,13 @@
   .drawer-overlay.open { display: block; }
   .drawer {
     position: fixed;
-    top: 0; left: 0;
+    top: 0; right: 0;
     width: 220px;
     height: 100%;
     background: white;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+    box-shadow: -2px 0 8px rgba(0,0,0,0.2);
     padding: 20px 0;
-    transform: translateX(-100%);
+    transform: translateX(100%);
     transition: transform 0.2s ease;
     z-index: 901;
   }
@@ -302,7 +306,7 @@
   .item-row .controls {
     flex-wrap: nowrap;
     flex-shrink: 0;
-    width: calc(72px + 6px + 3.6em);
+    width: calc(56px + 6px + 72px + 6px + 4em);
   }
   .item-side {
     display: flex;
@@ -347,18 +351,35 @@
   }
   .count-row {
     display: grid;
-    grid-template-columns: 72px 3.6em;
+    grid-template-columns: 56px 72px 4em;
     align-items: center;
     column-gap: 6px;
     width: 100%;
   }
+  .zero-btn {
+    min-width: 56px;
+    min-height: 44px;
+    padding: 0 4px !important;
+    font-size: 12px !important;
+    font-weight: bold;
+    background: #eceff1 !important;
+    color: #37474f !important;
+    border-radius: 8px !important;
+    white-space: nowrap;
+  }
+  .zero-btn:active {
+    background: #cfd8dc !important;
+  }
   .unit-suffix {
+    display: block;
+    width: 4em;
     font-size: 0.85em;
     color: #555;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.2;
+    text-align: left;
   }
   .field-hint {
     font-size: 0.75em;
@@ -380,14 +401,14 @@
   }
   .count-input { 
     font-size: 1.35em; 
-    width: 72px; 
+    width: 100%; 
     min-height: 44px;
-    text-align: center; 
+    text-align: right; 
     font-weight: bold;
     border: 1px solid #90caf9;
     background: #e3f2fd;
     border-radius: 8px;
-    padding: 8px 6px;
+    padding: 8px 8px 8px 6px;
     box-sizing: border-box;
     caret-color: #1565c0;
   }
@@ -401,6 +422,7 @@
     color: #90a4ae;
     font-weight: normal;
     font-size: 0.85em;
+    text-align: right;
   }
   /* 数値入力のスピンボタンを非表示にする（すっきり見せるため） */
   .count-input::-webkit-outer-spin-button,
@@ -416,7 +438,7 @@
     color: #666;
   }
 
-  /* 追加ボタン（リスト上部） */
+  /* 追加ボタン */
   .open-modal-btn {
     width: 100%;
     padding: 12px;
@@ -429,6 +451,10 @@
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .open-modal-btn.bottom {
+    margin-top: 20px;
+    margin-bottom: 0;
   }
   .reset-btn {
     width: 100%;
@@ -486,6 +512,42 @@
     font-size: 16px;
     width: 100%;
     box-sizing: border-box;
+  }
+  .field-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .field-pair .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .field-pair .unit-readout {
+    align-self: center;
+    width: auto;
+  }
+  .modal-content .input-with-unit {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .modal-content .input-with-unit input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+  .modal-content input[inputmode="numeric"],
+  .modal-content input[type="number"] {
+    text-align: right;
+  }
+  .unit-readout {
+    flex-shrink: 0;
+    width: 4em;
+    color: #555;
+    font-size: 0.95em;
+    text-align: left;
   }
   .modal-actions {
     display: flex;
@@ -573,8 +635,8 @@
 </head>
 <body>
   <div class="app-header">
-    <button class="menu-btn" onclick="openDrawer()" aria-label="メニュー">☰</button>
     <h2 id="page-title">食品・日用品のストック棚卸</h2>
+    <button class="menu-btn" onclick="openDrawer()" aria-label="メニュー">☰</button>
   </div>
 
   <!-- ハンバーガーメニュー -->
@@ -589,8 +651,8 @@
 
   <!-- 保管場所一覧 -->
   <div class="page" id="page-locations">
-    <button class="open-modal-btn" onclick="addNewLocation()">➕ 場所を追加</button>
     <div id="location-list"></div>
+    <button class="open-modal-btn bottom" onclick="addNewLocation()">➕ 場所を追加</button>
   </div>
 
   <!-- 棚卸画面 -->
@@ -638,19 +700,33 @@
   <div class="modal-overlay" id="edit-modal">
     <div class="modal-content">
       <h3>アイテムを編集</h3>
-      <label for="edit-item-name">品名</label>
-      <input type="text" id="edit-item-name" placeholder="品名">
-      <label for="edit-item-unit">単位</label>
-      <select id="edit-item-unit"></select>
-      <label for="edit-item-target">必要数量</label>
-      <input type="number" id="edit-item-target" min="0" inputmode="numeric">
-      <label for="edit-item-threshold">発注基準数</label>
-      <input type="number" id="edit-item-threshold" min="0" inputmode="numeric">
-      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
+      <label for="edit-item-name">アイテム名</label>
+      <input type="text" id="edit-item-name" placeholder="アイテム名">
       <label for="edit-item-location">保管場所</label>
       <select id="edit-item-location" onchange="handleLocationSelectChange(this)">
         <!-- JavaScriptで動的に生成されます -->
       </select>
+      <div class="field-pair">
+        <div class="field">
+          <label for="edit-item-count">在庫数</label>
+          <input type="text" id="edit-item-count" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="未入力" oninput="filterCountInput(this)">
+        </div>
+        <div class="field">
+          <label for="edit-item-unit">単位</label>
+          <select id="edit-item-unit" onchange="handleUnitSelectChange(this)"></select>
+        </div>
+      </div>
+      <label for="edit-item-target">必要数量</label>
+      <div class="field-pair">
+        <input type="number" id="edit-item-target" min="0" inputmode="numeric">
+        <span class="unit-readout" id="edit-target-unit"></span>
+      </div>
+      <label for="edit-item-threshold">補充基準数</label>
+      <div class="field-pair">
+        <input type="number" id="edit-item-threshold" min="0" inputmode="numeric">
+        <span class="unit-readout" id="edit-threshold-unit"></span>
+      </div>
+      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
       <div class="modal-actions">
         <button type="button" class="btn-delete" onclick="deleteEditingItem()">削除</button>
         <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
@@ -663,19 +739,25 @@
   <div class="modal-overlay" id="add-modal">
     <div class="modal-content">
       <h3>新しいアイテムを追加</h3>
-      <label for="new-item-name">品名</label>
-      <input type="text" id="new-item-name" placeholder="品名（例：シャンプー）">
-      <label for="new-item-unit">単位</label>
-      <select id="new-item-unit"></select>
-      <label for="new-item-target">必要数量</label>
-      <input type="number" id="new-item-target" min="0" inputmode="numeric" value="1">
-      <label for="new-item-threshold">発注基準数</label>
-      <input type="number" id="new-item-threshold" min="0" inputmode="numeric" value="0">
-      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
+      <label for="new-item-name">アイテム名</label>
+      <input type="text" id="new-item-name" placeholder="アイテム名（例：シャンプー）">
       <label for="new-item-location">保管場所</label>
       <select id="new-item-location" onchange="handleLocationSelectChange(this)">
         <!-- JavaScriptで動的に生成されます -->
       </select>
+      <label for="new-item-unit">単位</label>
+      <select id="new-item-unit" onchange="handleUnitSelectChange(this)"></select>
+      <label for="new-item-target">必要数量</label>
+      <div class="input-with-unit">
+        <input type="number" id="new-item-target" min="0" inputmode="numeric" value="1">
+        <span class="unit-readout" id="new-target-unit"></span>
+      </div>
+      <label for="new-item-threshold">補充基準数</label>
+      <div class="input-with-unit">
+        <input type="number" id="new-item-threshold" min="0" inputmode="numeric" value="0">
+        <span class="unit-readout" id="new-threshold-unit"></span>
+      </div>
+      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
       
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
@@ -694,6 +776,10 @@
     const DEFAULT_LOCATIONS = ['洗面所', 'キッチン', 'トイレ'];
     const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml'];
     const REMOVED_LOCATION = 'その他';
+
+    let customUnits = JSON.parse(localStorage.getItem('stockUnits')) || [];
+    if (!Array.isArray(customUnits)) customUnits = [];
+    customUnits = customUnits.map(u => String(u).trim()).filter(Boolean);
 
     // 保管場所のマスターデータ（「その他」は廃止）
     let customLocations = JSON.parse(localStorage.getItem('stockLocations')) || DEFAULT_LOCATIONS;
@@ -761,6 +847,7 @@
       next.complete = !!(next.entered && next.count > next.orderThreshold);
       return next;
     });
+    stockItems.forEach(item => rememberUnit(item.unit));
 
     // 入力モーダルを表示して入力値を返す（prompt() の代替。IMEでの日本語入力が可能）
     let promptResolver = null;
@@ -871,9 +958,58 @@
       fillLocationSelect(document.getElementById('new-item-location'));
     }
 
+    function allUnits() {
+      const seen = new Set();
+      const units = [];
+      const extras = [...customUnits, ...stockItems.map(item => item.unit).filter(Boolean)];
+      [...ITEM_UNITS, ...extras].forEach(unit => {
+        const name = String(unit).trim();
+        if (!name || seen.has(name)) return;
+        seen.add(name);
+        units.push(name);
+      });
+      return units;
+    }
+
+    function rememberUnit(name) {
+      if (!name || ITEM_UNITS.includes(name) || customUnits.includes(name)) return;
+      customUnits.push(name);
+    }
+
+    async function addNewUnit() {
+      const raw = await showPrompt('新しい単位を入力してください（例：束）');
+      if (!raw || raw.trim() === '') return null;
+      const trimmed = raw.trim();
+      rememberUnit(trimmed);
+      refreshUnitSelects(trimmed);
+      localStorage.setItem('stockUnits', JSON.stringify(customUnits));
+      return trimmed;
+    }
+
+    async function handleUnitSelectChange(select) {
+      if (select.value === 'ADD_NEW') {
+        const added = await addNewUnit();
+        if (added) {
+          fillUnitSelect(select, added);
+        } else {
+          fillUnitSelect(select, allUnits()[0] || '個');
+        }
+      }
+      syncUnitReadouts();
+    }
+
+    function refreshUnitSelects(preferredValue) {
+      const addSelect = document.getElementById('new-item-unit');
+      const editSelect = document.getElementById('edit-item-unit');
+      const addVal = preferredValue || (addSelect.value !== 'ADD_NEW' ? addSelect.value : null);
+      const editVal = preferredValue || (editSelect.value !== 'ADD_NEW' ? editSelect.value : null);
+      fillUnitSelect(addSelect, addVal);
+      fillUnitSelect(editSelect, editVal);
+    }
+
     function fillUnitSelect(select, selectedValue) {
       select.innerHTML = '';
-      const units = [...ITEM_UNITS];
+      const units = allUnits();
       if (selectedValue && !units.includes(selectedValue)) units.unshift(selectedValue);
       units.forEach(unit => {
         const option = document.createElement('option');
@@ -881,7 +1017,26 @@
         option.textContent = unit;
         select.appendChild(option);
       });
-      select.value = selectedValue && units.includes(selectedValue) ? selectedValue : '個';
+      const addOption = document.createElement('option');
+      addOption.value = 'ADD_NEW';
+      addOption.textContent = '＋新しい単位を追加...';
+      addOption.style.fontWeight = 'bold';
+      select.appendChild(addOption);
+      select.value = selectedValue && units.includes(selectedValue) ? selectedValue : (units[0] || '個');
+      syncUnitReadouts();
+    }
+
+    function unitDisplay(value) {
+      return value && value !== 'ADD_NEW' ? value : '';
+    }
+
+    function syncUnitReadouts() {
+      const editUnit = unitDisplay(document.getElementById('edit-item-unit').value);
+      const addUnit = unitDisplay(document.getElementById('new-item-unit').value);
+      document.getElementById('edit-target-unit').textContent = editUnit;
+      document.getElementById('edit-threshold-unit').textContent = editUnit;
+      document.getElementById('new-target-unit').textContent = addUnit;
+      document.getElementById('new-threshold-unit').textContent = addUnit;
     }
 
     function formatQty(n, unit) {
@@ -946,7 +1101,7 @@
         return;
       }
       const scope = location ? `「${location}」の` : 'すべての';
-      if (!confirm(`${scope}棚卸をリセットしますか？\n品名・場所・必要数はそのまま残し、すべて未入力になります。`)) {
+      if (!confirm(`${scope}棚卸をリセットしますか？\nアイテム名・場所・必要数はそのまま残し、すべて未入力になります。`)) {
         return;
       }
       targetItems.forEach(item => {
@@ -1137,6 +1292,7 @@
       applyingRemote = true;
       customLocations = state.locations;
       stockItems = state.items.map(migrateItem);
+      stockItems.forEach(item => rememberUnit(item.unit));
       renderFilters();
       saveAndRender();
       applyingRemote = false;
@@ -1293,30 +1449,41 @@
       };
     }
 
+    function getFilteredItems() {
+      if (currentFilter === 'すべて') return [...stockItems];
+      return stockItems.filter(item => item.location === currentFilter);
+    }
+
+    function nextUnenteredIdAfter(id) {
+      const visible = getFilteredItems();
+      const idx = visible.findIndex(item => String(item.id) === String(id));
+      const search = idx === -1 ? visible : visible.slice(idx + 1).concat(visible.slice(0, idx));
+      const next = search.find(item => !item.entered);
+      return next ? next.id : null;
+    }
+
+    function focusCountInput(id) {
+      if (id == null) return;
+      const target = String(id);
+      const input = Array.from(document.querySelectorAll('#stock-list .count-input'))
+        .find(el => String(el.dataset.itemId) === target);
+      if (!input) return;
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      input.focus();
+      input.select();
+    }
+
     // データを保存してリストを描画する関数
     function saveAndRender() {
       stockItems.forEach(syncItemFlags);
       localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
       localStorage.setItem('stockLocations', JSON.stringify(customLocations));
+      localStorage.setItem('stockUnits', JSON.stringify(customUnits));
       if (!applyingRemote) scheduleCloudSave();
       const listDiv = document.getElementById('stock-list');
       listDiv.innerHTML = '';
 
-      // 現在選択されている場所でフィルターをかける
-      const filteredItems = currentFilter === 'すべて' 
-        ? [...stockItems] 
-        : stockItems.filter(item => item.location === currentFilter);
-
-      // 発注が必要なものが上にくるようにソート
-      filteredItems.sort((a, b) => {
-        const aNeedsOrder = needsOrder(a);
-        const bNeedsOrder = needsOrder(b);
-        if (!a.entered && b.entered) return -1;
-        if (a.entered && !b.entered) return 1;
-        if (aNeedsOrder && !bNeedsOrder) return -1;
-        if (!aNeedsOrder && bNeedsOrder) return 1;
-        return 0;
-      });
+      const filteredItems = getFilteredItems();
 
       renderOrderList();
       renderLocationList();
@@ -1340,11 +1507,12 @@
             <div class="item-row">
               <div class="item-side">
                 <span class="item-location">${item.location}</span>
-                <span class="item-threshold">発注基準: ${formatQty(item.orderThreshold, item.unit)}</span>
+                <span class="item-threshold">補充基準: ${formatQty(item.orderThreshold, item.unit)}</span>
               </div>
               <div class="controls">
                 <div class="count-container">
                   <div class="count-row">
+                    <button type="button" class="zero-btn" data-item-id="${item.id}" onclick="setCountZero(event, this.dataset.itemId)">在庫0</button>
                     <input type="text" class="count-input" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
                     <span class="unit-suffix">${item.unit}</span>
                   </div>
@@ -1416,6 +1584,7 @@
       if (!item) return;
       editingItemId = id;
       document.getElementById('edit-item-name').value = item.name;
+      document.getElementById('edit-item-count').value = item.entered ? item.count : '';
       fillUnitSelect(document.getElementById('edit-item-unit'), item.unit);
       document.getElementById('edit-item-target').value = item.target;
       document.getElementById('edit-item-threshold').value = item.orderThreshold;
@@ -1431,11 +1600,11 @@
     }
 
     function saveItemEdit() {
-      const item = stockItems.find(i => i.id === editingItemId);
+      const item = findItemById(editingItemId);
       if (!item) return;
       const name = document.getElementById('edit-item-name').value.trim();
       if (!name) {
-        alert('品名を入力してください');
+        alert('アイテム名を入力してください');
         return;
       }
       const location = document.getElementById('edit-item-location').value;
@@ -1443,12 +1612,24 @@
         alert('保管場所を選択してください');
         return;
       }
-      const parsed = parseNonNeg(document.getElementById('edit-item-target').value);
-      const threshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
+      const unit = document.getElementById('edit-item-unit').value;
+      if (!unit || unit === 'ADD_NEW') {
+        alert('単位を選択してください');
+        return;
+      }
+      const countRaw = document.getElementById('edit-item-count').value.trim();
+      if (countRaw === '') {
+        item.count = 0;
+        item.entered = false;
+      } else {
+        item.count = parseNonNeg(countRaw);
+        item.entered = true;
+      }
       item.name = name;
-      item.unit = document.getElementById('edit-item-unit').value;
-      item.target = parsed;
-      item.orderThreshold = threshold;
+      item.unit = unit;
+      rememberUnit(unit);
+      item.target = parseNonNeg(document.getElementById('edit-item-target').value);
+      item.orderThreshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
       item.location = location;
       closeEditModal();
       saveAndRender();
@@ -1476,10 +1657,16 @@
     }
 
     // 数量を直接入力して変更する関数
+    function setCountZero(event, id) {
+      event.stopPropagation();
+      updateCountDirect(id, '0');
+    }
+
     function updateCountDirect(id, value) {
       const item = findItemById(id);
       if (!item) return;
       const trimmed = String(value).trim();
+      let moveToUnentered = false;
       if (trimmed === '') {
         item.count = 0;
         item.entered = false;
@@ -1488,8 +1675,13 @@
         if (isNaN(newCount)) return;
         item.count = newCount < 0 ? 0 : newCount;
         item.entered = true;
+        moveToUnentered = true;
       }
+      const nextId = moveToUnentered ? nextUnenteredIdAfter(id) : null;
       saveAndRender();
+      if (nextId != null) {
+        requestAnimationFrame(() => focusCountInput(nextId));
+      }
     }
 
     // アイテムを追加する関数
@@ -1500,22 +1692,27 @@
       const target = parseNonNeg(document.getElementById('new-item-target').value);
       const orderThreshold = parseNonNeg(document.getElementById('new-item-threshold').value);
 
-      if (name) {
-        stockItems.push({
-          id: Date.now(),
-          name,
-          count: 0,
-          location,
-          target,
-          orderThreshold,
-          unit,
-          entered: false
-        });
-        closeModal();
-        saveAndRender();
-      } else {
-        alert("品名を入力してください");
+      if (!name) {
+        alert("アイテム名を入力してください");
+        return;
       }
+      if (!unit || unit === 'ADD_NEW') {
+        alert('単位を選択してください');
+        return;
+      }
+      rememberUnit(unit);
+      stockItems.push({
+        id: Date.now(),
+        name,
+        count: 0,
+        location,
+        target,
+        orderThreshold,
+        unit,
+        entered: false
+      });
+      closeModal();
+      saveAndRender();
     }
 
     // アイテムを削除する関数
@@ -1548,7 +1745,7 @@
       }
 
       // APIに送信するプロンプトの作成
-      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${formatQty(item.target, item.unit)}, 現在数: ${formatQty(item.count, item.unit)}, 発注基準: ${formatQty(item.orderThreshold, item.unit)}, 不足分: ${formatQty(item.target - item.count, item.unit)})`).join('\n');
+      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${formatQty(item.target, item.unit)}, 現在数: ${formatQty(item.count, item.unit)}, 補充基準: ${formatQty(item.orderThreshold, item.unit)}, 不足分: ${formatQty(item.target - item.count, item.unit)})`).join('\n');
       const prompt = `私は家庭の日用品の在庫管理をしています。現在、以下のアイテムが不足しており、購入が必要です。
       
 ${itemListText}
