@@ -470,6 +470,58 @@
   .drawer-item.danger {
     color: #c62828;
   }
+  .settings-section {
+    margin-bottom: 28px;
+  }
+  .settings-section h3 {
+    margin: 0 0 10px;
+    color: #333;
+    font-size: 1.05em;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  }
+  .settings-row-name {
+    flex: 1;
+    min-width: 0;
+    font-weight: bold;
+    color: #222;
+  }
+  .settings-row button {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .settings-edit {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+  .settings-delete {
+    background: #ffebee;
+    color: #c62828;
+  }
+  .settings-add {
+    width: 100%;
+    padding: 10px;
+    background: white;
+    color: #1565c0;
+    border: 1px dashed #90caf9;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
   
   /* モーダル（別ページ風の追加画面）のデザイン */
   .modal-overlay {
@@ -643,6 +695,7 @@
     <button class="drawer-item" id="nav-items" onclick="showPage('items')">📋 アイテム一覧</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 Check List</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
+    <button class="drawer-item" id="nav-settings" onclick="showPage('settings')">⚙️ 設定</button>
     <button class="drawer-item danger" onclick="resetAllInventory()">🔄 リセット</button>
   </nav>
 
@@ -680,6 +733,11 @@
 
   <!-- 発注リスト表示エリア -->
   <div id="order-list"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="page" id="page-settings">
+    <div id="settings-list"></div>
   </div>
 
   <!-- 汎用入力モーダル（日本語入力対応のため prompt() の代わりに使用） -->
@@ -840,9 +898,10 @@
     const PAGE_TITLES = {
       items: '📋 アイテム一覧',
       inventory: 'Stock & Check',
-      order: '🛒 発注リスト'
+      order: '🛒 発注リスト',
+      settings: '⚙️ 設定'
     };
-    const PAGE_IDS = ['items', 'inventory', 'order'];
+    const PAGE_IDS = ['items', 'inventory', 'order', 'settings'];
     if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
 
     function loadNameList(key, fallback) {
@@ -977,6 +1036,188 @@
       const unit = { cycle, place };
       if (!customCheckUnits.some(u => unitsEqual(u, unit))) customCheckUnits.push(unit);
       return unit;
+    }
+
+    function rewriteCheckUnits(mapFn) {
+      customCheckUnits = dedupeUnits(customCheckUnits.map(mapFn).filter(Boolean));
+      stockItems.forEach(item => {
+        const next = dedupeUnits((item.checkUnits || []).map(mapFn).filter(Boolean));
+        item.checkUnits = next;
+        item.location = next[0] ? next[0].place : '';
+      });
+    }
+
+    function remapNamedFilter(current, oldName, nextName) {
+      if (current !== oldName) return current;
+      return nextName || ALL_FILTER;
+    }
+
+    async function addMasterName(kind) {
+      const titles = {
+        cycle: '新しいチェック頻度の名前を入力してください',
+        place: '新しい場所の名前を入力してください',
+        category: '新しいカテゴリの名前を入力してください',
+        unit: '新しい単位を入力してください'
+      };
+      const raw = await showPrompt(titles[kind]);
+      if (!raw || !raw.trim()) return;
+      const trimmed = raw.trim();
+      if (kind === 'place' && (trimmed === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(trimmed))) {
+        alert('その名前は場所に使えません。');
+        return;
+      }
+      if (kind === 'cycle') ensureCycle(trimmed);
+      else if (kind === 'place') ensurePlace(trimmed);
+      else if (kind === 'category') ensureCategory(trimmed);
+      else rememberUnit(trimmed);
+      saveAndRender();
+    }
+
+    async function renameMasterName(kind, oldName) {
+      const titles = {
+        cycle: 'チェック頻度の新しい名前',
+        place: '場所の新しい名前',
+        category: 'カテゴリの新しい名前',
+        unit: '単位の新しい名前'
+      };
+      const raw = await showPrompt(titles[kind], oldName);
+      if (!raw || !raw.trim()) return;
+      const next = raw.trim();
+      if (next === oldName) return;
+      if (kind === 'place' && (next === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(next))) {
+        alert('その名前は場所に使えません。');
+        return;
+      }
+      const lists = {
+        cycle: customCycles,
+        place: customPlaces,
+        category: customCategories,
+        unit: allUnits()
+      };
+      if (lists[kind].includes(next)) {
+        alert('同じ名前がすでにあります。');
+        return;
+      }
+      if (kind === 'cycle') {
+        const idx = customCycles.indexOf(oldName);
+        if (idx < 0) return;
+        customCycles[idx] = next;
+        rewriteCheckUnits(u => u.cycle === oldName ? { cycle: next, place: u.place } : u);
+        inventoryCycleFilter = remapNamedFilter(inventoryCycleFilter, oldName, next);
+        catalogCycleFilter = remapNamedFilter(catalogCycleFilter, oldName, next);
+      } else if (kind === 'place') {
+        const idx = customPlaces.indexOf(oldName);
+        if (idx < 0) return;
+        customPlaces[idx] = next;
+        rewriteCheckUnits(u => u.place === oldName ? { cycle: u.cycle, place: next } : u);
+        inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, oldName, next);
+        catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, oldName, next);
+      } else if (kind === 'category') {
+        if (!customCategories.includes(oldName)) customCategories.push(oldName);
+        const idx = customCategories.indexOf(oldName);
+        customCategories[idx] = next;
+        stockItems.forEach(item => {
+          if (normalizeCategory(item.category) === oldName) item.category = next;
+        });
+        catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, oldName, next);
+        orderCategoryFilter = remapNamedFilter(orderCategoryFilter, oldName, next);
+      } else {
+        if (!customUnits.includes(next)) customUnits.push(next);
+        customUnits = customUnits.filter(u => u !== oldName);
+        stockItems.forEach(item => {
+          if (item.unit === oldName) item.unit = next;
+        });
+      }
+      saveAndRender();
+    }
+
+    function deleteMasterName(kind, name) {
+      if (kind === 'cycle') {
+        if (customCycles.length <= 1) {
+          alert('チェック頻度は1つ以上必要です。');
+          return;
+        }
+        const count = stockItems.filter(item => itemCheckUnits(item).some(u => u.cycle === name)).length;
+        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムからこのチェック頻度が外れます。` : ''}`)) return;
+        customCycles = customCycles.filter(v => v !== name);
+        rewriteCheckUnits(u => u.cycle === name ? null : u);
+        inventoryCycleFilter = remapNamedFilter(inventoryCycleFilter, name, ALL_FILTER);
+        catalogCycleFilter = remapNamedFilter(catalogCycleFilter, name, ALL_FILTER);
+      } else if (kind === 'place') {
+        const count = stockItems.filter(item => itemCheckUnits(item).some(u => u.place === name)).length;
+        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムの場所は未選択になります。` : ''}`)) return;
+        customPlaces = customPlaces.filter(v => v !== name);
+        rewriteCheckUnits(u => u.place === name ? { cycle: u.cycle, place: '' } : u);
+        inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, name, ALL_FILTER);
+        catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, name, ALL_FILTER);
+      } else if (kind === 'category') {
+        const count = stockItems.filter(item => normalizeCategory(item.category) === name).length;
+        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムは未分類になります。` : ''}`)) return;
+        customCategories = customCategories.filter(v => v !== name);
+        stockItems.forEach(item => {
+          if (normalizeCategory(item.category) === name) item.category = '';
+        });
+        catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, name, ALL_FILTER);
+        orderCategoryFilter = remapNamedFilter(orderCategoryFilter, name, ALL_FILTER);
+      } else {
+        if (ITEM_UNITS.includes(name)) {
+          alert('標準の単位は削除できません。');
+          return;
+        }
+        const count = stockItems.filter(item => item.unit === name).length;
+        if (!confirm(`「${name}」を削除しますか？${count ? `\n${count}件のアイテムは「個」になります。` : ''}`)) return;
+        customUnits = customUnits.filter(v => v !== name);
+        stockItems.forEach(item => {
+          if (item.unit === name) item.unit = '個';
+        });
+      }
+      saveAndRender();
+    }
+
+    function appendSettingsSection(root, title, kind, names) {
+      const section = document.createElement('div');
+      section.className = 'settings-section';
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      section.appendChild(heading);
+      names.forEach(name => {
+        const row = document.createElement('div');
+        row.className = 'settings-row';
+        const label = document.createElement('span');
+        label.className = 'settings-row-name';
+        label.textContent = name;
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'settings-edit';
+        editBtn.textContent = '変更';
+        editBtn.onclick = () => renameMasterName(kind, name);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'settings-delete';
+        deleteBtn.textContent = '削除';
+        deleteBtn.onclick = () => deleteMasterName(kind, name);
+        row.appendChild(label);
+        row.appendChild(editBtn);
+        row.appendChild(deleteBtn);
+        section.appendChild(row);
+      });
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'settings-add';
+      addBtn.textContent = '＋ 追加';
+      addBtn.onclick = () => addMasterName(kind);
+      section.appendChild(addBtn);
+      root.appendChild(section);
+    }
+
+    function renderSettings() {
+      const root = document.getElementById('settings-list');
+      if (!root) return;
+      root.innerHTML = '';
+      appendSettingsSection(root, 'チェック頻度', 'cycle', customCycles.slice());
+      appendSettingsSection(root, '場所', 'place', customPlaces.slice());
+      appendSettingsSection(root, 'カテゴリ', 'category', allCategories());
+      appendSettingsSection(root, '単位', 'unit', allUnits());
     }
 
     function todayIsoDate() {
@@ -2081,6 +2322,7 @@
 
       renderOrderList();
       renderItemsCatalog();
+      renderSettings();
       updateResetLocationButton();
 
       const groups = new Map();
