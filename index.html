@@ -320,6 +320,41 @@
     max-height: 180px;
     overflow-y: auto;
   }
+  .check-unit-picker-box {
+    background: #fafafa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .check-unit-picker-box .check-unit-picker {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+  .check-unit-picker-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 6px 8px 0;
+  }
+  .picker-add-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid #90caf9;
+    background: #e3f2fd;
+    color: #1565c0;
+    border-radius: 8px;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .picker-add-btn:active {
+    background: #bbdefb;
+  }
   .check-unit-option {
     display: flex;
     align-items: center;
@@ -450,6 +485,57 @@
   .input-with-unit select {
     width: 88px;
     flex-shrink: 0;
+  }
+  .stock-spec-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .stock-spec-header,
+  .stock-spec-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    align-items: stretch;
+  }
+  .stock-spec-header span {
+    font-size: 0.72em;
+    color: #666;
+    font-weight: bold;
+    text-align: center;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+  .stock-spec-row input,
+  .stock-spec-row select,
+  .stock-spec-unit-readout {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 10px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+  .stock-spec-row input {
+    text-align: right;
+  }
+  .stock-spec-row select {
+    cursor: pointer;
+    padding-right: 28px;
+  }
+  .stock-spec-unit-readout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-color: #e0e0e0;
+    background: #f5f5f5;
+    color: #555;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .count-input { 
     font-size: 1.35em; 
@@ -607,6 +693,9 @@
     justify-content: center;
     align-items: flex-end;
     padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   .modal-content {
     background: white;
@@ -614,12 +703,17 @@
     border-radius: 12px 12px 8px 8px;
     width: 100%;
     max-width: 560px;
-    max-height: min(92dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
     display: flex;
     flex-direction: column;
     gap: 15px;
+    flex-shrink: 0;
+  }
+  .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow: visible;
   }
   .modal-content h3 {
     margin-top: 0;
@@ -632,12 +726,23 @@
     font-weight: bold;
   }
   .modal-content input, .modal-content select {
-    padding: 10px;
+    padding: 10px 12px;
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 16px;
     width: 100%;
     box-sizing: border-box;
+  }
+  .modal-content select {
+    min-height: 48px;
+    line-height: 1.4;
+    padding-right: 36px;
+    background-color: #fff;
+    cursor: pointer;
+  }
+  .modal-content select option {
+    padding: 8px 12px;
+    line-height: 1.4;
   }
   .field-pair {
     display: grid;
@@ -893,44 +998,36 @@
   <div class="modal-overlay" id="edit-modal">
     <div class="modal-content">
       <h3>アイテムを編集</h3>
+      <div class="modal-body">
       <label for="edit-item-name">アイテム名</label>
       <input type="text" id="edit-item-name" placeholder="アイテム名">
       <label for="edit-item-category">カテゴリ</label>
       <select id="edit-item-category" onchange="handleCategorySelectChange(this)"></select>
-      <div class="field-pair cycle-place-pair">
-        <div class="field">
-          <label>チェック頻度</label>
-          <div class="check-unit-picker" id="edit-item-cycles"></div>
-          <button type="button" class="link-add-unit" onclick="addNameFromForm('cycle', 'edit-item-cycles')">＋新しいチェック頻度を追加...</button>
+      <label for="edit-item-place">場所</label>
+      <select id="edit-item-place" onchange="handlePlaceSelectChange(this)"></select>
+      <div class="stock-spec-group">
+        <div class="stock-spec-header">
+          <span>必要数量</span>
+          <span>単位</span>
+          <span>補充基準</span>
+          <span>単位（表示のみ）</span>
         </div>
-        <div class="field">
-          <label for="edit-item-place">場所</label>
-          <select id="edit-item-place" onchange="handlePlaceSelectChange(this)"></select>
-        </div>
-      </div>
-      <label for="edit-item-last-order">前回の発注日</label>
-      <input type="date" id="edit-item-last-order">
-      <div class="field-pair">
-        <div class="field">
-          <label for="edit-item-count">在庫数</label>
-          <input type="text" id="edit-item-count" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" placeholder="未入力" oninput="filterCountInput(this)">
-        </div>
-        <div class="field">
-          <label for="edit-item-unit">単位</label>
-          <select id="edit-item-unit" onchange="handleUnitSelectChange(this)"></select>
+        <div class="stock-spec-row">
+          <input type="number" id="edit-item-target" min="0" inputmode="numeric" aria-label="必要数量">
+          <select id="edit-item-unit" onchange="handleUnitSelectChange(this)" aria-label="単位"></select>
+          <input type="number" id="edit-item-threshold" min="0" inputmode="numeric" aria-label="補充基準">
+          <span class="stock-spec-unit-readout" id="edit-unit-readout" aria-label="単位（表示のみ）"></span>
         </div>
       </div>
-      <label for="edit-item-target">必要数量</label>
-      <div class="field-pair">
-        <input type="number" id="edit-item-target" min="0" inputmode="numeric">
-        <span class="unit-readout" id="edit-target-unit"></span>
+      <span class="field-hint">在庫が補充基準以下になると発注対象になります</span>
+      <label>チェック頻度</label>
+      <div class="check-unit-picker-box">
+        <div class="check-unit-picker-toolbar">
+          <button type="button" class="picker-add-btn" onclick="addNameFromForm('cycle', 'edit-item-cycles')" aria-label="新しいチェック頻度を追加">＋</button>
+        </div>
+        <div class="check-unit-picker" id="edit-item-cycles"></div>
       </div>
-      <label for="edit-item-threshold">補充基準数</label>
-      <div class="field-pair">
-        <input type="number" id="edit-item-threshold" min="0" inputmode="numeric">
-        <span class="unit-readout" id="edit-threshold-unit"></span>
       </div>
-      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
       <div class="modal-actions">
         <button type="button" class="btn-delete" onclick="deleteEditingItem()">削除</button>
         <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
@@ -943,6 +1040,7 @@
   <div class="modal-overlay" id="add-modal">
     <div class="modal-content">
       <h3>新しいアイテムを追加</h3>
+      <div class="modal-body">
       <label for="new-item-name">アイテム名</label>
       <input type="text" id="new-item-name" placeholder="アイテム名（例：シャンプー）">
       <label for="new-item-category">カテゴリ</label>
@@ -950,8 +1048,12 @@
       <div class="field-pair cycle-place-pair">
         <div class="field">
           <label>チェック頻度</label>
-          <div class="check-unit-picker" id="new-item-cycles"></div>
-          <button type="button" class="link-add-unit" onclick="addNameFromForm('cycle', 'new-item-cycles')">＋新しいチェック頻度を追加...</button>
+          <div class="check-unit-picker-box">
+            <div class="check-unit-picker-toolbar">
+              <button type="button" class="picker-add-btn" onclick="addNameFromForm('cycle', 'new-item-cycles')" aria-label="新しいチェック頻度を追加">＋</button>
+            </div>
+            <div class="check-unit-picker" id="new-item-cycles"></div>
+          </div>
         </div>
         <div class="field">
           <label>場所</label>
@@ -974,6 +1076,7 @@
         <span class="unit-readout" id="new-threshold-unit"></span>
       </div>
       <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
+      </div>
       
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
@@ -1722,7 +1825,18 @@
       addOption.style.fontWeight = 'bold';
       select.appendChild(addOption);
       select.value = selectedValue && units.includes(selectedValue) ? selectedValue : (units[0] || '個');
-      syncUnitReadouts();
+      if (select.id === 'edit-item-unit') {
+        syncEditUnitReadout();
+      } else {
+        syncUnitReadouts();
+      }
+    }
+
+    function syncEditUnitReadout() {
+      const select = document.getElementById('edit-item-unit');
+      const readout = document.getElementById('edit-unit-readout');
+      if (!select || !readout) return;
+      readout.textContent = unitDisplay(select.value);
     }
 
     function unitDisplay(value) {
@@ -1730,10 +1844,8 @@
     }
 
     function syncUnitReadouts() {
-      const editUnit = unitDisplay(document.getElementById('edit-item-unit').value);
+      syncEditUnitReadout();
       const addUnit = unitDisplay(document.getElementById('new-item-unit').value);
-      document.getElementById('edit-target-unit').textContent = editUnit;
-      document.getElementById('edit-threshold-unit').textContent = editUnit;
       document.getElementById('new-target-unit').textContent = addUnit;
       document.getElementById('new-threshold-unit').textContent = addUnit;
     }
@@ -2839,13 +2951,12 @@
       if (!item) return;
       editingItemId = id;
       document.getElementById('edit-item-name').value = item.name;
-      document.getElementById('edit-item-count').value = item.entered ? item.count : '';
       fillUnitSelect(document.getElementById('edit-item-unit'), item.unit);
       document.getElementById('edit-item-target').value = item.target;
       document.getElementById('edit-item-threshold').value = item.orderThreshold;
-      document.getElementById('edit-item-last-order').value = normalizeDate(item.lastOrderedOn) || '';
       fillCategorySelect(document.getElementById('edit-item-category'), item.category);
       fillCyclePlacePickers('edit-item', itemCheckUnits(item));
+      syncEditUnitReadout();
       document.getElementById('edit-modal').style.display = 'flex';
       document.getElementById('edit-item-name').focus();
       document.getElementById('edit-item-name').select();
@@ -2876,14 +2987,6 @@
         alert('単位を選択してください');
         return;
       }
-      const countRaw = document.getElementById('edit-item-count').value.trim();
-      if (countRaw === '') {
-        item.count = 0;
-        item.entered = false;
-      } else {
-        item.count = parseNonNeg(countRaw);
-        item.entered = true;
-      }
       item.name = name;
       item.category = normalizeCategory(document.getElementById('edit-item-category').value);
       if (item.category) ensureCategory(item.category);
@@ -2891,7 +2994,6 @@
       rememberUnit(unit);
       item.target = parseNonNeg(document.getElementById('edit-item-target').value);
       item.orderThreshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
-      item.lastOrderedOn = normalizeDate(document.getElementById('edit-item-last-order').value);
       setItemCheckUnits(item, units);
       closeEditModal();
       saveAndRender();
