@@ -121,19 +121,6 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-bottom: 12px;
-    padding: 8px 0;
-    background: none;
-    border: none;
-    color: #1565c0;
-    font-size: 15px;
-    font-weight: bold;
-    cursor: pointer;
-  }
   
   .item { 
     display: flex; 
@@ -168,100 +155,10 @@
     cursor: default;
   }
 
-  /* チェック頻度・場所一覧 */
-  .cycle-group {
-    margin-bottom: 8px;
-  }
-  .cycle-group-title {
-    font-weight: bold;
-    color: #1565c0;
-    font-size: 0.95em;
-    margin: 16px 0 8px;
-  }
-  .cycle-group:first-child .cycle-group-title {
-    margin-top: 0;
-  }
   .item-last-order {
     font-size: 0.75em;
     color: #666;
   }
-
-  .location-card {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 16px;
-    background: white;
-    margin-bottom: 12px;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-    cursor: pointer;
-    box-sizing: border-box;
-  }
-  .location-card.card-status-none {
-    background: #f5f5f5;
-    border-color: #bdbdbd;
-  }
-  .location-card.card-status-not-started,
-  .location-card.card-status-in-progress {
-    background: white;
-    border-color: #e0e0e0;
-  }
-  .location-card.card-status-done {
-    background: #e8f5e9;
-    border-color: #43a047;
-  }
-  .location-card:hover {
-    filter: brightness(0.98);
-  }
-  .location-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  .location-card-name {
-    font-weight: bold;
-    font-size: 1.15em;
-    color: #222;
-  }
-  .status-badge {
-    font-size: 0.75em;
-    font-weight: bold;
-    padding: 4px 10px;
-    border-radius: 12px;
-    white-space: nowrap;
-  }
-  .status-none { background: #eeeeee; color: #616161; }
-  .status-not-started { background: #fff3e0; color: #e65100; }
-  .status-in-progress { background: #e3f2fd; color: #1565c0; }
-  .status-done { background: #e8f5e9; color: #2e7d32; }
-  .location-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-  }
-  .stat-box {
-    background: rgba(255,255,255,0.75);
-    border-radius: 6px;
-    padding: 8px 4px;
-    text-align: center;
-  }
-  .stat-label {
-    display: block;
-    font-size: 0.7em;
-    color: #666;
-    margin-bottom: 4px;
-  }
-  .stat-value {
-    font-size: 1.15em;
-    font-weight: bold;
-    color: #333;
-  }
-  .stat-value.warn { color: #d32f2f; }
-  .stat-value.ok { color: #2e7d32; }
   
   /* 発注バッジのデザイン */
   .order-badge {
@@ -555,10 +452,6 @@
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
-  .open-modal-btn.bottom {
-    margin-top: 20px;
-    margin-bottom: 0;
-  }
   .reset-btn {
     width: 100%;
     padding: 10px;
@@ -747,18 +640,11 @@
   <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
   <nav class="drawer" id="drawer">
     <div class="drawer-title">メニュー</div>
-    <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 チェック頻度・場所</button>
     <button class="drawer-item" id="nav-items" onclick="showPage('items')">📋 アイテム一覧</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 Check List</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
     <button class="drawer-item danger" onclick="resetAllInventory()">🔄 リセット</button>
   </nav>
-
-  <!-- チェック頻度・場所一覧 -->
-  <div class="page" id="page-locations">
-    <div id="location-list"></div>
-    <button class="open-modal-btn bottom" onclick="openCheckUnitModal()">＋ チェック頻度・場所を追加</button>
-  </div>
 
   <!-- アイテム一覧 -->
   <div class="page" id="page-items">
@@ -769,7 +655,6 @@
 
   <!-- チェック画面 -->
   <div class="page" id="page-inventory">
-  <button type="button" class="back-btn" onclick="showPage('locations')">← チェック頻度・場所一覧</button>
   <div class="filter-bar" id="location-filters"></div>
   <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
   <!-- 新規追加ボタン（リスト上部） -->
@@ -903,26 +788,6 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="check-unit-modal">
-    <div class="modal-content">
-      <h3>チェック頻度・場所を追加</h3>
-      <div class="field-pair cycle-place-pair">
-        <div class="field">
-          <label for="new-unit-cycle">チェック頻度</label>
-          <select id="new-unit-cycle" onchange="handleNamedSelectChange(this, 'cycle')"></select>
-        </div>
-        <div class="field">
-          <label for="new-unit-place">場所</label>
-          <select id="new-unit-place" onchange="handleNamedSelectChange(this, 'place')"></select>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-cancel" onclick="closeCheckUnitModal(null)">キャンセル</button>
-        <button class="btn-save" onclick="confirmCheckUnitModal()">追加する</button>
-      </div>
-    </div>
-  </div>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_CONFIG = {
@@ -963,7 +828,7 @@
     let catalogPlaceFilter = ALL_FILTER;
     let catalogCategoryFilter = ALL_FILTER;
     let orderCategoryFilter = ALL_FILTER;
-    let currentPage = localStorage.getItem('currentPage') || 'locations';
+    let currentPage = localStorage.getItem('currentPage') || 'inventory';
     let selectedItemId = null;
     let editingItemId = null;
     let applyingRemote = false;
@@ -972,16 +837,14 @@
     let syncTimer = null;
     let pullTimer = null;
     let householdId = HOUSEHOLD_ID;
-    let checkUnitModalResolver = null;
 
     const PAGE_TITLES = {
-      locations: '📍 チェック頻度・場所一覧',
       items: '📋 アイテム一覧',
       inventory: 'Stock & Check',
       order: '🛒 発注リスト'
     };
-    const PAGE_IDS = ['locations', 'items', 'inventory', 'order'];
-    if (!PAGE_IDS.includes(currentPage)) currentPage = 'locations';
+    const PAGE_IDS = ['items', 'inventory', 'order'];
+    if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
 
     function loadNameList(key, fallback) {
       try {
@@ -1006,10 +869,6 @@
       const place = String(key).slice(idx + UNIT_SEP.length).trim();
       if (!cycle) return null;
       return { cycle, place };
-    }
-
-    function formatUnitLabel(unit) {
-      return unit.cycle + '・' + placeLabel(unit.place);
     }
 
     function placeLabel(place) {
@@ -1235,82 +1094,6 @@
       document.getElementById('new-item-last-order').value = '';
     }
 
-    function fillNamedSelect(select, names, selectedValue) {
-      select.innerHTML = '';
-      names.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        select.appendChild(option);
-      });
-      const addOption = document.createElement('option');
-      addOption.value = ADD_NEW_VALUE;
-      addOption.textContent = select.id === 'new-unit-cycle' ? '＋新しい周期を追加...' : '＋新しい場所を追加...';
-      addOption.style.fontWeight = 'bold';
-      select.appendChild(addOption);
-      select.value = selectedValue && names.includes(selectedValue) ? selectedValue : (names[0] || '');
-    }
-
-    async function handleNamedSelectChange(select, kind) {
-      if (select.value !== ADD_NEW_VALUE) return;
-      const title = kind === 'cycle' ? '新しいチェック頻度の名前を入力してください' : '新しい場所の名前を入力してください';
-      const raw = await showPrompt(title);
-      if (!raw || !raw.trim()) {
-        fillNamedSelect(select, kind === 'cycle' ? customCycles : customPlaces, kind === 'cycle' ? customCycles[0] : customPlaces[0]);
-        return;
-      }
-      const trimmed = raw.trim();
-      if (kind === 'place' && trimmed === REMOVED_LOCATION) {
-        alert('「その他」は使えません。具体的な名前を入力してください。');
-        fillNamedSelect(select, customPlaces, customPlaces[0]);
-        return;
-      }
-      if (kind === 'cycle') ensureCycle(trimmed);
-      else ensurePlace(trimmed);
-      persistMasters();
-      fillNamedSelect(select, kind === 'cycle' ? customCycles : customPlaces, trimmed);
-    }
-
-    function openCheckUnitModal() {
-      fillNamedSelect(document.getElementById('new-unit-cycle'), customCycles, customCycles[0]);
-      fillNamedSelect(document.getElementById('new-unit-place'), customPlaces, customPlaces[0]);
-      document.getElementById('check-unit-modal').style.display = 'flex';
-      return new Promise(resolve => { checkUnitModalResolver = resolve; });
-    }
-
-    function closeCheckUnitModal(value) {
-      document.getElementById('check-unit-modal').style.display = 'none';
-      const resolve = checkUnitModalResolver;
-      checkUnitModalResolver = null;
-      if (resolve) resolve(value);
-    }
-
-    async function confirmCheckUnitModal() {
-      const cycleSelect = document.getElementById('new-unit-cycle');
-      const placeSelect = document.getElementById('new-unit-place');
-      if (cycleSelect.value === ADD_NEW_VALUE || placeSelect.value === ADD_NEW_VALUE) {
-        alert('チェック頻度と場所を選んでください');
-        return;
-      }
-      const cycle = cycleSelect.value.trim();
-      const place = placeSelect.value.trim();
-      if (!cycle || !place) {
-        alert('チェック頻度と場所を選んでください');
-        return;
-      }
-      if (customCheckUnits.some(u => u.cycle === cycle && u.place === place)) {
-        alert('同じチェック頻度と場所の組み合わせはすでにあります');
-        return;
-      }
-      const unit = ensureCheckUnit(cycle, place);
-      persistMasters();
-      refreshCyclePlacePickers(unit);
-      renderFilters();
-      saveAndRender();
-      if (isCloudReady()) await pushToCloud();
-      closeCheckUnitModal(unit);
-    }
-
     async function addNameFromForm(kind, containerId) {
       const selected = getSelectedNames(containerId);
       const title = kind === 'cycle' ? '新しいチェック頻度の名前を入力してください' : '新しい場所の名前を入力してください';
@@ -1326,11 +1109,6 @@
       persistMasters();
       if (!selected.includes(trimmed)) selected.push(trimmed);
       fillNamePicker(containerId, kind === 'cycle' ? customCycles : customPlaces, selected);
-    }
-
-    async function addNewCheckUnitFromForm(containerId) {
-      const added = await openCheckUnitModal();
-      if (added) refreshCyclePlacePickers(added);
     }
 
     function itemCheckUnits(item) {
@@ -1349,12 +1127,6 @@
         .filter(u => customCheckUnits.some(master => unitsEqual(master, u)));
       item.checkUnits = next;
       item.location = item.checkUnits[0] ? item.checkUnits[0].place : '';
-    }
-
-    function itemBelongsTo(item, filterKey) {
-      const unit = typeof filterKey === 'string' ? parseUnitKey(filterKey) : filterKey;
-      if (!unit) return false;
-      return itemCheckUnits(item).some(u => unitsEqual(u, unit));
     }
 
     function fillNamePicker(containerId, names, selectedNames) {
@@ -1724,101 +1496,6 @@
 
     function syncItemFlags(item) {
       item.complete = isComplete(item);
-    }
-
-    function getLocationStats(unit) {
-      const items = stockItems.filter(item => itemBelongsTo(item, unit));
-      const unenteredCount = items.filter(item => !item.entered).length;
-      const orderCount = items.filter(needsOrder).length;
-      let status = 'アイテムなし';
-      let statusClass = 'status-none';
-      if (items.length === 0) {
-        status = 'アイテムなし';
-        statusClass = 'status-none';
-      } else if (unenteredCount === items.length) {
-        status = '未チェック';
-        statusClass = 'status-not-started';
-      } else if (unenteredCount > 0) {
-        status = '進行中';
-        statusClass = 'status-in-progress';
-      } else {
-        status = '完了';
-        statusClass = 'status-done';
-      }
-      return { total: items.length, unenteredCount, orderCount, status, statusClass };
-    }
-
-    function openLocationInventory(unit) {
-      inventoryCycleFilter = unit.cycle;
-      inventoryPlaceFilter = unit.place ? unit.place : UNSET_PLACE_FILTER;
-      renderFilters();
-      showPage('inventory');
-    }
-
-    function renderLocationList() {
-      const listDiv = document.getElementById('location-list');
-      listDiv.innerHTML = '';
-
-      if (customCheckUnits.length === 0) {
-        listDiv.innerHTML = '<div class="empty-message">チェック単位がありません。追加してください。</div>';
-        return;
-      }
-
-      const cyclesToShow = [];
-      customCycles.forEach(cycle => {
-        if (!cyclesToShow.includes(cycle)) cyclesToShow.push(cycle);
-      });
-      customCheckUnits.forEach(unit => {
-        if (!cyclesToShow.includes(unit.cycle)) cyclesToShow.push(unit.cycle);
-      });
-
-      let shown = 0;
-      cyclesToShow.forEach(cycle => {
-        const units = customCheckUnits.filter(u => u.cycle === cycle);
-        if (!units.length) return;
-        const group = document.createElement('div');
-        group.className = 'cycle-group';
-        const title = document.createElement('div');
-        title.className = 'cycle-group-title';
-        title.textContent = cycle;
-        group.appendChild(title);
-        let cards = 0;
-        units.forEach(unit => {
-          const stats = getLocationStats(unit);
-          if (stats.total === 0) return;
-          cards += 1;
-          shown += 1;
-          const card = document.createElement('button');
-          card.type = 'button';
-          card.className = `location-card card-${stats.statusClass}`;
-          card.onclick = () => openLocationInventory(unit);
-          card.innerHTML = `
-            <div class="location-card-header">
-              <span class="location-card-name">${placeLabel(unit.place)}</span>
-              <span class="status-badge ${stats.statusClass}">${stats.status}</span>
-            </div>
-            <div class="location-stats">
-              <div class="stat-box">
-                <span class="stat-label">チェックステータス</span>
-                <span class="stat-value">${stats.status}</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">発注アイテム数</span>
-                <span class="stat-value ${stats.orderCount > 0 ? 'warn' : 'ok'}">${stats.orderCount}</span>
-              </div>
-              <div class="stat-box">
-                <span class="stat-label">未入力アイテム数</span>
-                <span class="stat-value ${stats.unenteredCount > 0 ? 'warn' : 'ok'}">${stats.unenteredCount}</span>
-              </div>
-            </div>
-          `;
-          group.appendChild(card);
-        });
-        if (cards) listDiv.appendChild(group);
-      });
-      if (shown === 0) {
-        listDiv.innerHTML = '<div class="empty-message">アイテムのあるチェック単位がありません。</div>';
-      }
     }
 
     function initSupabase() {
@@ -2330,7 +2007,6 @@
       const filteredItems = getFilteredItems();
 
       renderOrderList();
-      renderLocationList();
       renderItemsCatalog();
       updateResetLocationButton();
 
