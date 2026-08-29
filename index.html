@@ -914,7 +914,6 @@
     if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
 
     let customCategories = loadNameList('stockCategories', DEFAULT_CATEGORIES);
-    DEFAULT_CATEGORIES.forEach(name => ensureName(customCategories, name));
 
     let customCheckUnits = loadCheckUnitMaster();
     customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
@@ -983,11 +982,37 @@
     function allCategories() {
       const seen = new Set();
       const names = [];
-      [...DEFAULT_CATEGORIES, ...customCategories, ...stockItems.map(item => item.category)].forEach(name => {
+      [...customCategories, ...stockItems.map(item => item.category)].forEach(name => {
         const trimmed = normalizeCategory(name);
         if (!trimmed || seen.has(trimmed)) return;
         seen.add(trimmed);
         names.push(trimmed);
+      });
+      return names;
+    }
+
+    function settingsCategoryNames() {
+      const seen = new Set(customCategories);
+      const names = customCategories.slice();
+      stockItems.forEach(item => {
+        const c = normalizeCategory(item.category);
+        if (c && !seen.has(c)) {
+          seen.add(c);
+          names.push(c);
+        }
+      });
+      return names;
+    }
+
+    function settingsUnitNames() {
+      const seen = new Set(customUnits);
+      const names = customUnits.slice();
+      stockItems.forEach(item => {
+        const u = String(item.unit || '').trim();
+        if (u && !ITEM_UNITS.includes(u) && !seen.has(u)) {
+          seen.add(u);
+          names.push(u);
+        }
       });
       return names;
     }
@@ -1112,7 +1137,12 @@
       else if (kind === 'place') ensurePlace(trimmed);
       else if (kind === 'category') ensureCategory(trimmed);
       else rememberUnit(trimmed);
+      await saveMasterChange();
+    }
+
+    async function saveMasterChange() {
       saveAndRender();
+      await flushCloudSave();
     }
 
     async function renameMasterName(kind, oldName) {
@@ -1169,13 +1199,20 @@
         catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, oldName, next);
         orderCategoryFilter = remapNamedFilter(orderCategoryFilter, oldName, next);
       } else {
-        if (!customUnits.includes(next)) customUnits.push(next);
-        customUnits = customUnits.filter(u => u !== oldName);
+        if (ITEM_UNITS.includes(oldName)) {
+          alert('標準の単位は変更できません。');
+          return;
+        }
+        if (customUnits.includes(oldName)) {
+          customUnits[customUnits.indexOf(oldName)] = next;
+        } else if (!customUnits.includes(next)) {
+          customUnits.push(next);
+        }
         stockItems.forEach(item => {
           if (item.unit === oldName) item.unit = next;
         });
       }
-      saveAndRender();
+      await saveMasterChange();
     }
 
     async function deleteMasterName(kind, name) {
@@ -1224,11 +1261,11 @@
           if (item.unit === name) item.unit = '個';
         });
       }
-      saveAndRender();
-      await flushCloudSave();
+      await saveMasterChange();
     }
 
-    function appendSettingsSection(root, title, kind, names) {
+    function appendSettingsSection(root, title, kind, names, options = {}) {
+      const locked = options.locked || new Set();
       const section = document.createElement('div');
       section.className = 'settings-section';
       const heading = document.createElement('h3');
@@ -1240,15 +1277,18 @@
         const label = document.createElement('span');
         label.className = 'settings-row-name';
         label.textContent = name;
+        const isLocked = locked.has(name);
         const editBtn = document.createElement('button');
         editBtn.type = 'button';
         editBtn.className = 'settings-edit';
         editBtn.textContent = '変更';
+        editBtn.disabled = isLocked;
         editBtn.onclick = () => renameMasterName(kind, name);
         const deleteBtn = document.createElement('button');
         deleteBtn.type = 'button';
         deleteBtn.className = 'settings-delete';
         deleteBtn.textContent = '削除';
+        deleteBtn.disabled = isLocked;
         deleteBtn.onclick = () => deleteMasterName(kind, name);
         row.appendChild(label);
         row.appendChild(editBtn);
@@ -1270,8 +1310,8 @@
       root.innerHTML = '';
       appendSettingsSection(root, 'チェック頻度', 'cycle', customCycles.slice());
       appendSettingsSection(root, '場所', 'place', customPlaces.slice());
-      appendSettingsSection(root, 'カテゴリ', 'category', allCategories());
-      appendSettingsSection(root, '単位', 'unit', allUnits());
+      appendSettingsSection(root, 'カテゴリ', 'category', settingsCategoryNames());
+      appendSettingsSection(root, '単位', 'unit', settingsUnitNames());
     }
 
     function todayIsoDate() {
@@ -2035,7 +2075,6 @@
         place
       }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
       customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-      DEFAULT_CATEGORIES.forEach(name => ensureName(customCategories, name));
       customUnits = (state.units && state.units.length ? state.units : [])
         .map(name => String(name).trim())
         .filter(name => name && !ITEM_UNITS.includes(name));
