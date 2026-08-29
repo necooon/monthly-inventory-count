@@ -529,56 +529,8 @@
     animation: spin 1s ease-in-out infinite;
     display: none;
   }
-  .sync-panel {
-    background: white;
-    padding: 16px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  .sync-panel p {
-    margin: 0;
-    font-size: 0.9em;
-    color: #555;
-    line-height: 1.5;
-  }
-  .sync-status {
-    font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 6px;
-    background: #f5f5f5;
-  }
-  .sync-status.ok { background: #e8f5e9; color: #2e7d32; }
-  .sync-status.warn { background: #fff3e0; color: #e65100; }
-  .sync-code {
-    font-size: 1.4em;
-    font-weight: bold;
-    letter-spacing: 0.12em;
-    text-align: center;
-    padding: 12px;
-    background: #e3f2fd;
-    border-radius: 8px;
-    word-break: break-all;
-  }
-  #page-sync input[type=text] {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 16px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-    min-height: 120px;
-    font-family: monospace;
-    font-size: 12px;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    width: 100%;
-    box-sizing: border-box;
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
 </head>
@@ -595,7 +547,6 @@
     <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 保管場所</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 棚卸</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
-    <button class="drawer-item" id="nav-sync" onclick="showPage('sync')">🔄 端末同期</button>
   </nav>
 
   <!-- 保管場所一覧 -->
@@ -630,29 +581,6 @@
 
   <!-- 発注リスト表示エリア -->
   <div id="order-list"></div>
-  </div>
-
-  <!-- 端末同期 -->
-  <div class="page" id="page-sync">
-    <div class="sync-panel">
-      <div class="sync-status warn" id="sync-status">この端末のみ（未同期）</div>
-      <p>いまのデータは各端末のブラウザ内にあります。スマホとPCで同じ棚卸を見るには、クラウド同期用の共有コードを使います。</p>
-      <p>GitHub Pages で公開した同じURLを、PCとスマホの両方で開いてください。</p>
-      <div class="sync-code" id="sync-code-display">未発行</div>
-      <button type="button" class="open-modal-btn" style="margin-bottom:0;" onclick="createHousehold()">新しい共有コードを発行</button>
-      <button type="button" class="btn-save" onclick="copyHouseholdId()">コードをコピー</button>
-      <label for="join-code">他の端末のコードを入力</label>
-      <input type="text" id="join-code" placeholder="共有コード">
-      <button type="button" class="btn-save" onclick="joinHousehold()">このコードで同期する</button>
-    </div>
-    <div class="sync-panel">
-      <p style="font-weight:bold;color:#333;">Supabase 設定</p>
-      <p>1. <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">Supabase</a> でプロジェクトを作成します。<br>
-      2. SQL Editor でリポジトリの <code>supabase/setup.sql</code> を実行します。<br>
-      3. Project Settings → API の Project URL と anon public キーを下に貼るか、公開前に <code>index.html</code> の <code>SUPABASE_CONFIG</code> へ書いてください。</p>
-      <textarea id="supabase-config-input" placeholder='{"url":"https://xxxx.supabase.co","anonKey":"eyJ..."}'></textarea>
-      <button type="button" class="btn-save" onclick="saveSupabaseConfig()">設定を保存して同期を開始</button>
-    </div>
   </div>
 
   <!-- 汎用入力モーダル（日本語入力対応のため prompt() の代わりに使用） -->
@@ -720,9 +648,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const SUPABASE_CONFIG = {
-      url: '',
-      anonKey: ''
+      url: 'https://dmvznvxczrpbqrzfcqcc.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdnpudnhjenJwYnFyemZjcWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjgxNjUsImV4cCI6MjEwMzU0NDE2NX0.tOPfmnQr5HTPk28H-bvfTIuhLzhjBB33JLeZldxzndM'
     };
+    const HOUSEHOLD_ID = 'personal';
     const DEFAULT_LOCATIONS = ['洗面所', 'キッチン', 'トイレ'];
     const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml'];
     const REMOVED_LOCATION = 'その他';
@@ -741,15 +670,15 @@
     let supabaseClient = null;
     let syncUnsub = null;
     let syncTimer = null;
-    let householdId = localStorage.getItem('stockHouseholdId') || '';
+    let pullTimer = null;
+    let householdId = HOUSEHOLD_ID;
 
     const PAGE_TITLES = {
       locations: '📍 保管場所一覧',
       inventory: '食品・日用品のストック棚卸',
-      order: '🛒 発注リスト',
-      sync: '🔄 端末同期'
+      order: '🛒 発注リスト'
     };
-    const PAGE_IDS = ['locations', 'inventory', 'order', 'sync'];
+    const PAGE_IDS = ['locations', 'inventory', 'order'];
     if (!PAGE_IDS.includes(currentPage)) currentPage = 'locations';
 
     // ハンバーガーメニューの開閉
@@ -773,7 +702,6 @@
         document.getElementById(`nav-${p}`).classList.toggle('active', p === page);
       });
       closeDrawer();
-      updateSyncUI();
       saveAndRender();
     }
 
@@ -1041,36 +969,19 @@
       });
     }
 
-    function getSupabaseConfig() {
-      if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) return SUPABASE_CONFIG;
-      try {
-        const saved = JSON.parse(localStorage.getItem('stockSupabaseConfig') || 'null');
-        if (saved && saved.url && saved.anonKey) return saved;
-      } catch (e) { /* ignore */ }
-      return null;
-    }
-
     function initSupabase() {
-      const config = getSupabaseConfig();
-      if (!config || typeof supabase === 'undefined' || !supabase.createClient) {
+      if (typeof supabase === 'undefined' || !supabase.createClient) {
         supabaseClient = null;
         return false;
       }
       try {
-        supabaseClient = supabase.createClient(config.url, config.anonKey);
+        supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
         return true;
       } catch (e) {
         console.error('Supabase init failed', e);
         supabaseClient = null;
         return false;
       }
-    }
-
-    function generateHouseholdId() {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      const bytes = new Uint8Array(8);
-      crypto.getRandomValues(bytes);
-      return Array.from(bytes, b => chars[b % chars.length]).join('');
     }
 
     function isCloudReady() {
@@ -1083,20 +994,181 @@
       syncTimer = setTimeout(pushToCloud, 400);
     }
 
+    function scheduleCloudPull() {
+      if (applyingRemote || !isCloudReady()) return;
+      clearTimeout(pullTimer);
+      pullTimer = setTimeout(pullFromCloud, 250);
+    }
+
+    function localCloudSnapshot() {
+      return JSON.stringify({
+        locations: customLocations,
+        items: stockItems.map(item => ({
+          id: String(item.id),
+          name: item.name,
+          count: item.count,
+          location: item.location,
+          target: item.target,
+          orderThreshold: item.orderThreshold,
+          unit: item.unit,
+          entered: !!item.entered
+        }))
+      });
+    }
+
+    function stateFromCloudRows(locs, rows) {
+      const names = (locs || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION);
+      const locationNames = names.length ? names : [...DEFAULT_LOCATIONS];
+      const idToName = Object.fromEntries((locs || []).map(loc => [loc.id, loc.name]));
+      const items = (rows || []).map(row => migrateItem({
+        id: isNaN(Number(row.id)) ? row.id : Number(row.id),
+        name: row.name,
+        count: row.count,
+        location: idToName[row.location_id] || locationNames[0],
+        target: row.target_qty,
+        orderThreshold: row.order_threshold,
+        unit: row.unit,
+        entered: row.entered
+      }));
+      return { locations: locationNames, items };
+    }
+
+    async function fetchCloudState() {
+      const { data: household, error: householdError } = await supabaseClient
+        .from('households')
+        .select('id')
+        .eq('id', householdId)
+        .maybeSingle();
+      if (householdError) throw householdError;
+      if (!household) return null;
+
+      const { data: locs, error: locError } = await supabaseClient
+        .from('locations')
+        .select('id,name,sort_order')
+        .eq('household_id', householdId)
+        .order('sort_order');
+      if (locError) throw locError;
+
+      const { data: rows, error: itemError } = await supabaseClient
+        .from('items')
+        .select('id,name,count,target_qty,order_threshold,unit,entered,location_id')
+        .eq('household_id', householdId);
+      if (itemError) throw itemError;
+
+      return stateFromCloudRows(locs, rows);
+    }
+
+    function applyFetchedState(state) {
+      applyingRemote = true;
+      customLocations = state.locations;
+      stockItems = state.items.map(migrateItem);
+      renderFilters();
+      saveAndRender();
+      applyingRemote = false;
+    }
+
     async function pushToCloud() {
       if (!isCloudReady()) return;
       try {
-        const { error } = await supabaseClient.from('households').upsert({
+        const { error: householdError } = await supabaseClient.from('households').upsert({
           id: householdId,
-          items: stockItems,
-          locations: customLocations,
           updated_at: new Date().toISOString()
         });
-        if (error) throw error;
-        updateSyncUI();
+        if (householdError) throw householdError;
+
+        const locationRows = customLocations.map((name, index) => ({
+          household_id: householdId,
+          name,
+          sort_order: index
+        }));
+        if (locationRows.length) {
+          const { error: locUpsertError } = await supabaseClient
+            .from('locations')
+            .upsert(locationRows, { onConflict: 'household_id,name' });
+          if (locUpsertError) throw locUpsertError;
+        }
+
+        const { data: locs, error: locReadError } = await supabaseClient
+          .from('locations')
+          .select('id,name')
+          .eq('household_id', householdId);
+        if (locReadError) throw locReadError;
+
+        const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
+        const fallbackLocId = locs && locs[0] ? locs[0].id : null;
+        if (!fallbackLocId) throw new Error('no locations');
+
+        const itemRows = stockItems.map(item => ({
+          id: String(item.id),
+          household_id: householdId,
+          location_id: nameToId[item.location] || fallbackLocId,
+          name: item.name,
+          count: item.count,
+          target_qty: item.target,
+          order_threshold: item.orderThreshold,
+          unit: item.unit || '個',
+          entered: !!item.entered,
+          updated_at: new Date().toISOString()
+        }));
+        if (itemRows.length) {
+          const { error: itemUpsertError } = await supabaseClient
+            .from('items')
+            .upsert(itemRows, { onConflict: 'id' });
+          if (itemUpsertError) throw itemUpsertError;
+        }
+
+        const { data: cloudItems, error: itemReadError } = await supabaseClient
+          .from('items')
+          .select('id')
+          .eq('household_id', householdId);
+        if (itemReadError) throw itemReadError;
+        const localIds = new Set(stockItems.map(item => String(item.id)));
+        const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(id));
+        if (extraItemIds.length) {
+          const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
+          if (itemDeleteError) throw itemDeleteError;
+        }
+
+        const extraLocIds = (locs || [])
+          .filter(loc => !customLocations.includes(loc.name))
+          .map(loc => loc.id);
+        if (extraLocIds.length) {
+          const { error: locDeleteError } = await supabaseClient.from('locations').delete().in('id', extraLocIds);
+          if (locDeleteError) throw locDeleteError;
+        }
+
       } catch (e) {
         console.error('cloud save failed', e);
-        setSyncStatus('クラウドへの保存に失敗しました。Supabase の設定と RLS を確認してください。', false);
+      }
+    }
+
+    async function pullFromCloud() {
+      if (!isCloudReady()) return;
+      try {
+        const state = await fetchCloudState();
+        if (!state) {
+          await pushToCloud();
+          return;
+        }
+        const remoteSnap = JSON.stringify({
+          locations: state.locations,
+          items: state.items.map(item => ({
+            id: String(item.id),
+            name: item.name,
+            count: item.count,
+            location: item.location,
+            target: item.target,
+            orderThreshold: item.orderThreshold,
+            unit: item.unit,
+            entered: !!item.entered
+          }))
+        });
+        if (remoteSnap === localCloudSnapshot()) {
+          return;
+        }
+        applyFetchedState(state);
+      } catch (e) {
+        console.error('cloud load failed', e);
       }
     }
 
@@ -1111,153 +1183,34 @@
       return next;
     }
 
-    function applyCloudData(data) {
-      applyingRemote = true;
-      if (Array.isArray(data.items)) stockItems = data.items.map(migrateItem);
-      if (Array.isArray(data.locations) && data.locations.length) {
-        customLocations = data.locations.filter(loc => loc !== REMOVED_LOCATION);
-        if (customLocations.length === 0) customLocations = [...DEFAULT_LOCATIONS];
-      }
-      renderFilters();
-      saveAndRender();
-      applyingRemote = false;
-    }
-
     async function startCloudListener() {
       if (syncUnsub) {
         syncUnsub();
         syncUnsub = null;
       }
       if (!isCloudReady()) {
-        updateSyncUI();
         return;
       }
 
-      const { data, error } = await supabaseClient
-        .from('households')
-        .select('*')
-        .eq('id', householdId)
-        .maybeSingle();
-      if (error) {
-        console.error('cloud load failed', error);
-        setSyncStatus('データの取得に失敗しました。テーブルと RLS を確認してください。', false);
-        return;
-      }
-      if (!data) {
-        await pushToCloud();
-      } else {
-        const sameItems = JSON.stringify(data.items || []) === JSON.stringify(stockItems);
-        const sameLocs = JSON.stringify(data.locations || []) === JSON.stringify(customLocations);
-        if (!sameItems || !sameLocs) applyCloudData(data);
-      }
+      await pullFromCloud();
 
       const channel = supabaseClient
         .channel('household-' + householdId)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'households', filter: 'id=eq.' + householdId },
-          payload => {
-            const row = payload.new;
-            if (!row) return;
-            const sameItems = JSON.stringify(row.items || []) === JSON.stringify(stockItems);
-            const sameLocs = JSON.stringify(row.locations || []) === JSON.stringify(customLocations);
-            if (sameItems && sameLocs) {
-              updateSyncUI();
-              return;
-            }
-            applyCloudData(row);
-          }
+          { event: '*', schema: 'public', table: 'items', filter: 'household_id=eq.' + householdId },
+          () => { scheduleCloudPull(); }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'locations', filter: 'household_id=eq.' + householdId },
+          () => { scheduleCloudPull(); }
         )
         .subscribe();
 
       syncUnsub = () => {
         supabaseClient.removeChannel(channel);
       };
-      updateSyncUI();
-    }
-
-    function setSyncStatus(text, ok) {
-      const el = document.getElementById('sync-status');
-      if (!el) return;
-      el.textContent = text;
-      el.className = 'sync-status ' + (ok ? 'ok' : 'warn');
-    }
-
-    function updateSyncUI() {
-      const codeEl = document.getElementById('sync-code-display');
-      if (codeEl) codeEl.textContent = householdId || '未発行';
-      const cfgInput = document.getElementById('supabase-config-input');
-      if (cfgInput && !cfgInput.value) {
-        const cfg = getSupabaseConfig();
-        if (cfg) cfgInput.value = JSON.stringify(cfg, null, 2);
-      }
-      if (!getSupabaseConfig()) {
-        setSyncStatus('Supabase 未設定のため、この端末の中だけに保存されています', false);
-      } else if (!householdId) {
-        setSyncStatus('共有コードを発行するか、入力するとスマホと同期できます', false);
-      } else if (supabaseClient) {
-        setSyncStatus('クラウド同期中（同じコードの端末とデータを共有）', true);
-      } else {
-        setSyncStatus('設定はありますが、同期を開始できませんでした', false);
-      }
-    }
-
-    function createHousehold() {
-      if (!initSupabase()) {
-        alert('先に Supabase 設定を保存してください');
-        return;
-      }
-      householdId = generateHouseholdId();
-      localStorage.setItem('stockHouseholdId', householdId);
-      startCloudListener();
-      updateSyncUI();
-    }
-
-    function joinHousehold() {
-      const code = (document.getElementById('join-code').value || '').trim().toUpperCase();
-      if (!code) {
-        alert('共有コードを入力してください');
-        return;
-      }
-      if (!initSupabase()) {
-        alert('先に Supabase 設定を保存してください');
-        return;
-      }
-      householdId = code;
-      localStorage.setItem('stockHouseholdId', householdId);
-      startCloudListener();
-      updateSyncUI();
-    }
-
-    function copyHouseholdId() {
-      if (!householdId) {
-        alert('先に共有コードを発行してください');
-        return;
-      }
-      navigator.clipboard.writeText(householdId).then(() => {
-        alert('共有コードをコピーしました');
-      }).catch(() => {
-        alert(householdId);
-      });
-    }
-
-    function saveSupabaseConfig() {
-      const raw = document.getElementById('supabase-config-input').value.trim();
-      if (!raw) {
-        alert('Supabase の URL と anon キーの JSON を貼り付けてください');
-        return;
-      }
-      try {
-        const parsed = JSON.parse(raw);
-        if (!parsed.url || !parsed.anonKey) throw new Error('incomplete');
-        localStorage.setItem('stockSupabaseConfig', JSON.stringify(parsed));
-        initSupabase();
-        if (householdId) startCloudListener();
-        updateSyncUI();
-        alert('設定を保存しました');
-      } catch (e) {
-        alert('{"url":"https://xxxx.supabase.co","anonKey":"..."} の形式で入力してください');
-      }
     }
 
     // データを保存してリストを描画する関数
@@ -1488,8 +1441,7 @@
 
     // 初回読み込み時の処理
     initSupabase();
-    if (householdId) startCloudListener();
-    updateSyncUI();
+    startCloudListener();
     renderFilters();
     showPage(currentPage);
 
