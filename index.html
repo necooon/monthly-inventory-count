@@ -16,6 +16,86 @@
     color: #333; 
     text-align: center; 
   }
+
+  /* ヘッダーとハンバーガーメニュー */
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .menu-btn {
+    font-size: 22px;
+    line-height: 1;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .app-header h2 {
+    flex: 1;
+    margin: 0;
+  }
+  .drawer-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 900;
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 220px;
+    height: 100%;
+    background: white;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+    padding: 20px 0;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 901;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer-title {
+    font-weight: bold;
+    color: #333;
+    padding: 0 20px 15px;
+    border-bottom: 1px solid #eee;
+  }
+  .drawer-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 15px 20px;
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .drawer-item.active {
+    background: #e3f2fd;
+    color: #1565c0;
+    font-weight: bold;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* 発注画面 */
+  .order-check {
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+  }
+  .empty-message {
+    text-align: center;
+    color: #555;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
   
   /* タブ（場所絞り込み）のデザイン */
   .filter-container { 
@@ -274,11 +354,32 @@
 </style>
 </head>
 <body>
-  <h2>📦 場所別ストック棚卸</h2>
-  
+  <div class="app-header">
+    <button class="menu-btn" onclick="openDrawer()" aria-label="メニュー">☰</button>
+    <h2 id="page-title">📦 場所別ストック棚卸</h2>
+  </div>
+
+  <!-- ハンバーガーメニュー -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+  <nav class="drawer" id="drawer">
+    <div class="drawer-title">メニュー</div>
+    <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 棚卸</button>
+    <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
+  </nav>
+
+  <!-- 棚卸画面 -->
+  <div class="page" id="page-inventory">
   <!-- 場所の絞り込みタブ -->
   <div class="filter-container" id="location-filters"></div>
+  <!-- 新規追加ボタン（リスト上部） -->
+  <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
 
+  <!-- リスト表示エリア -->
+  <div id="stock-list"></div>
+  </div>
+
+  <!-- 発注画面 -->
+  <div class="page" id="page-order">
   <!-- AI購入アドバイザー -->
   <div class="ai-advisor-container">
     <div style="font-weight: bold; color: #1565c0; margin-bottom: 10px;">✨ AI 購入アドバイザー</div>
@@ -290,11 +391,9 @@
     <div class="ai-result" id="ai-result"></div>
   </div>
 
-  <!-- 新規追加ボタン（リスト上部） -->
-  <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
-
-  <!-- リスト表示エリア -->
-  <div id="stock-list"></div>
+  <!-- 発注リスト表示エリア -->
+  <div id="order-list"></div>
+  </div>
 
   <!-- アイテム追加用モーダル -->
   <div class="modal-overlay" id="add-modal">
@@ -317,6 +416,36 @@
     // 保管場所のマスターデータ（ローカルストレージから読み込み可能に）
     let customLocations = JSON.parse(localStorage.getItem('stockLocations')) || ['洗面所', 'キッチン', 'トイレ', 'その他'];
     let currentFilter = 'すべて';
+    let currentPage = localStorage.getItem('currentPage') || 'inventory';
+
+    const PAGE_TITLES = {
+      inventory: '📦 場所別ストック棚卸',
+      order: '🛒 発注リスト'
+    };
+
+    // ハンバーガーメニューの開閉
+    function openDrawer() {
+      document.getElementById('drawer').classList.add('open');
+      document.getElementById('drawer-overlay').classList.add('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('drawer').classList.remove('open');
+      document.getElementById('drawer-overlay').classList.remove('open');
+    }
+
+    // 画面切り替え
+    function showPage(page) {
+      currentPage = page;
+      localStorage.setItem('currentPage', page);
+      document.getElementById('page-title').textContent = PAGE_TITLES[page];
+      ['inventory', 'order'].forEach(p => {
+        document.getElementById(`page-${p}`).classList.toggle('active', p === page);
+        document.getElementById(`nav-${p}`).classList.toggle('active', p === page);
+      });
+      closeDrawer();
+      saveAndRender();
+    }
 
     // データの読み込み
     let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) || [
@@ -440,6 +569,8 @@
         return 0; // 両方とも発注が必要、または不要な場合は元の順序を維持
       });
 
+      renderOrderList();
+
       filteredItems.forEach(item => {
         const needsOrder = item.count < item.target;
         // 発注数の計算（必要数 - 現在の個数）
@@ -469,6 +600,47 @@
         `;
         listDiv.appendChild(itemDiv);
       });
+    }
+
+    // 発注リストを描画する関数
+    function renderOrderList() {
+      const orderDiv = document.getElementById('order-list');
+      orderDiv.innerHTML = '';
+
+      const itemsToOrder = stockItems.filter(item => item.count < item.target);
+
+      if (itemsToOrder.length === 0) {
+        orderDiv.innerHTML = '<div class="empty-message">発注が必要なアイテムはありません 🎉</div>';
+        return;
+      }
+
+      itemsToOrder.forEach(item => {
+        const orderAmount = item.target - item.count;
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'item empty order-item';
+        itemDiv.innerHTML = `
+          <div class="item-info">
+            <span class="item-name">${item.name}</span>
+            <span class="item-location">${item.location}</span>
+            <span class="order-amount">発注数: ${orderAmount}（現在: ${item.count} / 必要: ${item.target}）</span>
+          </div>
+          <div class="controls">
+            <label title="発注済みにすると在庫を必要数まで補充します">
+              <input type="checkbox" class="order-check" onchange="markAsOrdered(${item.id})">
+            </label>
+          </div>
+        `;
+        orderDiv.appendChild(itemDiv);
+      });
+    }
+
+    // 発注済みにして在庫を必要数まで補充する関数
+    function markAsOrdered(id) {
+      const item = stockItems.find(i => i.id === id);
+      if (item) {
+        item.count = item.target;
+        saveAndRender();
+      }
     }
 
     // 必要数を変更する関数
@@ -529,7 +701,7 @@
 
     // 初回読み込み時の処理
     renderFilters();
-    saveAndRender();
+    showPage(currentPage);
 
     // AIアドバイスを取得する関数
     async function getAIAdvice() {
