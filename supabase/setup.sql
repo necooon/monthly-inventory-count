@@ -325,3 +325,85 @@ create unique index if not exists check_units_hh_cycle_loc_uidx
 create unique index if not exists check_units_hh_cycle_null_loc_uidx
   on public.check_units (household_id, cycle_id)
   where location_id is null;
+
+-- カテゴリ・単位マスター
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null references public.households(id) on delete cascade,
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (household_id, name)
+);
+
+create table if not exists public.units (
+  id uuid primary key default gen_random_uuid(),
+  household_id text not null references public.households(id) on delete cascade,
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (household_id, name)
+);
+
+create index if not exists categories_household_id_idx on public.categories (household_id, sort_order);
+create index if not exists units_household_id_idx on public.units (household_id, sort_order);
+
+insert into public.categories (household_id, name, sort_order)
+select h.id, v.name, v.sort_order
+from public.households h
+cross join (values
+  ('医薬品', 0),
+  ('日用品', 1),
+  ('食品・調味料', 2),
+  ('水・コーヒー・お茶・飲料', 3)
+) as v(name, sort_order)
+on conflict (household_id, name) do nothing;
+
+insert into public.categories (household_id, name, sort_order)
+select i.household_id, i.category, 1000 + row_number() over (partition by i.household_id order by i.category)
+from public.items i
+where coalesce(i.category, '') <> ''
+on conflict (household_id, name) do nothing;
+
+insert into public.units (household_id, name, sort_order)
+select i.household_id, i.unit, 1000 + row_number() over (partition by i.household_id order by i.unit)
+from public.items i
+where coalesce(i.unit, '') <> ''
+  and i.unit not in (
+    '個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'
+  )
+on conflict (household_id, name) do nothing;
+
+alter table public.categories enable row level security;
+alter table public.units enable row level security;
+
+drop policy if exists "categories_select" on public.categories;
+drop policy if exists "categories_insert" on public.categories;
+drop policy if exists "categories_update" on public.categories;
+drop policy if exists "categories_delete" on public.categories;
+create policy "categories_select" on public.categories for select using (true);
+create policy "categories_insert" on public.categories for insert with check (true);
+create policy "categories_update" on public.categories for update using (true);
+create policy "categories_delete" on public.categories for delete using (true);
+
+drop policy if exists "units_select" on public.units;
+drop policy if exists "units_insert" on public.units;
+drop policy if exists "units_update" on public.units;
+drop policy if exists "units_delete" on public.units;
+create policy "units_select" on public.units for select using (true);
+create policy "units_insert" on public.units for insert with check (true);
+create policy "units_update" on public.units for update using (true);
+create policy "units_delete" on public.units for delete using (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.categories;
+exception
+  when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table public.units;
+exception
+  when duplicate_object then null;
+end $$;
