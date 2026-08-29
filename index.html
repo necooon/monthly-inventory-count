@@ -139,6 +139,7 @@
     border-radius: 8px; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border: 2px solid transparent;
+    cursor: pointer;
   }
   .item.empty { 
     border-left: 5px solid #f44336; 
@@ -300,6 +301,8 @@
   }
   .item-row .controls {
     flex-wrap: nowrap;
+    flex-shrink: 0;
+    width: calc(72px + 6px + 3.6em);
   }
   .item-side {
     display: flex;
@@ -338,18 +341,24 @@
   .count-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    margin: 0 4px;
+    align-items: stretch;
+    width: 100%;
+    margin: 0;
   }
   .count-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 72px 3.6em;
     align-items: center;
-    gap: 6px;
+    column-gap: 6px;
+    width: 100%;
   }
   .unit-suffix {
     font-size: 0.85em;
     color: #555;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
   }
   .field-hint {
     font-size: 0.75em;
@@ -405,11 +414,6 @@
   .target-count {
     font-size: 0.7em;
     color: #666;
-  }
-  .edit-btn { 
-    background: #2196F3 !important; 
-    color: white !important; 
-    font-size: 12px !important; 
   }
 
   /* 追加ボタン（リスト上部） */
@@ -1322,7 +1326,7 @@
         const itemNeedsOrder = needsOrder(item);
         
         const itemDiv = document.createElement('div');
-        itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${selectedItemId === item.id ? 'selected' : ''}`;
+        itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
         itemDiv.dataset.itemId = item.id;
 
         const countDisplay = item.entered ? item.count : '';
@@ -1345,11 +1349,14 @@
                     <span class="unit-suffix">${item.unit}</span>
                   </div>
                 </div>
-                <button type="button" class="edit-btn" onclick="selectAndEditItem(${item.id})">編集</button>
               </div>
             </div>
           </div>
         `;
+        itemDiv.addEventListener('click', (e) => {
+          if (e.target.closest('.count-container')) return;
+          selectAndEditItem(item.id);
+        });
         listDiv.appendChild(itemDiv);
       });
     }
@@ -1399,13 +1406,13 @@
     function selectAndEditItem(id) {
       selectedItemId = id;
       document.querySelectorAll('#stock-list .item').forEach(el => {
-        el.classList.toggle('selected', Number(el.dataset.itemId) === id);
+        el.classList.toggle('selected', String(el.dataset.itemId) === String(id));
       });
       openEditModal(id);
     }
 
     function openEditModal(id) {
-      const item = stockItems.find(i => i.id === id);
+      const item = findItemById(id);
       if (!item) return;
       editingItemId = id;
       document.getElementById('edit-item-name').value = item.name;
