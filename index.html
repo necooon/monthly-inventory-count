@@ -213,6 +213,36 @@
     font-size: 0.95em;
     margin: 16px 0 8px;
   }
+  button.order-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 16px 0 8px;
+    cursor: pointer;
+    color: #555;
+  }
+  button.order-group-title:active {
+    background: #e0e0e0;
+  }
+  .order-group.collapsed .order-group-items {
+    display: none;
+  }
+  .order-group-chevron {
+    flex-shrink: 0;
+    width: 1em;
+  }
+  .order-group-count {
+    margin-left: auto;
+    color: #666;
+    font-weight: normal;
+    font-size: 0.9em;
+  }
   .order-group:first-child .order-group-title {
     margin-top: 0;
   }
@@ -891,6 +921,7 @@
 
     let inventoryCycleFilter = ALL_FILTER;
     let inventoryPlaceFilter = ALL_FILTER;
+    let inventoryCollapsedPlaces = loadInventoryCollapsedPlaces();
     let catalogCycleFilter = ALL_FILTER;
     let catalogPlaceFilter = ALL_FILTER;
     let catalogCategoryFilter = ALL_FILTER;
@@ -2299,6 +2330,25 @@
       return names;
     }
 
+    function loadInventoryCollapsedPlaces() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem('inventoryCollapsedPlaces'));
+        if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
+      } catch (e) { /* ignore */ }
+      return new Set();
+    }
+
+    function persistInventoryCollapsedPlaces() {
+      localStorage.setItem('inventoryCollapsedPlaces', JSON.stringify([...inventoryCollapsedPlaces]));
+    }
+
+    function toggleInventoryPlaceGroup(place) {
+      if (inventoryCollapsedPlaces.has(place)) inventoryCollapsedPlaces.delete(place);
+      else inventoryCollapsedPlaces.add(place);
+      persistInventoryCollapsedPlaces();
+      saveAndRender();
+    }
+
     function nextUnenteredIdAfter(id) {
       const visible = getFilteredItems();
       const idx = visible.findIndex(item => String(item.id) === String(id));
@@ -2352,13 +2402,20 @@
       });
 
       keys.forEach(place => {
+        const placeItems = groups.get(place).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
+        const collapsed = inventoryCollapsedPlaces.has(place);
         const group = document.createElement('div');
-        group.className = 'order-group';
-        const title = document.createElement('div');
+        group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+        group.dataset.place = place;
+        const title = document.createElement('button');
+        title.type = 'button';
         title.className = 'order-group-title';
-        title.textContent = place;
+        title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
+        title.onclick = () => toggleInventoryPlaceGroup(place);
         group.appendChild(title);
-        groups.get(place).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(item => {
+        const body = document.createElement('div');
+        body.className = 'order-group-items';
+        placeItems.forEach(item => {
           const itemNeedsOrder = needsOrder(item);
           const itemDiv = document.createElement('div');
           itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
@@ -2392,8 +2449,9 @@
             if (e.target.closest('.count-container')) return;
             selectAndEditItem(item.id);
           });
-          group.appendChild(itemDiv);
+          body.appendChild(itemDiv);
         });
+        group.appendChild(body);
         listDiv.appendChild(group);
       });
     }
