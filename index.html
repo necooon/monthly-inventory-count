@@ -784,10 +784,10 @@
       }
       if (!customLocations.includes(trimmed)) {
         customLocations.push(trimmed);
-        localStorage.setItem('stockLocations', JSON.stringify(customLocations));
         refreshLocationSelects(trimmed);
         renderFilters();
-        renderLocationList();
+        saveAndRender();
+        if (isCloudReady()) await pushToCloud();
         return trimmed;
       }
       return null;
@@ -1085,7 +1085,12 @@
           const { error: locUpsertError } = await supabaseClient
             .from('locations')
             .upsert(locationRows, { onConflict: 'household_id,name' });
-          if (locUpsertError) throw locUpsertError;
+          if (locUpsertError) {
+            for (const row of locationRows) {
+              const { error: locInsertError } = await supabaseClient.from('locations').insert(row);
+              if (locInsertError && locInsertError.code !== '23505') throw locInsertError;
+            }
+          }
         }
 
         const { data: locs, error: locReadError } = await supabaseClient
