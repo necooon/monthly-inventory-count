@@ -1274,6 +1274,8 @@
     let syncTimer = null;
     let pullTimer = null;
     let cloudPushInProgress = false;
+    let pullAfterPush = false;
+    let skipScheduledCloudSave = false;
     let householdId = HOUSEHOLD_ID;
 
     const APP_TITLE = 'Check＆Stock';
@@ -1365,6 +1367,10 @@
       return !!(a && b && a.cycle === b.cycle && (a.place || '') === (b.place || ''));
     }
 
+    function fallbackCycleName() {
+      return customCycles[0] || DEFAULT_CYCLES[0];
+    }
+
     function normalizeUnit(raw) {
       if (!raw) return null;
       if (typeof raw === 'object' && raw.cycle) {
@@ -1378,7 +1384,7 @@
         if (parsed) return parsed;
         const place = raw.trim();
         if (!place || place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
-        return { cycle: DEFAULT_CYCLES[0], place };
+        return { cycle: fallbackCycleName(), place };
       }
       return null;
     }
@@ -1391,7 +1397,7 @@
           if (units.length) return dedupeUnits(units);
         }
       } catch (e) { /* ignore */ }
-      return customPlaces.map(place => ({ cycle: DEFAULT_CYCLES[0], place }));
+      return customPlaces.map(place => ({ cycle: fallbackCycleName(), place }));
     }
 
     function dedupeUnits(units) {
@@ -1480,7 +1486,12 @@
     }
 
     async function saveMasterChange() {
-      saveAndRender();
+      skipScheduledCloudSave = true;
+      try {
+        saveAndRender();
+      } finally {
+        skipScheduledCloudSave = false;
+      }
       await flushCloudSave();
     }
 
@@ -2429,7 +2440,7 @@
     }
 
     function scheduleCloudSave() {
-      if (applyingRemote || !isCloudReady()) return;
+      if (applyingRemote || skipScheduledCloudSave || !isCloudReady()) return;
       clearTimeout(syncTimer);
       syncTimer = setTimeout(pushToCloud, 400);
     }
@@ -2444,7 +2455,11 @@
     }
 
     function scheduleCloudPull() {
-      if (applyingRemote || cloudPushInProgress || !isCloudReady()) return;
+      if (applyingRemote || !isCloudReady()) return;
+      if (cloudPushInProgress) {
+        pullAfterPush = true;
+        return;
+      }
       clearTimeout(pullTimer);
       pullTimer = setTimeout(pullFromCloud, 250);
     }
@@ -2888,6 +2903,10 @@
         return false;
       } finally {
         cloudPushInProgress = false;
+        if (pullAfterPush) {
+          pullAfterPush = false;
+          scheduleCloudPull();
+        }
       }
     }
 
@@ -2948,7 +2967,7 @@
         const normalized = normalizeUnit(raw);
         if (normalized) units.push(normalized);
       });
-      if (!rawUnits.length && next.location && !CATEGORY_PLACE_NAMES.has(next.location)) {
+      if (!Array.isArray(item.checkUnits) && next.location && !CATEGORY_PLACE_NAMES.has(next.location)) {
         const one = normalizeUnit(next.location);
         if (one) units = [one];
       }
@@ -3116,7 +3135,7 @@
       localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
       persistMasters();
       localStorage.setItem('stockUnits', JSON.stringify(customUnits));
-      if (!applyingRemote) scheduleCloudSave();
+      if (!applyingRemote && !skipScheduledCloudSave) scheduleCloudSave();
       const listDiv = document.getElementById('stock-list');
       listDiv.innerHTML = '';
 
