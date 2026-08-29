@@ -114,21 +114,24 @@
     font-size: 16px;
     cursor: pointer;
   }
-  .filter-add-btn {
-    flex-shrink: 0;
-    padding: 10px 12px;
-    border: 1px dashed #999;
-    background: white;
-    border-radius: 8px;
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 8px 0;
+    background: none;
+    border: none;
+    color: #1565c0;
+    font-size: 15px;
+    font-weight: bold;
     cursor: pointer;
-    font-size: 14px;
-    white-space: nowrap;
   }
   
   .item { 
     display: flex; 
-    justify-content: space-between; 
-    align-items: center; 
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
     padding: 15px; 
     background: white; 
@@ -136,11 +139,14 @@
     border-radius: 8px; 
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     border: 2px solid transparent;
-    cursor: pointer;
   }
   .item.empty { 
     border-left: 5px solid #f44336; 
     background-color: #ffebee; 
+  }
+  .item.complete {
+    border-left: 5px solid #43a047;
+    background-color: #e8f5e9;
   }
   .item.selected {
     border-color: #2196F3;
@@ -148,10 +154,89 @@
   }
   .item .controls {
     cursor: default;
+    flex-shrink: 0;
   }
   .item.order-item {
     cursor: default;
   }
+
+  /* 保管場所一覧 */
+  .location-card {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 16px;
+    background: white;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .location-card.card-status-none {
+    background: #f5f5f5;
+    border-color: #bdbdbd;
+  }
+  .location-card.card-status-not-started,
+  .location-card.card-status-in-progress {
+    background: white;
+    border-color: #e0e0e0;
+  }
+  .location-card.card-status-done {
+    background: #e8f5e9;
+    border-color: #43a047;
+  }
+  .location-card:hover {
+    filter: brightness(0.98);
+  }
+  .location-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .location-card-name {
+    font-weight: bold;
+    font-size: 1.15em;
+    color: #222;
+  }
+  .status-badge {
+    font-size: 0.75em;
+    font-weight: bold;
+    padding: 4px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+  }
+  .status-none { background: #eeeeee; color: #616161; }
+  .status-not-started { background: #fff3e0; color: #e65100; }
+  .status-in-progress { background: #e3f2fd; color: #1565c0; }
+  .status-done { background: #e8f5e9; color: #2e7d32; }
+  .location-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-box {
+    background: rgba(255,255,255,0.75);
+    border-radius: 6px;
+    padding: 8px 4px;
+    text-align: center;
+  }
+  .stat-label {
+    display: block;
+    font-size: 0.7em;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 1.15em;
+    font-weight: bold;
+    color: #333;
+  }
+  .stat-value.warn { color: #d32f2f; }
+  .stat-value.ok { color: #2e7d32; }
   
   /* 発注バッジのデザイン */
   .order-badge {
@@ -172,13 +257,27 @@
   .item-info { 
     display: flex; 
     flex-direction: column; 
-    gap: 4px;
+    gap: 6px;
+    min-width: 0;
   }
   .item-name { 
     font-weight: bold; 
     font-size: 1.1em; 
     display: flex;
     align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .item-name-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+  .item-name .order-badge {
+    margin-left: 0;
+    flex-shrink: 0;
   }
   .item-location { 
     font-size: 0.75em; 
@@ -189,6 +288,27 @@
     display: inline-block; 
     width: fit-content; 
   }
+  .item-threshold {
+    font-size: 0.8em;
+    color: #666;
+  }
+  .item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .item-row .controls {
+    flex-wrap: nowrap;
+  }
+  .item-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
   /* 発注数の表示スタイル */
   .order-amount {
     font-size: 0.85em;
@@ -198,16 +318,19 @@
   
   .controls { 
     display: flex; 
-    align-items: center; 
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
   }
   .controls button { 
-    padding: 5px 15px; 
+    padding: 5px 12px; 
     font-size: 18px; 
     border: none; 
     background: #e0e0e0; 
     border-radius: 4px; 
     cursor: pointer; 
-    margin: 0 5px; 
+    margin: 0;
   }
   .controls button:active { 
     background: #ccc; 
@@ -216,7 +339,35 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0 10px;
+    margin: 0 4px;
+  }
+  .count-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .unit-suffix {
+    font-size: 0.85em;
+    color: #555;
+    white-space: nowrap;
+  }
+  .field-hint {
+    font-size: 0.75em;
+    color: #777;
+    font-weight: normal;
+    margin-top: -8px;
+  }
+  .input-with-unit {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .input-with-unit input {
+    flex: 1;
+  }
+  .input-with-unit select {
+    width: 88px;
+    flex-shrink: 0;
   }
   .count-input { 
     font-size: 1.2em; 
@@ -240,16 +391,10 @@
     font-size: 0.7em;
     color: #666;
   }
-  .edit-hint {
-    font-size: 0.7em;
-    color: #1976D2;
-    margin-top: 2px;
-  }
-  .delete-btn { 
-    background: #ff9800 !important; 
+  .edit-btn { 
+    background: #2196F3 !important; 
     color: white !important; 
     font-size: 12px !important; 
-    margin-left: 10px !important; 
   }
 
   /* 追加ボタン（リスト上部） */
@@ -308,8 +453,19 @@
   .modal-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 10px;
     margin-top: 10px;
+  }
+  .btn-delete {
+    margin-right: auto;
+    padding: 10px 15px;
+    background: #e53935;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
   }
   .btn-cancel {
     padding: 10px 15px;
@@ -373,8 +529,56 @@
     animation: spin 1s ease-in-out infinite;
     display: none;
   }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  .sync-panel {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .sync-panel p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #555;
+    line-height: 1.5;
+  }
+  .sync-status {
+    font-weight: bold;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #f5f5f5;
+  }
+  .sync-status.ok { background: #e8f5e9; color: #2e7d32; }
+  .sync-status.warn { background: #fff3e0; color: #e65100; }
+  .sync-code {
+    font-size: 1.4em;
+    font-weight: bold;
+    letter-spacing: 0.12em;
+    text-align: center;
+    padding: 12px;
+    background: #e3f2fd;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  #page-sync input[type=text] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+    min-height: 120px;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
   }
 </style>
 </head>
@@ -388,13 +592,21 @@
   <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
   <nav class="drawer" id="drawer">
     <div class="drawer-title">メニュー</div>
+    <button class="drawer-item" id="nav-locations" onclick="showPage('locations')">📍 保管場所</button>
     <button class="drawer-item" id="nav-inventory" onclick="showPage('inventory')">📦 棚卸</button>
     <button class="drawer-item" id="nav-order" onclick="showPage('order')">🛒 発注</button>
+    <button class="drawer-item" id="nav-sync" onclick="showPage('sync')">🔄 端末同期</button>
   </nav>
+
+  <!-- 保管場所一覧 -->
+  <div class="page" id="page-locations">
+    <button class="open-modal-btn" onclick="addNewLocation()">➕ 場所を追加</button>
+    <div id="location-list"></div>
+  </div>
 
   <!-- 棚卸画面 -->
   <div class="page" id="page-inventory">
-  <!-- 場所の絞り込み（セレクト：場所が増えてもスクロールしやすい） -->
+  <button type="button" class="back-btn" onclick="showPage('locations')">← 保管場所一覧</button>
   <div class="filter-bar" id="location-filters"></div>
   <!-- 新規追加ボタン（リスト上部） -->
   <button class="open-modal-btn" onclick="openModal()">➕ 新しいアイテムを追加</button>
@@ -420,6 +632,29 @@
   <div id="order-list"></div>
   </div>
 
+  <!-- 端末同期 -->
+  <div class="page" id="page-sync">
+    <div class="sync-panel">
+      <div class="sync-status warn" id="sync-status">この端末のみ（未同期）</div>
+      <p>いまのデータは各端末のブラウザ内にあります。スマホとPCで同じ棚卸を見るには、クラウド同期用の共有コードを使います。</p>
+      <p>GitHub Pages で公開した同じURLを、PCとスマホの両方で開いてください。</p>
+      <div class="sync-code" id="sync-code-display">未発行</div>
+      <button type="button" class="open-modal-btn" style="margin-bottom:0;" onclick="createHousehold()">新しい共有コードを発行</button>
+      <button type="button" class="btn-save" onclick="copyHouseholdId()">コードをコピー</button>
+      <label for="join-code">他の端末のコードを入力</label>
+      <input type="text" id="join-code" placeholder="共有コード">
+      <button type="button" class="btn-save" onclick="joinHousehold()">このコードで同期する</button>
+    </div>
+    <div class="sync-panel">
+      <p style="font-weight:bold;color:#333;">Supabase 設定</p>
+      <p>1. <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">Supabase</a> でプロジェクトを作成します。<br>
+      2. SQL Editor でリポジトリの <code>supabase/setup.sql</code> を実行します。<br>
+      3. Project Settings → API の Project URL と anon public キーを下に貼るか、公開前に <code>index.html</code> の <code>SUPABASE_CONFIG</code> へ書いてください。</p>
+      <textarea id="supabase-config-input" placeholder='{"url":"https://xxxx.supabase.co","anonKey":"eyJ..."}'></textarea>
+      <button type="button" class="btn-save" onclick="saveSupabaseConfig()">設定を保存して同期を開始</button>
+    </div>
+  </div>
+
   <!-- 汎用入力モーダル（日本語入力対応のため prompt() の代わりに使用） -->
   <div class="modal-overlay" id="prompt-modal">
     <div class="modal-content">
@@ -435,14 +670,22 @@
   <!-- アイテム編集用モーダル（必要数量・保管場所） -->
   <div class="modal-overlay" id="edit-modal">
     <div class="modal-content">
-      <h3 id="edit-item-title">アイテムを編集</h3>
+      <h3>アイテムを編集</h3>
+      <label for="edit-item-name">品名</label>
+      <input type="text" id="edit-item-name" placeholder="品名">
+      <label for="edit-item-unit">単位</label>
+      <select id="edit-item-unit"></select>
       <label for="edit-item-target">必要数量</label>
       <input type="number" id="edit-item-target" min="0" inputmode="numeric">
+      <label for="edit-item-threshold">発注基準数</label>
+      <input type="number" id="edit-item-threshold" min="0" inputmode="numeric">
+      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
       <label for="edit-item-location">保管場所</label>
       <select id="edit-item-location" onchange="handleLocationSelectChange(this)">
         <!-- JavaScriptで動的に生成されます -->
       </select>
       <div class="modal-actions">
+        <button type="button" class="btn-delete" onclick="deleteEditingItem()">削除</button>
         <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
         <button class="btn-save" onclick="saveItemEdit()">保存する</button>
       </div>
@@ -455,6 +698,13 @@
       <h3>新しいアイテムを追加</h3>
       <label for="new-item-name">品名</label>
       <input type="text" id="new-item-name" placeholder="品名（例：シャンプー）">
+      <label for="new-item-unit">単位</label>
+      <select id="new-item-unit"></select>
+      <label for="new-item-target">必要数量</label>
+      <input type="number" id="new-item-target" min="0" inputmode="numeric" value="1">
+      <label for="new-item-threshold">発注基準数</label>
+      <input type="number" id="new-item-threshold" min="0" inputmode="numeric" value="0">
+      <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
       <label for="new-item-location">保管場所</label>
       <select id="new-item-location" onchange="handleLocationSelectChange(this)">
         <!-- JavaScriptで動的に生成されます -->
@@ -467,8 +717,14 @@
     </div>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    const SUPABASE_CONFIG = {
+      url: '',
+      anonKey: ''
+    };
     const DEFAULT_LOCATIONS = ['洗面所', 'キッチン', 'トイレ'];
+    const ITEM_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml'];
     const REMOVED_LOCATION = 'その他';
 
     // 保管場所のマスターデータ（「その他」は廃止）
@@ -478,14 +734,23 @@
     localStorage.setItem('stockLocations', JSON.stringify(customLocations));
 
     let currentFilter = 'すべて';
-    let currentPage = localStorage.getItem('currentPage') || 'inventory';
+    let currentPage = localStorage.getItem('currentPage') || 'locations';
     let selectedItemId = null;
     let editingItemId = null;
+    let applyingRemote = false;
+    let supabaseClient = null;
+    let syncUnsub = null;
+    let syncTimer = null;
+    let householdId = localStorage.getItem('stockHouseholdId') || '';
 
     const PAGE_TITLES = {
+      locations: '📍 保管場所一覧',
       inventory: '食品・日用品のストック棚卸',
-      order: '🛒 発注リスト'
+      order: '🛒 発注リスト',
+      sync: '🔄 端末同期'
     };
+    const PAGE_IDS = ['locations', 'inventory', 'order', 'sync'];
+    if (!PAGE_IDS.includes(currentPage)) currentPage = 'locations';
 
     // ハンバーガーメニューの開閉
     function openDrawer() {
@@ -503,26 +768,30 @@
       currentPage = page;
       localStorage.setItem('currentPage', page);
       document.getElementById('page-title').textContent = PAGE_TITLES[page];
-      ['inventory', 'order'].forEach(p => {
+      PAGE_IDS.forEach(p => {
         document.getElementById(`page-${p}`).classList.toggle('active', p === page);
         document.getElementById(`nav-${p}`).classList.toggle('active', p === page);
       });
       closeDrawer();
+      updateSyncUI();
       saveAndRender();
     }
 
     // データの読み込み
     let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) || [
-      { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', target: 4 },
-      { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', target: 2 },
-      { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', target: 2 }
+      { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', target: 4, orderThreshold: 1, unit: '巻', entered: true },
+      { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', target: 2, orderThreshold: 1, unit: '本', entered: true },
+      { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', target: 2, orderThreshold: 0, unit: '本', entered: false }
     ];
 
-    // 旧データ構造からのマイグレーション（targetプロパティがない場合に追加）
     stockItems = stockItems.map(item => {
       const next = { ...item };
       if (next.target === undefined) next.target = 1;
       if (next.location === REMOVED_LOCATION) next.location = customLocations[0];
+      if (next.entered === undefined) next.entered = true;
+      if (next.unit === undefined) next.unit = '個';
+      if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
+      next.complete = !!(next.entered && next.count > next.orderThreshold);
       return next;
     });
 
@@ -559,6 +828,12 @@
     function openModal() {
       document.getElementById('add-modal').style.display = 'flex';
       updateLocationSelect();
+      fillUnitSelect(document.getElementById('new-item-unit'), '個');
+      document.getElementById('new-item-target').value = 1;
+      document.getElementById('new-item-threshold').value = 0;
+      if (currentFilter !== 'すべて') {
+        document.getElementById('new-item-location').value = currentFilter;
+      }
       document.getElementById('new-item-name').focus();
     }
 
@@ -566,6 +841,8 @@
     function closeModal() {
       document.getElementById('add-modal').style.display = 'none';
       document.getElementById('new-item-name').value = '';
+      document.getElementById('new-item-target').value = 1;
+      document.getElementById('new-item-threshold').value = 0;
     }
 
     // 新しい場所を追加する処理（モーダル内と絞り込み両方から呼ばれる）
@@ -582,6 +859,7 @@
         localStorage.setItem('stockLocations', JSON.stringify(customLocations));
         refreshLocationSelects(trimmed);
         renderFilters();
+        renderLocationList();
         return trimmed;
       }
       return null;
@@ -626,6 +904,28 @@
       fillLocationSelect(document.getElementById('new-item-location'));
     }
 
+    function fillUnitSelect(select, selectedValue) {
+      select.innerHTML = '';
+      const units = [...ITEM_UNITS];
+      if (selectedValue && !units.includes(selectedValue)) units.unshift(selectedValue);
+      units.forEach(unit => {
+        const option = document.createElement('option');
+        option.value = unit;
+        option.textContent = unit;
+        select.appendChild(option);
+      });
+      select.value = selectedValue && units.includes(selectedValue) ? selectedValue : '個';
+    }
+
+    function formatQty(n, unit) {
+      return `${n}${unit || '個'}`;
+    }
+
+    function parseNonNeg(value) {
+      const parsed = parseInt(value, 10);
+      return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    }
+
     function refreshLocationSelects(preferredValue) {
       const addSelect = document.getElementById('new-item-location');
       const editSelect = document.getElementById('edit-item-location');
@@ -660,18 +960,312 @@
         saveAndRender();
       };
       filterDiv.appendChild(select);
+    }
 
-      const addLocBtn = document.createElement('button');
-      addLocBtn.type = 'button';
-      addLocBtn.className = 'filter-add-btn';
-      addLocBtn.textContent = '＋場所を追加';
-      addLocBtn.onclick = addNewLocation;
-      filterDiv.appendChild(addLocBtn);
+    function needsOrder(item) {
+      return item.entered && item.count <= item.orderThreshold;
+    }
+
+    function isComplete(item) {
+      return item.entered && item.count > item.orderThreshold;
+    }
+
+    function syncItemFlags(item) {
+      item.complete = isComplete(item);
+    }
+
+    function getLocationStats(location) {
+      const items = stockItems.filter(item => item.location === location);
+      const unenteredCount = items.filter(item => !item.entered).length;
+      const orderCount = items.filter(needsOrder).length;
+      let status = 'アイテムなし';
+      let statusClass = 'status-none';
+      if (items.length === 0) {
+        status = 'アイテムなし';
+        statusClass = 'status-none';
+      } else if (unenteredCount === items.length) {
+        status = '未着手';
+        statusClass = 'status-not-started';
+      } else if (unenteredCount > 0) {
+        status = '進行中';
+        statusClass = 'status-in-progress';
+      } else {
+        status = '完了';
+        statusClass = 'status-done';
+      }
+      return { total: items.length, unenteredCount, orderCount, status, statusClass };
+    }
+
+    function openLocationInventory(location) {
+      currentFilter = location;
+      renderFilters();
+      showPage('inventory');
+    }
+
+    function renderLocationList() {
+      const listDiv = document.getElementById('location-list');
+      listDiv.innerHTML = '';
+
+      if (customLocations.length === 0) {
+        listDiv.innerHTML = '<div class="empty-message">保管場所がありません。追加してください。</div>';
+        return;
+      }
+
+      customLocations.forEach(location => {
+        const stats = getLocationStats(location);
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `location-card card-${stats.statusClass}`;
+        card.onclick = () => openLocationInventory(location);
+        card.innerHTML = `
+          <div class="location-card-header">
+            <span class="location-card-name">${location}</span>
+            <span class="status-badge ${stats.statusClass}">${stats.status}</span>
+          </div>
+          <div class="location-stats">
+            <div class="stat-box">
+              <span class="stat-label">棚卸ステータス</span>
+              <span class="stat-value">${stats.status}</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">発注アイテム数</span>
+              <span class="stat-value ${stats.orderCount > 0 ? 'warn' : 'ok'}">${stats.orderCount}</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">未入力アイテム数</span>
+              <span class="stat-value ${stats.unenteredCount > 0 ? 'warn' : 'ok'}">${stats.unenteredCount}</span>
+            </div>
+          </div>
+        `;
+        listDiv.appendChild(card);
+      });
+    }
+
+    function getSupabaseConfig() {
+      if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) return SUPABASE_CONFIG;
+      try {
+        const saved = JSON.parse(localStorage.getItem('stockSupabaseConfig') || 'null');
+        if (saved && saved.url && saved.anonKey) return saved;
+      } catch (e) { /* ignore */ }
+      return null;
+    }
+
+    function initSupabase() {
+      const config = getSupabaseConfig();
+      if (!config || typeof supabase === 'undefined' || !supabase.createClient) {
+        supabaseClient = null;
+        return false;
+      }
+      try {
+        supabaseClient = supabase.createClient(config.url, config.anonKey);
+        return true;
+      } catch (e) {
+        console.error('Supabase init failed', e);
+        supabaseClient = null;
+        return false;
+      }
+    }
+
+    function generateHouseholdId() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      const bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, b => chars[b % chars.length]).join('');
+    }
+
+    function isCloudReady() {
+      return !!(supabaseClient && householdId);
+    }
+
+    function scheduleCloudSave() {
+      if (applyingRemote || !isCloudReady()) return;
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(pushToCloud, 400);
+    }
+
+    async function pushToCloud() {
+      if (!isCloudReady()) return;
+      try {
+        const { error } = await supabaseClient.from('households').upsert({
+          id: householdId,
+          items: stockItems,
+          locations: customLocations,
+          updated_at: new Date().toISOString()
+        });
+        if (error) throw error;
+        updateSyncUI();
+      } catch (e) {
+        console.error('cloud save failed', e);
+        setSyncStatus('クラウドへの保存に失敗しました。Supabase の設定と RLS を確認してください。', false);
+      }
+    }
+
+    function migrateItem(item) {
+      const next = { ...item };
+      if (next.target === undefined) next.target = 1;
+      if (next.location === REMOVED_LOCATION) next.location = customLocations[0];
+      if (next.entered === undefined) next.entered = true;
+      if (next.unit === undefined) next.unit = '個';
+      if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
+      next.complete = !!(next.entered && next.count > next.orderThreshold);
+      return next;
+    }
+
+    function applyCloudData(data) {
+      applyingRemote = true;
+      if (Array.isArray(data.items)) stockItems = data.items.map(migrateItem);
+      if (Array.isArray(data.locations) && data.locations.length) {
+        customLocations = data.locations.filter(loc => loc !== REMOVED_LOCATION);
+        if (customLocations.length === 0) customLocations = [...DEFAULT_LOCATIONS];
+      }
+      renderFilters();
+      saveAndRender();
+      applyingRemote = false;
+    }
+
+    async function startCloudListener() {
+      if (syncUnsub) {
+        syncUnsub();
+        syncUnsub = null;
+      }
+      if (!isCloudReady()) {
+        updateSyncUI();
+        return;
+      }
+
+      const { data, error } = await supabaseClient
+        .from('households')
+        .select('*')
+        .eq('id', householdId)
+        .maybeSingle();
+      if (error) {
+        console.error('cloud load failed', error);
+        setSyncStatus('データの取得に失敗しました。テーブルと RLS を確認してください。', false);
+        return;
+      }
+      if (!data) {
+        await pushToCloud();
+      } else {
+        const sameItems = JSON.stringify(data.items || []) === JSON.stringify(stockItems);
+        const sameLocs = JSON.stringify(data.locations || []) === JSON.stringify(customLocations);
+        if (!sameItems || !sameLocs) applyCloudData(data);
+      }
+
+      const channel = supabaseClient
+        .channel('household-' + householdId)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'households', filter: 'id=eq.' + householdId },
+          payload => {
+            const row = payload.new;
+            if (!row) return;
+            const sameItems = JSON.stringify(row.items || []) === JSON.stringify(stockItems);
+            const sameLocs = JSON.stringify(row.locations || []) === JSON.stringify(customLocations);
+            if (sameItems && sameLocs) {
+              updateSyncUI();
+              return;
+            }
+            applyCloudData(row);
+          }
+        )
+        .subscribe();
+
+      syncUnsub = () => {
+        supabaseClient.removeChannel(channel);
+      };
+      updateSyncUI();
+    }
+
+    function setSyncStatus(text, ok) {
+      const el = document.getElementById('sync-status');
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'sync-status ' + (ok ? 'ok' : 'warn');
+    }
+
+    function updateSyncUI() {
+      const codeEl = document.getElementById('sync-code-display');
+      if (codeEl) codeEl.textContent = householdId || '未発行';
+      const cfgInput = document.getElementById('supabase-config-input');
+      if (cfgInput && !cfgInput.value) {
+        const cfg = getSupabaseConfig();
+        if (cfg) cfgInput.value = JSON.stringify(cfg, null, 2);
+      }
+      if (!getSupabaseConfig()) {
+        setSyncStatus('Supabase 未設定のため、この端末の中だけに保存されています', false);
+      } else if (!householdId) {
+        setSyncStatus('共有コードを発行するか、入力するとスマホと同期できます', false);
+      } else if (supabaseClient) {
+        setSyncStatus('クラウド同期中（同じコードの端末とデータを共有）', true);
+      } else {
+        setSyncStatus('設定はありますが、同期を開始できませんでした', false);
+      }
+    }
+
+    function createHousehold() {
+      if (!initSupabase()) {
+        alert('先に Supabase 設定を保存してください');
+        return;
+      }
+      householdId = generateHouseholdId();
+      localStorage.setItem('stockHouseholdId', householdId);
+      startCloudListener();
+      updateSyncUI();
+    }
+
+    function joinHousehold() {
+      const code = (document.getElementById('join-code').value || '').trim().toUpperCase();
+      if (!code) {
+        alert('共有コードを入力してください');
+        return;
+      }
+      if (!initSupabase()) {
+        alert('先に Supabase 設定を保存してください');
+        return;
+      }
+      householdId = code;
+      localStorage.setItem('stockHouseholdId', householdId);
+      startCloudListener();
+      updateSyncUI();
+    }
+
+    function copyHouseholdId() {
+      if (!householdId) {
+        alert('先に共有コードを発行してください');
+        return;
+      }
+      navigator.clipboard.writeText(householdId).then(() => {
+        alert('共有コードをコピーしました');
+      }).catch(() => {
+        alert(householdId);
+      });
+    }
+
+    function saveSupabaseConfig() {
+      const raw = document.getElementById('supabase-config-input').value.trim();
+      if (!raw) {
+        alert('Supabase の URL と anon キーの JSON を貼り付けてください');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(raw);
+        if (!parsed.url || !parsed.anonKey) throw new Error('incomplete');
+        localStorage.setItem('stockSupabaseConfig', JSON.stringify(parsed));
+        initSupabase();
+        if (householdId) startCloudListener();
+        updateSyncUI();
+        alert('設定を保存しました');
+      } catch (e) {
+        alert('{"url":"https://xxxx.supabase.co","anonKey":"..."} の形式で入力してください');
+      }
     }
 
     // データを保存してリストを描画する関数
     function saveAndRender() {
+      stockItems.forEach(syncItemFlags);
       localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
+      localStorage.setItem('stockLocations', JSON.stringify(customLocations));
+      if (!applyingRemote) scheduleCloudSave();
       const listDiv = document.getElementById('stock-list');
       listDiv.innerHTML = '';
 
@@ -682,48 +1276,52 @@
 
       // 発注が必要なものが上にくるようにソート
       filteredItems.sort((a, b) => {
-        const aNeedsOrder = a.count < a.target;
-        const bNeedsOrder = b.count < b.target;
+        const aNeedsOrder = needsOrder(a);
+        const bNeedsOrder = needsOrder(b);
+        if (!a.entered && b.entered) return -1;
+        if (a.entered && !b.entered) return 1;
         if (aNeedsOrder && !bNeedsOrder) return -1;
         if (!aNeedsOrder && bNeedsOrder) return 1;
-        return 0; // 両方とも発注が必要、または不要な場合は元の順序を維持
+        return 0;
       });
 
       renderOrderList();
+      renderLocationList();
 
       filteredItems.forEach(item => {
-        const needsOrder = item.count < item.target;
-        // 発注数の計算（必要数 - 現在の個数）
-        const orderAmount = needsOrder ? (item.target - item.count) : 0;
+        const itemNeedsOrder = needsOrder(item);
         
         const itemDiv = document.createElement('div');
-        itemDiv.className = `item ${needsOrder ? 'empty' : ''} ${selectedItemId === item.id ? 'selected' : ''}`;
+        itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${selectedItemId === item.id ? 'selected' : ''}`;
         itemDiv.dataset.itemId = item.id;
+
+        const countDisplay = item.entered ? item.count : '';
 
         itemDiv.innerHTML = `
           <div class="item-info">
             <span class="item-name">
-              ${item.name}
-              ${needsOrder ? '<span class="order-badge">発注！</span>' : ''}
+              <span class="item-name-text">${item.name}</span>
+              ${itemNeedsOrder ? '<span class="order-badge">発注！</span>' : ''}
             </span>
-            <span class="item-location">${item.location}</span>
-            ${needsOrder ? `<span class="order-amount">発注数: ${orderAmount}</span>` : ''}
-            <span class="edit-hint">タップして必要数・場所を変更</span>
-          </div>
-          <div class="controls">
-            <button type="button" onclick="updateCount(${item.id}, -1)">-</button>
-            <div class="count-container">
-              <input type="number" class="count-input" value="${item.count}" min="0" onchange="updateCountDirect(${item.id}, this.value)">
-              <span class="target-count">必要: ${item.target}</span>
+            <div class="item-row">
+              <div class="item-side">
+                <span class="item-location">${item.location}</span>
+                <span class="item-threshold">発注基準: ${formatQty(item.orderThreshold, item.unit)}</span>
+              </div>
+              <div class="controls">
+                <button type="button" onclick="updateCount(${item.id}, -1)">-</button>
+                <div class="count-container">
+                  <div class="count-row">
+                    <input type="number" class="count-input" value="${countDisplay}" min="0" onchange="updateCountDirect(${item.id}, this.value)">
+                    <span class="unit-suffix">${item.unit}</span>
+                  </div>
+                </div>
+                <button type="button" onclick="updateCount(${item.id}, 1)">+</button>
+                <button type="button" class="edit-btn" onclick="selectAndEditItem(${item.id})">編集</button>
+              </div>
             </div>
-            <button type="button" onclick="updateCount(${item.id}, 1)">+</button>
-            <button type="button" class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
           </div>
         `;
-        itemDiv.addEventListener('click', (e) => {
-          if (e.target.closest('.controls')) return;
-          selectAndEditItem(item.id);
-        });
         listDiv.appendChild(itemDiv);
       });
     }
@@ -733,7 +1331,7 @@
       const orderDiv = document.getElementById('order-list');
       orderDiv.innerHTML = '';
 
-      const itemsToOrder = stockItems.filter(item => item.count < item.target);
+      const itemsToOrder = stockItems.filter(needsOrder);
 
       if (itemsToOrder.length === 0) {
         orderDiv.innerHTML = '<div class="empty-message">発注が必要なアイテムはありません 🎉</div>';
@@ -741,14 +1339,14 @@
       }
 
       itemsToOrder.forEach(item => {
-        const orderAmount = item.target - item.count;
+        const orderAmount = Math.max(0, item.target - item.count);
         const itemDiv = document.createElement('div');
         itemDiv.className = 'item empty order-item';
         itemDiv.innerHTML = `
           <div class="item-info">
-            <span class="item-name">${item.name}</span>
+            <span class="item-name"><span class="item-name-text">${item.name}</span></span>
             <span class="item-location">${item.location}</span>
-            <span class="order-amount">発注数: ${orderAmount}（現在: ${item.count} / 必要: ${item.target}）</span>
+            <span class="order-amount">発注数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
           </div>
           <div class="controls">
             <label title="発注済みにすると在庫を必要数まで補充します">
@@ -765,6 +1363,7 @@
       const item = stockItems.find(i => i.id === id);
       if (item) {
         item.count = item.target;
+        item.entered = true;
         saveAndRender();
       }
     }
@@ -781,12 +1380,14 @@
       const item = stockItems.find(i => i.id === id);
       if (!item) return;
       editingItemId = id;
-      document.getElementById('edit-item-title').textContent = `${item.name} を編集`;
+      document.getElementById('edit-item-name').value = item.name;
+      fillUnitSelect(document.getElementById('edit-item-unit'), item.unit);
       document.getElementById('edit-item-target').value = item.target;
+      document.getElementById('edit-item-threshold').value = item.orderThreshold;
       fillLocationSelect(document.getElementById('edit-item-location'), item.location);
       document.getElementById('edit-modal').style.display = 'flex';
-      document.getElementById('edit-item-target').focus();
-      document.getElementById('edit-item-target').select();
+      document.getElementById('edit-item-name').focus();
+      document.getElementById('edit-item-name').select();
     }
 
     function closeEditModal() {
@@ -797,16 +1398,29 @@
     function saveItemEdit() {
       const item = stockItems.find(i => i.id === editingItemId);
       if (!item) return;
+      const name = document.getElementById('edit-item-name').value.trim();
+      if (!name) {
+        alert('品名を入力してください');
+        return;
+      }
       const location = document.getElementById('edit-item-location').value;
       if (location === 'ADD_NEW' || !customLocations.includes(location)) {
         alert('保管場所を選択してください');
         return;
       }
-      const parsed = parseInt(document.getElementById('edit-item-target').value, 10);
-      item.target = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+      const parsed = parseNonNeg(document.getElementById('edit-item-target').value);
+      const threshold = parseNonNeg(document.getElementById('edit-item-threshold').value);
+      item.name = name;
+      item.unit = document.getElementById('edit-item-unit').value;
+      item.target = parsed;
+      item.orderThreshold = threshold;
       item.location = location;
       closeEditModal();
       saveAndRender();
+    }
+
+    function deleteEditingItem() {
+      if (editingItemId) deleteItem(editingItemId);
     }
 
     // 数量を直接入力して変更する関数
@@ -814,7 +1428,13 @@
       const item = stockItems.find(i => i.id === id);
       if (item) {
         const newCount = parseInt(value, 10);
-        item.count = isNaN(newCount) || newCount < 0 ? 0 : newCount;
+        if (value === '' || isNaN(newCount)) {
+          item.count = 0;
+          item.entered = false;
+        } else {
+          item.count = newCount < 0 ? 0 : newCount;
+          item.entered = true;
+        }
         saveAndRender();
       }
     }
@@ -823,21 +1443,32 @@
     function updateCount(id, change) {
       const item = stockItems.find(i => i.id === id);
       if (item) {
-        item.count = Math.max(0, item.count + change); // 0未満にはならない
+        const base = item.entered ? item.count : 0;
+        item.count = Math.max(0, base + change);
+        item.entered = true;
         saveAndRender();
       }
     }
 
     // アイテムを追加する関数
     function addItem() {
-      const nameInput = document.getElementById('new-item-name');
-      const locInput = document.getElementById('new-item-location');
-      const name = nameInput.value.trim();
-      const location = locInput.value;
-      
+      const name = document.getElementById('new-item-name').value.trim();
+      const location = document.getElementById('new-item-location').value;
+      const unit = document.getElementById('new-item-unit').value;
+      const target = parseNonNeg(document.getElementById('new-item-target').value);
+      const orderThreshold = parseNonNeg(document.getElementById('new-item-threshold').value);
+
       if (name) {
-        stockItems.push({ id: Date.now(), name: name, count: 0, location: location, target: 1 });
-        nameInput.value = '';
+        stockItems.push({
+          id: Date.now(),
+          name,
+          count: 0,
+          location,
+          target,
+          orderThreshold,
+          unit,
+          entered: false
+        });
         closeModal();
         saveAndRender();
       } else {
@@ -849,11 +1480,16 @@
     function deleteItem(id) {
       if(confirm('このアイテムを削除しますか？')){
         stockItems = stockItems.filter(i => i.id !== id);
+        selectedItemId = null;
+        closeEditModal();
         saveAndRender();
       }
     }
 
     // 初回読み込み時の処理
+    initSupabase();
+    if (householdId) startCloudListener();
+    updateSyncUI();
     renderFilters();
     showPage(currentPage);
 
@@ -862,8 +1498,7 @@
       const resultDiv = document.getElementById('ai-result');
       const loadingSpinner = document.getElementById('ai-loading');
       
-      // 発注が必要なアイテムをリストアップ
-      const itemsToOrder = stockItems.filter(item => item.count < item.target);
+      const itemsToOrder = stockItems.filter(needsOrder);
       
       if (itemsToOrder.length === 0) {
         resultDiv.style.display = 'block';
@@ -872,7 +1507,7 @@
       }
 
       // APIに送信するプロンプトの作成
-      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${item.target}, 現在数: ${item.count}, 不足分: ${item.target - item.count})`).join('\n');
+      const itemListText = itemsToOrder.map(item => `- ${item.name} (必要数: ${formatQty(item.target, item.unit)}, 現在数: ${formatQty(item.count, item.unit)}, 発注基準: ${formatQty(item.orderThreshold, item.unit)}, 不足分: ${formatQty(item.target - item.count, item.unit)})`).join('\n');
       const prompt = `私は家庭の日用品の在庫管理をしています。現在、以下のアイテムが不足しており、購入が必要です。
       
 ${itemListText}
