@@ -91,11 +91,11 @@ function renderSettings() {
     hint: '棚卸しのときに回る場所です。↑↓で並び順を変えられます。',
     reorder: true
   });
-  appendSettingsSection(root, 'カテゴリ', 'category', settingsCategoryNames(), {
+  appendSettingsSection(root, 'カテゴリ', 'category', allCategories(), {
     hint: '買い物リストのまとめに使います。↑↓で並び順を変えられます。',
     reorder: true
   });
-  appendSettingsSection(root, '購入先', 'purchaseDest', settingsPurchaseDestNames(), {
+  appendSettingsSection(root, '購入先', 'purchaseDest', allPurchaseDests(), {
     hint: '発注リストのまとめに使います。1つの品を複数の店で買えます。↑↓で並び順を変えられます。',
     reorder: true
   });
@@ -670,16 +670,6 @@ function bindFilterSelect(filterDiv, label, names, selectedValue, assign) {
   });
 }
 
-function sortKeysByMaster(keys, order) {
-  return [...keys].sort((a, b) => {
-    const ia = order.indexOf(a);
-    const ib = order.indexOf(b);
-    const sa = ia < 0 ? 999 : ia;
-    const sb = ib < 0 ? 999 : ib;
-    return sa - sb || a.localeCompare(b, 'ja');
-  });
-}
-
 function bindPurchaseDestFilters(filterDiv) {
   const names = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
   const valid = new Set(names);
@@ -923,13 +913,7 @@ function renderInventory() {
     });
   });
   const placeOrder = inventoryPlaceOrder();
-  const keys = [...groups.keys()].sort((a, b) => {
-    const ia = placeOrder.indexOf(a);
-    const ib = placeOrder.indexOf(b);
-    const sa = ia < 0 ? 999 : ia;
-    const sb = ib < 0 ? 999 : ib;
-    return sa - sb || a.localeCompare(b, 'ja');
-  });
+  const keys = sortNamesByMaster(groups.keys(), placeOrder);
 
   if (filteredItems.length === 0) {
     listDiv.innerHTML = inventoryUnenteredOnly
@@ -1061,7 +1045,7 @@ function renderOrderList() {
 
   const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
   const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
-  sortKeysByMaster(destGroups.keys(), destOrder).forEach(dest => {
+  sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
     const group = document.createElement('div');
     group.className = 'order-group';
     const title = document.createElement('div');
@@ -1069,7 +1053,7 @@ function renderOrderList() {
     title.textContent = dest;
     group.appendChild(title);
     const cats = destGroups.get(dest);
-    sortKeysByMaster(cats.keys(), categoryOrder).forEach(cat => {
+    sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
       const sub = document.createElement('div');
       sub.className = 'order-subgroup-title';
       sub.textContent = cat;

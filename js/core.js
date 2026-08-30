@@ -119,9 +119,9 @@ function placeLabel(place) {
   return place ? place : UNSET_PLACE_FILTER;
 }
 
-function normalizeCategory(value) {
+function normalizeMasterName(value, unsetLabel) {
   const name = String(value || '').trim();
-  if (!name || name === UNSET_CATEGORY_LABEL) return '';
+  if (!name || name === unsetLabel) return '';
   return name;
 }
 
@@ -134,38 +134,47 @@ function collectUniqueNames(primary, extras, normalizeFn) {
     seen.add(name);
     names.push(name);
   };
-  primary.forEach(push);
-  extras.forEach(push);
+  (primary || []).forEach(push);
+  (extras || []).forEach(push);
   return names;
+}
+
+function sortNamesByMaster(keys, order) {
+  return [...keys].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    const sa = ia < 0 ? 999 : ia;
+    const sb = ib < 0 ? 999 : ib;
+    return sa - sb || a.localeCompare(b, 'ja');
+  });
+}
+
+function normalizeCategory(value) {
+  return normalizeMasterName(value, UNSET_CATEGORY_LABEL);
 }
 
 function allCategories() {
   return collectUniqueNames(customCategories, stockItems.map(item => item.category), normalizeCategory);
 }
 
-function settingsCategoryNames() {
-  return allCategories();
+function ensureCategory(name) {
+  const trimmed = normalizeCategory(name);
+  if (!trimmed) return '';
+  return ensureName(customCategories, trimmed);
 }
 
 function normalizePurchaseDest(value) {
-  const name = String(value || '').trim();
-  if (!name || name === UNSET_PURCHASE_DEST_LABEL) return '';
-  return name;
+  return normalizeMasterName(value, UNSET_PURCHASE_DEST_LABEL);
+}
+
+function rawNameList(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw == null || raw === '') return [];
+  return String(raw).split(',');
 }
 
 function normalizePurchaseDests(raw) {
-  const seen = new Set();
-  const names = [];
-  const list = Array.isArray(raw)
-    ? raw
-    : (raw == null || raw === '' ? [] : String(raw).split(','));
-  list.forEach(value => {
-    const name = normalizePurchaseDest(value);
-    if (!name || seen.has(name)) return;
-    seen.add(name);
-    names.push(name);
-  });
-  return names;
+  return collectUniqueNames([], rawNameList(raw), normalizePurchaseDest);
 }
 
 function allPurchaseDests() {
@@ -174,10 +183,6 @@ function allPurchaseDests() {
     stockItems.flatMap(item => item.purchaseDests || []),
     normalizePurchaseDest
   );
-}
-
-function settingsPurchaseDestNames() {
-  return allPurchaseDests();
 }
 
 function ensurePurchaseDest(name) {
@@ -195,6 +200,36 @@ function remapSelectedSet(set, oldName, nextName) {
   set.delete(oldName);
   if (nextName) set.add(nextName);
   return set;
+}
+
+function namedItemMaster(spec) {
+  return {
+    addTitle: spec.addTitle,
+    renameTitle: spec.renameTitle,
+    deleteExtra: spec.deleteExtra,
+    uniqueNames: spec.uniqueNames || spec.getList,
+    moveList: spec.moveList || spec.getList,
+    setList: spec.setList,
+    ensure: spec.ensure,
+    usageCount: spec.usageCount,
+    applyRename: (oldName, next) => {
+      const list = spec.getList();
+      if (!list.includes(oldName)) list.push(oldName);
+      const idx = list.indexOf(oldName);
+      if (idx < 0) return false;
+      list[idx] = next;
+      spec.setList(list);
+      spec.rewriteItems(oldName, next);
+      if (spec.afterRename) spec.afterRename(oldName, next);
+      return true;
+    },
+    applyDelete: name => {
+      spec.setList(spec.getList().filter(v => v !== name));
+      spec.rewriteItems(name, '');
+      if (spec.afterDelete) spec.afterDelete(name);
+      return true;
+    }
+  };
 }
 
 function canonicalizeStockUnit(name) {
@@ -216,12 +251,6 @@ function ensureUnit(name) {
 function defaultUnitName() {
   if (customUnits.includes('個')) return '個';
   return customUnits[0] || DEFAULT_UNITS[0] || '個';
-}
-
-function ensureCategory(name) {
-  const trimmed = normalizeCategory(name);
-  if (!trimmed) return '';
-  return ensureName(customCategories, trimmed);
 }
 
 function unitsEqual(a, b) {
@@ -404,64 +433,55 @@ const MASTER_KINDS = {
       return true;
     }
   },
-  category: {
+  category: namedItemMaster({
     addTitle: '新しいカテゴリの名前を入力してください',
     renameTitle: 'カテゴリの新しい名前',
     deleteExtra: count => count ? `\n${count}件のアイテムは未分類になります。` : '',
-    uniqueNames: () => customCategories,
-    moveList: () => settingsCategoryNames(),
+    getList: () => customCategories,
     setList: list => { customCategories = list; },
     ensure: name => ensureCategory(name),
+    uniqueNames: () => customCategories,
+    moveList: () => allCategories(),
     usageCount: name => stockItems.filter(item => normalizeCategory(item.category) === name).length,
-    applyRename: (oldName, next) => {
-      if (!customCategories.includes(oldName)) customCategories.push(oldName);
-      const idx = customCategories.indexOf(oldName);
-      customCategories[idx] = next;
+    rewriteItems: (oldName, next) => {
       stockItems.forEach(item => {
         if (normalizeCategory(item.category) === oldName) item.category = next;
       });
+    },
+    afterRename: (oldName, next) => {
       catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, oldName, next);
       orderCategoryFilter = remapNamedFilter(orderCategoryFilter, oldName, next);
-      return true;
     },
-    applyDelete: name => {
-      customCategories = customCategories.filter(v => v !== name);
-      stockItems.forEach(item => {
-        if (normalizeCategory(item.category) === name) item.category = '';
-      });
+    afterDelete: name => {
       catalogCategoryFilter = remapNamedFilter(catalogCategoryFilter, name, ALL_FILTER);
       orderCategoryFilter = remapNamedFilter(orderCategoryFilter, name, ALL_FILTER);
-      return true;
     }
-  },
-  purchaseDest: {
+  }),
+  purchaseDest: namedItemMaster({
     addTitle: '新しい購入先の名前を入力してください',
     renameTitle: '購入先の新しい名前',
     deleteExtra: count => count ? `\n${count}件のアイテムからこの購入先が外れます。` : '',
-    uniqueNames: () => allPurchaseDests(),
-    moveList: () => settingsPurchaseDestNames(),
+    getList: () => customPurchaseDests,
     setList: list => { customPurchaseDests = list; },
     ensure: name => ensurePurchaseDest(name),
+    uniqueNames: () => allPurchaseDests(),
+    moveList: () => allPurchaseDests(),
     usageCount: name => stockItems.filter(item => itemPurchaseDests(item).includes(name)).length,
-    applyRename: (oldName, next) => {
-      if (!customPurchaseDests.includes(oldName)) customPurchaseDests.push(oldName);
-      const idx = customPurchaseDests.indexOf(oldName);
-      customPurchaseDests[idx] = next;
+    rewriteItems: (oldName, next) => {
       stockItems.forEach(item => {
-        item.purchaseDests = itemPurchaseDests(item).map(dest => dest === oldName ? next : dest);
+        const dests = itemPurchaseDests(item);
+        item.purchaseDests = next
+          ? dests.map(dest => dest === oldName ? next : dest)
+          : dests.filter(dest => dest !== oldName);
       });
-      remapSelectedSet(orderPurchaseDestFilter, oldName, next);
-      return true;
     },
-    applyDelete: name => {
-      customPurchaseDests = customPurchaseDests.filter(v => v !== name);
-      stockItems.forEach(item => {
-        item.purchaseDests = itemPurchaseDests(item).filter(dest => dest !== name);
-      });
+    afterRename: (oldName, next) => {
+      remapSelectedSet(orderPurchaseDestFilter, oldName, next);
+    },
+    afterDelete: name => {
       remapSelectedSet(orderPurchaseDestFilter, name, null);
-      return true;
     }
-  },
+  }),
   unit: {
     addTitle: '新しい単位を入力してください',
     renameTitle: '単位の新しい名前',
