@@ -4,12 +4,14 @@ const DbMapper = {
       cycles: state.cycles,
       places: state.places,
       categories: state.categories,
+      purchaseDests: state.purchaseDests,
       units: state.units,
       checkUnits: state.checkUnits.map(u => ({ cycle: u.cycle, place: u.place })),
       items: state.items.map(item => ({
         id: String(item.id),
         name: item.name,
         category: normalizeCategory(item.category),
+        purchaseDests: normalizePurchaseDests(item.purchaseDests),
         count: item.count,
         checkUnits: itemCheckUnits(item),
         target: item.target,
@@ -26,13 +28,14 @@ const DbMapper = {
       cycles: customCycles,
       places: customPlaces,
       categories: customCategories,
+      purchaseDests: customPurchaseDests,
       units: customUnits,
       checkUnits: customCheckUnits,
       items: stockItems
     });
   },
 
-  stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, stockUnitRows, itemRows, memberships) {
+  stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, stockUnitRows, itemRows, memberships, destRows) {
     const cycleNames = (cycleRows || []).map(row => row.name).filter(Boolean);
     const cycles = cycleNames.length ? cycleNames : [...DEFAULT_CYCLES];
     const cycleIdToName = Object.fromEntries((cycleRows || []).map(row => [row.id, row.name]));
@@ -41,6 +44,8 @@ const DbMapper = {
     const locIdToName = Object.fromEntries((locRows || []).map(loc => [loc.id, loc.name]));
     const categoryNames = (categoryRows || []).map(row => row.name).filter(Boolean);
     const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
+    const destNames = (destRows || []).map(row => row.name).filter(Boolean);
+    const purchaseDests = destNames.length ? destNames : [...DEFAULT_PURCHASE_DESTS];
     const unitNames = (stockUnitRows || []).map(row => row.name).filter(Boolean);
     const units = unitNames.length ? unitNames : [...DEFAULT_UNITS];
     const unitIdToUnit = {};
@@ -80,6 +85,7 @@ const DbMapper = {
         id: row.id,
         name: row.name,
         category: row.category,
+        purchaseDests: row.purchase_destinations,
         count: row.count,
         location: fallbackPlace,
         checkUnits: itemCheckUnitsList,
@@ -90,7 +96,7 @@ const DbMapper = {
         lastOrderedOn: row.last_ordered_on
       });
     });
-    return { cycles, places, categories, units, checkUnits: resolvedUnits, items };
+    return { cycles, places, categories, purchaseDests, units, checkUnits: resolvedUnits, items };
   },
 
   itemToDbRow(item, nameToId) {
@@ -100,6 +106,7 @@ const DbMapper = {
       id: String(item.id),
       location_id: (firstPlaced && nameToId[firstPlaced.place]) || null,
       category: normalizeCategory(item.category),
+      purchase_destinations: normalizePurchaseDests(item.purchaseDests),
       name: item.name,
       count: item.count,
       target_qty: item.target,
