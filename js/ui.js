@@ -91,6 +91,12 @@ function appendSettingsSection(root, title, kind, names, options = {}) {
 function renderSettings() {
   const itemsSection = document.querySelector('#page-settings [data-settings-section="items"]');
   if (itemsSection) bindSettingsSectionOpen(itemsSection, 'items');
+  const productsSection = document.querySelector('#page-settings [data-settings-section="products"]');
+  if (productsSection) bindSettingsSectionOpen(productsSection, 'products');
+  const historySection = document.querySelector('#page-settings [data-settings-section="history"]');
+  if (historySection) bindSettingsSectionOpen(historySection, 'history');
+  renderProductCatalog();
+  renderHistoryList();
   const root = document.getElementById('settings-list');
   if (!root) return;
   root.innerHTML = '';
@@ -143,8 +149,10 @@ function showPage(page) {
   currentPage = page;
   localStorage.setItem(StorageKeys.CURRENT_PAGE, page);
   PAGE_IDS.forEach(p => {
-    document.getElementById(`page-${p}`).classList.toggle('active', p === page);
+    const pageEl = document.getElementById(`page-${p}`);
+    if (pageEl) pageEl.classList.toggle('active', p === page);
     const nav = document.getElementById(`nav-${p}`);
+    if (!nav) return;
     const on = p === page;
     nav.classList.toggle('active', on);
     if (on) nav.setAttribute('aria-current', 'page');
@@ -158,7 +166,7 @@ function overlayIsOpen(el) {
 }
 
 function openOverlays() {
-  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal']
+  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal', 'product-modal']
     .map(id => document.getElementById(id))
     .filter(overlayIsOpen);
 }
@@ -182,6 +190,10 @@ function closeTopOverlay() {
   }
   if (overlayIsOpen(document.getElementById('add-modal'))) {
     closeModal();
+    return;
+  }
+  if (overlayIsOpen(document.getElementById('product-modal'))) {
+    closeProductModal();
   }
 }
 
@@ -1066,6 +1078,7 @@ function openEditModal(id) {
   fillCategorySelect(document.getElementById('edit-item-category'), item.category);
   fillPurchaseDestPicker('edit-item', itemPurchaseDests(item));
   fillCyclePlacePickers('edit-item', itemCheckUnits(item));
+  renderLinkedProducts('edit-item-linked-products', item.id);
   syncUnitReadouts();
   document.getElementById('edit-modal').style.display = 'flex';
   syncBodyScrollLock();
@@ -1120,7 +1133,177 @@ function itemFormFieldsHtml(prefix, options = {}) {
         <span class="unit-readout" id="${readout}-threshold-unit"></span>
       </div>
       <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
+      ${prefix === 'edit-item' ? `<label>個別商品</label><div id="${prefix}-linked-products" class="linked-products"></div>` : ''}
   `;
+}
+
+function renderProductCatalog() {
+  const list = document.getElementById('product-catalog-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!catalogProducts.length) {
+    list.innerHTML = '<div class="empty-message">個別商品はまだありません。</div>';
+    return;
+  }
+  catalogProducts.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(product => {
+    const row = document.createElement('div');
+    row.className = 'item';
+    const dests = product.purchaseDests.length
+      ? product.purchaseDests.map(d => `${d}（${destKindLabel(d)}）`).join('、')
+      : '購入先なし';
+    row.innerHTML = `
+      <div class="item-info">
+        <span class="item-name"><span class="item-name-text">${product.name}</span></span>
+        <span class="item-meta">アイテム: ${itemLabel(product.itemId)}</span>
+        <span class="item-meta">${dests}</span>
+        ${product.barcode ? `<span class="item-meta">バーコード: ${product.barcode}</span>` : ''}
+        ${product.url ? `<span class="item-meta">URL: ${product.url}</span>` : ''}
+      </div>
+    `;
+    row.addEventListener('click', () => openProductModal(product.id));
+    list.appendChild(row);
+  });
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('history-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!purchaseHistory.length) {
+    list.innerHTML = '<div class="empty-message">履歴はまだありません。</div>';
+    return;
+  }
+  purchaseHistory.forEach(row => {
+    const el = document.createElement('div');
+    el.className = 'history-row';
+    const modeLabel = row.mode === 'receipt' ? '受け取り' : '買い物';
+    const product = row.productName ? ` / ${row.productName}` : '';
+    const dest = row.dest ? ` · ${row.dest}` : '';
+    el.innerHTML = `
+      <span class="item-name-text">${row.itemName || '（削除されたアイテム）'}${product}</span>
+      <span class="history-row-meta">${formatHistoryWhen(row.at)} · ${modeLabel}${dest} · ${row.qty}</span>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function renderLinkedProducts(containerId, itemId) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  box.innerHTML = '';
+  productsForItem(itemId).forEach(product => {
+    const row = document.createElement('div');
+    row.className = 'settings-row';
+    const name = document.createElement('span');
+    name.className = 'settings-row-name';
+    name.textContent = product.name;
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'settings-edit';
+    editBtn.textContent = '編集';
+    editBtn.onclick = (e) => { e.preventDefault(); openProductModal(product.id); };
+    const unlinkBtn = document.createElement('button');
+    unlinkBtn.type = 'button';
+    unlinkBtn.className = 'settings-delete';
+    unlinkBtn.textContent = '外す';
+    unlinkBtn.onclick = (e) => {
+      e.preventDefault();
+      product.itemId = '';
+      saveAndRender();
+      renderLinkedProducts(containerId, itemId);
+    };
+    row.appendChild(name);
+    row.appendChild(editBtn);
+    row.appendChild(unlinkBtn);
+    box.appendChild(row);
+  });
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'settings-add';
+  addBtn.textContent = '＋ このアイテムに個別商品を追加';
+  addBtn.onclick = (e) => { e.preventDefault(); openProductModal(null, itemId); };
+  box.appendChild(addBtn);
+}
+
+function mountProductForm() {
+  const form = document.getElementById('product-form');
+  if (!form) return;
+  form.innerHTML = `
+    <label for="product-item">所属アイテム</label>
+    <select id="product-item"></select>
+    <label>購入先</label>
+    <div class="check-unit-picker-box">
+      <div class="check-unit-picker-toolbar">
+        <button type="button" class="picker-add-btn" onclick="addNameFromForm('purchaseDest', 'product-purchase-dests')" aria-label="新しい購入先を追加">＋</button>
+      </div>
+      <div class="check-unit-picker" id="product-purchase-dests"></div>
+    </div>
+    <label for="product-url">商品ページ URL</label>
+    <input type="url" id="product-url" placeholder="https://">
+    <label for="product-barcode">バーコード</label>
+    <input type="text" id="product-barcode" inputmode="numeric" autocomplete="off">
+  `;
+}
+
+function fillProductItemSelect(selectedId) {
+  const select = document.getElementById('product-item');
+  if (!select) return;
+  select.innerHTML = '';
+  appendOption(select, '', '未所属');
+  stockItems.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(item => {
+    appendOption(select, String(item.id), item.name);
+  });
+  const value = selectedId ? String(selectedId) : '';
+  select.value = [...select.options].some(o => o.value === value) ? value : '';
+}
+
+let editingProductId = null;
+
+function openProductModal(productId, presetItemId) {
+  editingProductId = productId || null;
+  const product = findProductById(productId);
+  document.getElementById('product-modal-title').textContent = product ? '個別商品を編集' : '個別商品を追加';
+  document.getElementById('product-name').value = product ? product.name : '';
+  mountProductForm();
+  fillProductItemSelect(product ? product.itemId : (presetItemId || ''));
+  fillPurchaseDestPicker('product', product ? product.purchaseDests : []);
+  document.getElementById('product-url').value = product ? product.url : '';
+  document.getElementById('product-barcode').value = product ? product.barcode : '';
+  document.getElementById('product-modal').style.display = 'flex';
+  syncBodyScrollLock();
+}
+
+function closeProductModal() {
+  document.getElementById('product-modal').style.display = 'none';
+  editingProductId = null;
+  syncBodyScrollLock();
+}
+
+function saveProduct() {
+  const name = document.getElementById('product-name').value.trim();
+  if (!name) {
+    alert('商品名を入力してください');
+    return;
+  }
+  const dests = normalizePurchaseDests(getSelectedNames('product-purchase-dests'));
+  if (!dests.length) {
+    alert('購入先を1つ以上選んでください');
+    return;
+  }
+  dests.forEach(dest => ensurePurchaseDest(dest));
+  const itemId = document.getElementById('product-item').value;
+  let product = findProductById(editingProductId);
+  if (!product) {
+    product = { id: newItemId() };
+    catalogProducts.push(product);
+  }
+  product.name = name;
+  product.itemId = itemId;
+  product.purchaseDests = dests;
+  product.url = document.getElementById('product-url').value.trim();
+  product.barcode = document.getElementById('product-barcode').value.trim();
+  closeProductModal();
+  saveAndRender();
 }
 
 function mountItemForms() {
@@ -1246,7 +1429,8 @@ function addItem() {
     lastOrderedOn: null,
     pendingMode: null,
     pendingDest: '',
-    pendingQty: null
+    pendingQty: null,
+    pendingProductId: ''
   };
   applyFormToItem(item, fields);
   stockItems.push(item);

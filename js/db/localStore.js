@@ -12,7 +12,9 @@ const StorageKeys = {
   ORDER_VIEW: 'orderFulfillmentView',
   SETTINGS_SECTIONS: 'settingsOpenSections',
   INVENTORY_COLLAPSED: 'inventoryCollapsedPlaces',
-  ORDER_COLLAPSED: 'orderCollapsedDests'
+  ORDER_COLLAPSED: 'orderCollapsedDests',
+  PRODUCTS: 'stockProducts',
+  HISTORY: 'purchaseHistory'
 };
 
 function loadJson(key, fallback) {
@@ -45,6 +47,8 @@ function persistMasters() {
   saveJson(StorageKeys.PURCHASE_DEST_KINDS, purchaseDestKinds);
   saveJson(StorageKeys.UNITS, customUnits);
   saveJson(StorageKeys.CHECK_UNITS, customCheckUnits);
+  saveJson(StorageKeys.PRODUCTS, catalogProducts);
+  saveJson(StorageKeys.HISTORY, purchaseHistory);
 }
 
 function persistInventoryCollapsedPlaces() {
@@ -91,6 +95,6 @@ function persistOrderFulfillmentView() {
 
 function loadOrderFulfillmentView() {
   const value = localStorage.getItem(StorageKeys.ORDER_VIEW);
-  if (value === 'shopping' || value === 'receipt' || value === 'order') return value;
-  return 'order';
+  if (value === 'shopping' || value === 'receipt') return value;
+  return 'shopping';
 }

@@ -21,4 +21,4 @@
 
 静的 HTML / CSS / JS と Supabase 用 SQL です。`index.html` を開けば動きます。
 
-現行の実装は、要件定義より前の Order 一体画面（発注・買い物・受け取りのサブナビ）です。要件どおりの個別商品・画面分割・履歴は未実装です。
+現行の実装は、発注と買い物・受け取りを分け、個別商品と購入履歴を設定で扱います。クラウドに `products` / `purchase_history` テーブルがない場合は端末内に保存します。スキーマ追加は [`supabase/setup.sql`](supabase/setup.sql) の末尾を SQL Editor で実行してください。

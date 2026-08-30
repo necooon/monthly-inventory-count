@@ -8,6 +8,25 @@ const DbMapper = {
       purchaseDestKinds: state.purchaseDestKinds || Object.fromEntries((state.purchaseDests || []).map(name => [name, destKind(name)])),
       units: state.units,
       checkUnits: state.checkUnits.map(u => ({ cycle: u.cycle, place: u.place })),
+      products: (state.products || []).map(p => ({
+        id: String(p.id),
+        itemId: String(p.itemId || ''),
+        name: p.name,
+        purchaseDests: normalizePurchaseDests(p.purchaseDests),
+        url: p.url || '',
+        barcode: p.barcode || ''
+      })),
+      history: (state.history || []).map(row => ({
+        id: String(row.id),
+        at: row.at,
+        itemId: String(row.itemId || ''),
+        itemName: row.itemName,
+        productId: String(row.productId || ''),
+        productName: row.productName,
+        dest: row.dest,
+        qty: row.qty,
+        mode: row.mode
+      })),
       items: state.items.map(item => ({
         id: String(item.id),
         name: item.name,
@@ -20,6 +39,7 @@ const DbMapper = {
         unit: item.unit,
         entered: !!item.entered,
         lastOrderedOn: normalizeDate(item.lastOrderedOn),
+        pendingProductId: item.pendingProductId || '',
         ...itemSyncPending(item)
       }))
     });
@@ -34,6 +54,8 @@ const DbMapper = {
       purchaseDestKinds,
       units: customUnits,
       checkUnits: customCheckUnits,
+      products: catalogProducts,
+      history: purchaseHistory,
       items: stockItems
     });
   },
@@ -100,7 +122,8 @@ const DbMapper = {
         lastOrderedOn: row.last_ordered_on,
         pendingMode: row.pending_mode,
         pendingDest: row.pending_dest,
-        pendingQty: row.pending_qty
+        pendingQty: row.pending_qty,
+        pendingProductId: row.pending_product_id
       });
     });
     return {
@@ -114,6 +137,31 @@ const DbMapper = {
       checkUnits: resolvedUnits,
       items
     };
+  },
+
+  productFromRow(row) {
+    return migrateProduct({
+      id: row.id,
+      itemId: row.item_id,
+      name: row.name,
+      purchaseDests: row.purchase_destinations,
+      url: row.url,
+      barcode: row.barcode
+    });
+  },
+
+  historyFromRow(row) {
+    return migrateHistory({
+      id: row.id,
+      at: row.happened_at,
+      itemId: row.item_id,
+      itemName: row.item_name,
+      productId: row.product_id,
+      productName: row.product_name,
+      dest: row.dest,
+      qty: row.qty,
+      mode: row.mode
+    });
   },
 
   itemToDbRow(item, nameToId) {
@@ -135,7 +183,34 @@ const DbMapper = {
       pending_mode: pending.pendingMode,
       pending_dest: pending.pendingMode ? pending.pendingDest || null : null,
       pending_qty: pending.pendingMode ? pending.pendingQty : null,
+      pending_product_id: pending.pendingMode && pending.pendingProductId ? pending.pendingProductId : null,
       updated_at: new Date().toISOString()
+    };
+  },
+
+  productToDbRow(product) {
+    return {
+      id: String(product.id),
+      item_id: product.itemId || null,
+      name: product.name,
+      purchase_destinations: normalizePurchaseDests(product.purchaseDests),
+      url: product.url || '',
+      barcode: product.barcode || '',
+      updated_at: new Date().toISOString()
+    };
+  },
+
+  historyToDbRow(row) {
+    return {
+      id: String(row.id),
+      happened_at: row.at,
+      item_id: row.itemId || null,
+      item_name: row.itemName || '',
+      product_id: row.productId || null,
+      product_name: row.productName || '',
+      dest: row.dest || '',
+      qty: row.qty || 0,
+      mode: row.mode === 'receipt' ? 'receipt' : 'shopping'
     };
   },
 

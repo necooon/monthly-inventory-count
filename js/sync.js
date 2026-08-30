@@ -43,6 +43,11 @@ function applyFetchedState(state) {
     purchaseDestKinds = nextKinds;
   }
   customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
+  if (state.productsFromDb) catalogProducts = (state.products || []).map(migrateProduct);
+  if (state.historyFromDb) {
+    purchaseHistory = (state.history || []).map(migrateHistory);
+    purchaseHistory.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  }
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
   stockItems = stockItems.map(migrateItem);
@@ -100,10 +105,22 @@ async function pullFromCloud() {
           ...item,
           pendingMode: local.pendingMode,
           pendingDest: local.pendingDest,
-          pendingQty: local.pendingQty
+          pendingQty: local.pendingQty,
+          pendingProductId: local.pendingProductId
         };
       });
+    } else if (!state.itemProductPendingFromDb) {
+      const localById = Object.fromEntries(stockItems.map(item => [String(item.id), item]));
+      state.items = (state.items || []).map(item => {
+        const local = localById[String(item.id)];
+        if (!local) return item;
+        return { ...item, pendingProductId: local.pendingProductId };
+      });
     }
+    if (!state.productsFromDb) state.products = catalogProducts;
+    else if (!(state.products || []).length && catalogProducts.length) state.products = catalogProducts;
+    if (!state.historyFromDb) state.history = purchaseHistory;
+    else if (!(state.history || []).length && purchaseHistory.length) state.history = purchaseHistory;
     if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) {
       return;
     }
@@ -114,7 +131,7 @@ async function pullFromCloud() {
   }
 }
 
-const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units'];
+const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units', 'products', 'purchase_history'];
 
 async function startCloudListener() {
   if (syncUnsub) {

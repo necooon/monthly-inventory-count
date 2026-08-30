@@ -23,6 +23,8 @@ const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
 
 let customUnits = loadNameList(StorageKeys.UNITS, DEFAULT_UNITS);
+let catalogProducts = [];
+let purchaseHistory = [];
 
 function normalizeCycleName(name) {
   const trimmed = String(name || '').trim();
@@ -78,7 +80,7 @@ let localSyncEpoch = 0;
 let cloudHydrated = false;
 
 const APP_TITLE = 'Check＆Stock';
-const PAGE_IDS = ['inventory', 'order', 'settings'];
+const PAGE_IDS = ['inventory', 'order', 'fulfillment', 'settings'];
 const ITEM_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function isItemUuid(id) {
@@ -99,7 +101,16 @@ function newItemId() {
 }
 
 if (currentPage === 'items') currentPage = 'settings';
+{
+  const rawOrderView = localStorage.getItem(StorageKeys.ORDER_VIEW);
+  if (currentPage === 'order' && (rawOrderView === 'shopping' || rawOrderView === 'receipt')) {
+    currentPage = 'fulfillment';
+  }
+}
 if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
+if (currentPage === 'fulfillment' && orderFulfillmentView !== 'shopping' && orderFulfillmentView !== 'receipt') {
+  orderFulfillmentView = 'shopping';
+}
 let inventoryUnenteredOnly = false;
 let lastOrderUndo = null;
 let undoToastTimer = null;
@@ -249,6 +260,10 @@ function rewritePendingDest(oldName, nextName) {
     if (normalizePurchaseDest(item.pendingDest) !== oldName) return;
     item.pendingDest = nextName || '';
   });
+  catalogProducts.forEach(product => {
+    product.purchaseDests = product.purchaseDests.map(dest => dest === oldName ? nextName : dest).filter(Boolean);
+    product.purchaseDests = normalizePurchaseDests(product.purchaseDests);
+  });
 }
 
 function itemPendingMode(item) {
@@ -271,11 +286,12 @@ function needsOrderAction(item) {
 
 function itemSyncPending(item) {
   const mode = itemPendingMode(item);
-  if (!mode) return { pendingMode: null, pendingDest: '', pendingQty: null };
+  if (!mode) return { pendingMode: null, pendingDest: '', pendingQty: null, pendingProductId: '' };
   return {
     pendingMode: mode,
     pendingDest: normalizePurchaseDest(item.pendingDest) || '',
-    pendingQty: itemOrderQty(item)
+    pendingQty: itemOrderQty(item),
+    pendingProductId: String(item.pendingProductId || '')
   };
 }
 
@@ -287,7 +303,9 @@ function captureFulfillment(item) {
     lastOrderedOn: item.lastOrderedOn,
     pendingMode: item.pendingMode || null,
     pendingDest: item.pendingDest || '',
-    pendingQty: item.pendingQty == null ? null : item.pendingQty
+    pendingQty: item.pendingQty == null ? null : item.pendingQty,
+    pendingProductId: item.pendingProductId || '',
+    historyId: null
   };
 }
 
@@ -298,26 +316,46 @@ function restoreFulfillment(item, snap) {
   item.pendingMode = snap.pendingMode;
   item.pendingDest = snap.pendingDest;
   item.pendingQty = snap.pendingQty;
+  item.pendingProductId = snap.pendingProductId || '';
+  if (snap.historyId) {
+    purchaseHistory = purchaseHistory.filter(row => String(row.id) !== String(snap.historyId));
+  }
 }
 
 function clearItemPending(item) {
   item.pendingMode = null;
   item.pendingDest = '';
   item.pendingQty = null;
+  item.pendingProductId = '';
 }
 
-function fillItemToTarget(item) {
-  item.count = item.target;
-  item.entered = true;
+function completeItemFulfillment(item) {
+  const mode = itemPendingMode(item);
+  const qty = itemOrderQty(item);
+  const product = findProductById(item.pendingProductId);
+  const row = migrateHistory({
+    id: newItemId(),
+    at: new Date().toISOString(),
+    itemId: item.id,
+    itemName: item.name,
+    productId: product ? product.id : '',
+    productName: product ? product.name : '',
+    dest: normalizePurchaseDest(item.pendingDest) || '',
+    qty,
+    mode: mode || 'shopping'
+  });
+  purchaseHistory.unshift(row);
   item.lastOrderedOn = todayIsoDate();
   clearItemPending(item);
+  return row.id;
 }
 
-function queueItemFulfillment(item, dest) {
+function queueItemFulfillment(item, dest, productId) {
   const mode = destKind(dest) === 'online' ? 'receipt' : 'shopping';
   item.pendingMode = mode;
   item.pendingDest = dest === UNSET_PURCHASE_DEST_LABEL ? '' : (normalizePurchaseDest(dest) || '');
   item.pendingQty = Math.max(0, Number(item.target || 0) - Number(item.count || 0));
+  item.pendingProductId = productId ? String(productId) : '';
   return mode;
 }
 
@@ -342,6 +380,16 @@ function itemsForOrderView(view) {
     itemMatchesCategory(item, orderCategoryFilter) &&
     itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
   );
+}
+
+function groupOrderItemsByCategory(items) {
+  const cats = new Map();
+  items.forEach(item => {
+    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+    if (!cats.has(cat)) cats.set(cat, []);
+    cats.get(cat).push(item);
+  });
+  return cats;
 }
 
 function groupOrderItemsByDest(items, view) {
@@ -916,6 +964,7 @@ function migrateItem(item) {
   next.pendingDest = next.pendingMode ? (normalizePurchaseDest(next.pendingDest) || '') : '';
   const pendingQty = Number(next.pendingQty);
   next.pendingQty = next.pendingMode && Number.isFinite(pendingQty) ? Math.max(0, Math.round(pendingQty)) : null;
+  next.pendingProductId = next.pendingMode && next.pendingProductId ? String(next.pendingProductId) : '';
   if (next.pendingDest) ensurePurchaseDest(next.pendingDest);
   units = dedupeUnits(units);
   units.forEach(u => ensureCheckUnit(u.cycle, u.place));
@@ -924,6 +973,59 @@ function migrateItem(item) {
   next.complete = !!(next.entered && next.count > next.orderThreshold);
   if (!isItemUuid(next.id)) next.id = newItemId();
   return next;
+}
+
+function migrateProduct(product) {
+  const next = { ...(product || {}) };
+  if (!isItemUuid(next.id)) next.id = newItemId();
+  next.name = String(next.name || '').trim();
+  next.itemId = next.itemId ? String(next.itemId) : '';
+  next.purchaseDests = normalizePurchaseDests(next.purchaseDests);
+  next.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
+  next.url = String(next.url || '').trim();
+  next.barcode = String(next.barcode || '').trim();
+  return next;
+}
+
+function migrateHistory(row) {
+  const next = { ...(row || {}) };
+  if (!isItemUuid(next.id)) next.id = newItemId();
+  next.at = next.at || next.happened_at || new Date().toISOString();
+  next.itemId = next.itemId ? String(next.itemId) : '';
+  next.itemName = String(next.itemName || '');
+  next.productId = next.productId ? String(next.productId) : '';
+  next.productName = String(next.productName || '');
+  next.dest = normalizePurchaseDest(next.dest) || '';
+  const qty = Number(next.qty);
+  next.qty = Number.isFinite(qty) ? Math.max(0, Math.round(qty)) : 0;
+  next.mode = next.mode === 'receipt' ? 'receipt' : 'shopping';
+  return next;
+}
+
+function findProductById(id) {
+  const key = String(id || '');
+  if (!key) return null;
+  return catalogProducts.find(p => String(p.id) === key) || null;
+}
+
+function productsForItem(itemId) {
+  const key = String(itemId || '');
+  return catalogProducts.filter(p => String(p.itemId) === key);
+}
+
+function itemLabel(itemId) {
+  const item = findItemById(itemId);
+  return item ? item.name : '未所属';
+}
+
+function formatHistoryWhen(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${m}/${d} ${h}:${min}`;
 }
 
 function persistLocalState() {
@@ -957,6 +1059,9 @@ let stockItems = loadItems(DEFAULT_STOCK_ITEMS);
 stockItems = stockItems.map(migrateItem);
 migrateLegacyCycleNames();
 stockItems = stockItems.map(migrateItem);
+catalogProducts = (loadJson(StorageKeys.PRODUCTS, []) || []).map(migrateProduct);
+purchaseHistory = (loadJson(StorageKeys.HISTORY, []) || []).map(migrateHistory);
+purchaseHistory.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 persistItems(stockItems);
 stockItems.forEach(item => rememberUnit(item.unit));
 persistMasters();

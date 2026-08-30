@@ -94,4 +94,4 @@ flowchart LR
 
 ## 8. 現行アプリとの関係
 
-現行は Check / Order（発注・買い物・受け取りのサブナビ）/ 設定の静的 SPA で、アイテム単位の購入先と `pendingMode`（買い物／受け取り）がある。本要件は、個別商品マスタ、発注と実行画面の分離、購入完了時に在庫を増やさない、履歴、を現行の上に載せる。
+Check / 発注 / 買い物（受け取り切替）/ 設定。個別商品と履歴は設定。購入完了では在庫数を増やさない。クラウド用の `products` と `purchase_history` は [`supabase/setup.sql`](../supabase/setup.sql) 末尾。テーブル未作成時は端末の localStorage に持つ。

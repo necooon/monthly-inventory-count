@@ -28,8 +28,17 @@ async function fetchPurchaseDestinations(client) {
   return result.data || [];
 }
 
-const ITEM_COLUMNS = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations,pending_mode,pending_dest,pending_qty';
+function isMissingRelationError(error) {
+  if (!error) return false;
+  const code = String(error.code || '');
+  if (code === '42P01' || code === 'PGRST205') return true;
+  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
+  return /could not find the table|relation .* does not exist|schema cache/i.test(text);
+}
+
+const ITEM_COLUMNS = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations,pending_mode,pending_dest,pending_qty,pending_product_id';
 const ITEM_COLUMNS_FALLBACK = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations';
+const ITEM_COLUMNS_PENDING = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations,pending_mode,pending_dest,pending_qty';
 
 async function deleteExtraNamedRows(client, table, cloudRows, localNames) {
   const extraIds = (cloudRows || [])
@@ -61,9 +70,18 @@ const DbRepository = {
     const preferredItems = await client.from('items').select(ITEM_COLUMNS);
     let itemSelect = preferredItems;
     let itemPendingFromDb = !preferredItems.error;
+    let itemProductPendingFromDb = !preferredItems.error;
     if (preferredItems.error && isMissingColumnError(preferredItems.error)) {
-      itemSelect = await client.from('items').select(ITEM_COLUMNS_FALLBACK);
-      itemPendingFromDb = false;
+      const pendingOnly = await client.from('items').select(ITEM_COLUMNS_PENDING);
+      if (!pendingOnly.error) {
+        itemSelect = pendingOnly;
+        itemPendingFromDb = true;
+        itemProductPendingFromDb = false;
+      } else {
+        itemSelect = await client.from('items').select(ITEM_COLUMNS_FALLBACK);
+        itemPendingFromDb = false;
+        itemProductPendingFromDb = false;
+      }
     }
     const { data: rows, error: itemError } = itemSelect;
     if (itemError) throw itemError;
@@ -77,7 +95,31 @@ const DbRepository = {
     if (!(cycleRows || []).length && !(rows || []).length) return null;
 
     const state = DbMapper.stateFromCloudRows(cycleRows, locs, checkUnitRows, categoryRows, stockUnitRows, rows, memberships, destRows);
-    if (state) state.itemPendingFromDb = !!itemPendingFromDb;
+    if (state) {
+      state.itemPendingFromDb = !!itemPendingFromDb;
+      state.itemProductPendingFromDb = !!itemProductPendingFromDb;
+    }
+
+    const productSelect = await client.from('products').select('id,item_id,name,purchase_destinations,url,barcode');
+    if (!productSelect.error) {
+      state.products = (productSelect.data || []).map(row => DbMapper.productFromRow(row));
+      state.productsFromDb = true;
+    } else if (isMissingRelationError(productSelect.error) || isMissingColumnError(productSelect.error)) {
+      state.productsFromDb = false;
+    } else {
+      throw productSelect.error;
+    }
+
+    const historySelect = await client.from('purchase_history').select('id,happened_at,item_id,item_name,product_id,product_name,dest,qty,mode');
+    if (!historySelect.error) {
+      state.history = (historySelect.data || []).map(row => DbMapper.historyFromRow(row));
+      state.historyFromDb = true;
+    } else if (isMissingRelationError(historySelect.error) || isMissingColumnError(historySelect.error)) {
+      state.historyFromDb = false;
+    } else {
+      throw historySelect.error;
+    }
+
     return state;
   },
 
@@ -279,13 +321,44 @@ const DbRepository = {
     if (!isMissingColumnError(itemUpsertError)) throw itemUpsertError;
     const fallbackRows = itemRows.map(row => {
       const next = { ...row };
+      delete next.pending_product_id;
+      return next;
+    });
+    const { error: pendingError } = await client.from('items').upsert(fallbackRows, { onConflict: 'id' });
+    if (!pendingError) return;
+    if (!isMissingColumnError(pendingError)) throw pendingError;
+    const noPendingRows = fallbackRows.map(row => {
+      const next = { ...row };
       delete next.pending_mode;
       delete next.pending_dest;
       delete next.pending_qty;
       return next;
     });
-    const { error: fallbackError } = await client.from('items').upsert(fallbackRows, { onConflict: 'id' });
+    const { error: fallbackError } = await client.from('items').upsert(noPendingRows, { onConflict: 'id' });
     if (fallbackError) throw fallbackError;
+  },
+
+  async upsertProducts() {
+    const client = getSupabaseClient();
+    catalogProducts.forEach(product => {
+      if (!isItemUuid(product.id)) product.id = newItemId();
+    });
+    const rows = catalogProducts.map(product => DbMapper.productToDbRow(product));
+    if (!rows.length) return true;
+    const { error } = await client.from('products').upsert(rows, { onConflict: 'id' });
+    if (!error) return true;
+    if (isMissingRelationError(error) || isMissingColumnError(error)) return false;
+    throw error;
+  },
+
+  async upsertHistory() {
+    const client = getSupabaseClient();
+    const rows = purchaseHistory.map(row => DbMapper.historyToDbRow(row));
+    if (!rows.length) return true;
+    const { error } = await client.from('purchase_history').upsert(rows, { onConflict: 'id' });
+    if (!error) return true;
+    if (isMissingRelationError(error) || isMissingColumnError(error)) return false;
+    throw error;
   },
 
   async syncItemMemberships(unitKeyToId) {
@@ -355,6 +428,8 @@ const DbRepository = {
     await DbRepository.upsertItems(nameToId);
     await DbRepository.syncItemMemberships(unitKeyToId);
     await DbRepository.deleteOrphanItems();
+    await DbRepository.upsertProducts();
+    await DbRepository.upsertHistory();
 
     const localUnitKeys = new Set(customCheckUnits.map(unitKey));
     await DbRepository.deleteOrphanCheckUnits(cloudUnits, cycleRows, locs, localUnitKeys);
