@@ -20,7 +20,7 @@ create table if not exists public.locations (
 );
 
 create table if not exists public.items (
-  id text primary key,
+  id uuid primary key default gen_random_uuid(),
   household_id text not null references public.households(id) on delete cascade,
   location_id uuid not null references public.locations(id) on delete restrict,
   name text not null,
@@ -34,7 +34,7 @@ create table if not exists public.items (
 );
 
 create table if not exists public.item_check_units (
-  item_id text not null references public.items(id) on delete cascade,
+  item_id uuid not null references public.items(id) on delete cascade,
   location_id uuid not null references public.locations(id) on delete restrict,
   household_id text not null references public.households(id) on delete cascade,
   created_at timestamptz not null default now(),
@@ -98,7 +98,11 @@ begin
           insert into public.items (
             id, household_id, location_id, name, count, target_qty, order_threshold, unit, entered
           ) values (
-            coalesce(item->>'id', gen_random_uuid()::text),
+            case
+              when coalesce(item->>'id', '') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                then (item->>'id')::uuid
+              else gen_random_uuid()
+            end,
             rec.id,
             loc_id,
             coalesce(item->>'name', '無題'),
@@ -429,4 +433,49 @@ begin
   alter publication supabase_realtime add table public.units;
 exception
   when duplicate_object then null;
+end $$;
+
+-- items.id / item_check_units.item_id を uuid に移行
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'items'
+      and column_name = 'id'
+      and data_type = 'text'
+  ) then
+    alter table public.items add column id_uuid uuid;
+    update public.items
+    set id_uuid = case
+      when id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        then id::uuid
+      else gen_random_uuid()
+    end;
+
+    alter table public.item_check_units add column item_id_uuid uuid;
+    update public.item_check_units icu
+    set item_id_uuid = i.id_uuid
+    from public.items i
+    where icu.item_id = i.id;
+    delete from public.item_check_units where item_id_uuid is null;
+
+    alter table public.item_check_units drop constraint if exists item_check_units_item_id_fkey;
+    alter table public.item_check_units drop constraint if exists item_check_units_pkey;
+
+    alter table public.items drop constraint if exists items_pkey;
+    alter table public.items drop column id;
+    alter table public.items rename column id_uuid to id;
+    alter table public.items alter column id set default gen_random_uuid();
+    alter table public.items alter column id set not null;
+    alter table public.items add primary key (id);
+
+    alter table public.item_check_units drop column item_id;
+    alter table public.item_check_units rename column item_id_uuid to item_id;
+    alter table public.item_check_units alter column item_id set not null;
+    alter table public.item_check_units
+      add constraint item_check_units_item_id_fkey
+      foreign key (item_id) references public.items(id) on delete cascade;
+    alter table public.item_check_units add primary key (item_id, check_unit_id);
+  end if;
 end $$;

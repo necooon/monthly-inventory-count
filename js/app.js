@@ -53,6 +53,24 @@ let householdId = HOUSEHOLD_ID;
 
 const APP_TITLE = 'Check＆Stock';
 const PAGE_IDS = ['inventory', 'order', 'settings'];
+const ITEM_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isItemUuid(id) {
+  return ITEM_UUID_RE.test(String(id || ''));
+}
+
+function newItemId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 if (currentPage === 'items') currentPage = 'settings';
 if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
 let inventoryUnenteredOnly = false;
@@ -642,6 +660,7 @@ let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) ||
 ];
 
 stockItems = stockItems.map(migrateItem);
+localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
 stockItems.forEach(item => rememberUnit(item.unit));
 persistMasters();
 
@@ -1368,7 +1387,7 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
     const fromJoin = unitsByItem[key];
     const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
     return migrateItem({
-      id: isNaN(Number(row.id)) ? row.id : Number(row.id),
+      id: row.id,
       name: row.name,
       category: row.category,
       count: row.count,
@@ -1663,6 +1682,9 @@ async function pushToCloud() {
       unitKeyToId[unitKey({ cycle: cycle.name, place })] = row.id;
     });
 
+    stockItems.forEach(item => {
+      if (!isItemUuid(item.id)) item.id = newItemId();
+    });
     const itemRows = stockItems.map(item => {
       const units = itemCheckUnits(item);
       const firstPlaced = units.find(u => u.place);
@@ -1828,6 +1850,7 @@ function migrateItem(item) {
   next.checkUnits = units;
   next.location = units[0] ? units[0].place : '';
   next.complete = !!(next.entered && next.count > next.orderThreshold);
+  if (!isItemUuid(next.id)) next.id = newItemId();
   return next;
 }
 
@@ -2390,7 +2413,7 @@ function addItem() {
   const fields = readItemForm('new-item');
   if (!fields) return;
   const item = {
-    id: Date.now(),
+    id: newItemId(),
     count: 0,
     entered: false,
     lastOrderedOn: null
