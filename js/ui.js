@@ -1133,7 +1133,7 @@ function itemFormFieldsHtml(prefix, options = {}) {
         <span class="unit-readout" id="${readout}-threshold-unit"></span>
       </div>
       <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
-      ${prefix === 'edit-item' ? `<label>個別商品</label><div id="${prefix}-linked-products" class="linked-products"></div>` : ''}
+      ${prefix === 'edit-item' ? `<label>個別商品</label><p class="settings-hint">名前だけで足せます。購入先はアイテムのものを使います。</p><div id="${prefix}-linked-products" class="linked-products"></div>` : ''}
   `;
 }
 
@@ -1220,9 +1220,30 @@ function renderLinkedProducts(containerId, itemId) {
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'settings-add';
-  addBtn.textContent = '＋ このアイテムに個別商品を追加';
-  addBtn.onclick = (e) => { e.preventDefault(); openProductModal(null, itemId); };
+  addBtn.textContent = '＋ 名前だけ追加';
+  addBtn.onclick = async (e) => {
+    e.preventDefault();
+    const item = findItemById(itemId);
+    if (!item) return;
+    const dests = itemPurchaseDests(item);
+    if (!dests.length) {
+      alert('先にこのアイテムの購入先を付けて保存してください。');
+      return;
+    }
+    const name = await showPrompt('個別商品名', item.name || '');
+    if (!name || !String(name).trim()) return;
+    dests.forEach(dest => ensurePurchaseDest(dest));
+    createCatalogProduct({ name: String(name).trim(), itemId: item.id, dests });
+    saveAndRender();
+    renderLinkedProducts(containerId, itemId);
+  };
+  const detailBtn = document.createElement('button');
+  detailBtn.type = 'button';
+  detailBtn.className = 'settings-add';
+  detailBtn.textContent = '詳しく登録';
+  detailBtn.onclick = (e) => { e.preventDefault(); openProductModal(null, itemId); };
   box.appendChild(addBtn);
+  box.appendChild(detailBtn);
 }
 
 function mountProductForm() {
@@ -1231,6 +1252,7 @@ function mountProductForm() {
   form.innerHTML = `
     <label for="product-item">所属アイテム</label>
     <select id="product-item"></select>
+    <p class="settings-hint" id="product-dest-hint">アイテムの購入先を引き継ぎます。必要なら付け足してください。</p>
     <label>購入先</label>
     <div class="check-unit-picker-box">
       <div class="check-unit-picker-toolbar">
@@ -1238,10 +1260,13 @@ function mountProductForm() {
       </div>
       <div class="check-unit-picker" id="product-purchase-dests"></div>
     </div>
-    <label for="product-url">商品ページ URL</label>
-    <input type="url" id="product-url" placeholder="https://">
-    <label for="product-barcode">バーコード</label>
-    <input type="text" id="product-barcode" inputmode="numeric" autocomplete="off">
+    <details class="product-extra-fields">
+      <summary>URL・バーコード（任意）</summary>
+      <label for="product-url">商品ページ URL</label>
+      <input type="url" id="product-url" placeholder="https://">
+      <label for="product-barcode">バーコード</label>
+      <input type="text" id="product-barcode" inputmode="numeric" autocomplete="off">
+    </details>
   `;
 }
 
@@ -1259,18 +1284,52 @@ function fillProductItemSelect(selectedId) {
 
 let editingProductId = null;
 
+function fillProductDestsFromItem(itemId, force) {
+  const destBox = document.getElementById('product-purchase-dests');
+  if (!destBox) return;
+  const selected = getSelectedNames('product-purchase-dests');
+  if (!force && selected.length) return;
+  const item = findItemById(itemId);
+  fillPurchaseDestPicker('product', item ? itemPurchaseDests(item) : []);
+}
+
 function openProductModal(productId, presetItemId) {
   editingProductId = productId || null;
   const product = findProductById(productId);
+  const itemId = product ? product.itemId : (presetItemId || '');
   document.getElementById('product-modal-title').textContent = product ? '個別商品を編集' : '個別商品を追加';
-  document.getElementById('product-name').value = product ? product.name : '';
+  const nameInput = document.getElementById('product-name');
+  const item = findItemById(itemId);
+  nameInput.value = product ? product.name : (item ? item.name : '');
+  nameInput.placeholder = item ? `${item.name}の実商品名` : '例：エリエール 5箱';
   mountProductForm();
-  fillProductItemSelect(product ? product.itemId : (presetItemId || ''));
-  fillPurchaseDestPicker('product', product ? product.purchaseDests : []);
-  document.getElementById('product-url').value = product ? product.url : '';
-  document.getElementById('product-barcode').value = product ? product.barcode : '';
+  fillProductItemSelect(itemId);
+  fillPurchaseDestPicker('product', product ? product.purchaseDests : (item ? itemPurchaseDests(item) : []));
+  const itemSelect = document.getElementById('product-item');
+  if (itemSelect && !product) {
+    itemSelect.onchange = () => fillProductDestsFromItem(itemSelect.value, true);
+  }
+  const urlInput = document.getElementById('product-url');
+  const barcodeInput = document.getElementById('product-barcode');
+  if (urlInput) urlInput.value = product ? product.url : '';
+  if (barcodeInput) barcodeInput.value = product ? product.barcode : '';
+  if (product && (product.url || product.barcode)) {
+    const extra = document.querySelector('#product-form .product-extra-fields');
+    if (extra) extra.open = true;
+  }
   document.getElementById('product-modal').style.display = 'flex';
   syncBodyScrollLock();
+  if (!product) {
+    nameInput.focus();
+    nameInput.select();
+    nameInput.onkeydown = (e) => {
+      if (e.isComposing) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveProduct();
+      }
+    };
+  }
 }
 
 function closeProductModal() {

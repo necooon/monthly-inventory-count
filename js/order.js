@@ -4,6 +4,7 @@ const ORDER_EMPTY_MESSAGE = {
   shopping: '買い物リストは空です',
   receipt: '受け取り待ちはありません'
 };
+let pendingProductSelect = null;
 
 function pendingProductNote(item) {
   const product = findProductById(item.pendingProductId);
@@ -72,6 +73,10 @@ function appendPlaceOrderRow(parent, item) {
     opt.textContent = product.name;
     productSelect.appendChild(opt);
   });
+  const addOpt = document.createElement('option');
+  addOpt.value = ADD_NEW_VALUE;
+  addOpt.textContent = '＋ この場で登録（名前だけ）';
+  productSelect.appendChild(addOpt);
   const destLabel = document.createElement('label');
   destLabel.className = 'order-field-label';
   destLabel.textContent = '購入先';
@@ -102,8 +107,22 @@ function appendPlaceOrderRow(parent, item) {
     }
     if (names.includes(prev)) destSelect.value = prev;
     else if (product && names.length === 1) destSelect.value = names[0];
+    else if (!product && names.length === 1) destSelect.value = names[0];
   };
-  productSelect.onchange = fillDests;
+  productSelect.onchange = async () => {
+    if (productSelect.value === ADD_NEW_VALUE) {
+      const created = await quickRegisterProductFromOrder(item, destSelect.value);
+      if (!created) {
+        productSelect.value = '';
+        fillDests();
+        return;
+      }
+      pendingProductSelect = { itemId: item.id, productId: created.id };
+      saveAndRender();
+      return;
+    }
+    fillDests();
+  };
   destSelect.onchange = async () => {
     if (destSelect.value !== ADD_NEW_VALUE) return;
     const name = await showPrompt('新しい購入先');
@@ -122,6 +141,14 @@ function appendPlaceOrderRow(parent, item) {
     destSelect.value = dest;
   };
   fillDests();
+  if (pendingProductSelect && String(pendingProductSelect.itemId) === String(item.id)) {
+    const keepId = pendingProductSelect.productId;
+    pendingProductSelect = null;
+    if ([...productSelect.options].some(o => o.value === keepId)) {
+      productSelect.value = keepId;
+      fillDests();
+    }
+  }
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'order-action-btn';
@@ -280,6 +307,24 @@ function showUndoToast(message) {
     lastOrderUndo = null;
     hideUndoToast();
   }, 8000);
+}
+
+async function quickRegisterProductFromOrder(item, destHint) {
+  const name = await showPrompt('個別商品名', item.name || '');
+  if (!name || !String(name).trim()) return null;
+  const dests = defaultDestsForNewProduct(item.id, destHint);
+  if (!dests.length) {
+    alert('先に購入先を選ぶか、アイテムに購入先を付けてください。');
+    return null;
+  }
+  dests.forEach(dest => ensurePurchaseDest(dest));
+  const product = createCatalogProduct({
+    name: String(name).trim(),
+    itemId: item.id,
+    dests
+  });
+  showUndoToast(`「${product.name}」を登録しました。確定で発注できます`);
+  return product;
 }
 
 function confirmOrderPlacement(id, productId, destValue) {

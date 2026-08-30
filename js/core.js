@@ -987,6 +987,26 @@ function migrateProduct(product) {
   return next;
 }
 
+function createCatalogProduct({ name, itemId, dests, url, barcode }) {
+  const product = migrateProduct({
+    id: newItemId(),
+    name,
+    itemId,
+    purchaseDests: dests,
+    url,
+    barcode
+  });
+  catalogProducts.push(product);
+  return product;
+}
+
+function defaultDestsForNewProduct(itemId, destHint) {
+  const hinted = normalizePurchaseDest(destHint);
+  if (hinted && hinted !== ADD_NEW_VALUE) return [hinted];
+  const item = findItemById(itemId);
+  return item ? itemPurchaseDests(item) : [];
+}
+
 function migrateHistory(row) {
   const next = { ...(row || {}) };
   if (!isItemUuid(next.id)) next.id = newItemId();
