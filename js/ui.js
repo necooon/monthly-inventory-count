@@ -162,6 +162,21 @@ function overlayFocusables(overlay) {
     .filter(el => !el.disabled && el.offsetParent !== null);
 }
 
+function revealItemFormStart(overlayId, nameInputId, options = {}) {
+  const overlay = document.getElementById(overlayId);
+  const input = document.getElementById(nameInputId);
+  const body = overlay && overlay.querySelector('.modal-body');
+  if (overlay) overlay.scrollTop = 0;
+  if (body) body.scrollTop = 0;
+  requestAnimationFrame(() => {
+    if (overlay) overlay.scrollTop = 0;
+    if (body) body.scrollTop = 0;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    if (options.select) input.select();
+  });
+}
+
 // 入力モーダルを表示して入力値を返す（prompt() の代替。IMEでの日本語入力が可能）
 let promptResolver = null;
 
@@ -237,7 +252,7 @@ function openModal() {
   document.getElementById('new-item-target').value = 1;
   document.getElementById('new-item-threshold').value = 0;
   syncBodyScrollLock();
-  document.getElementById('new-item-name').focus();
+  revealItemFormStart('add-modal', 'new-item-name');
 }
 
 
@@ -1039,8 +1054,7 @@ function openEditModal(id) {
   syncUnitReadouts();
   document.getElementById('edit-modal').style.display = 'flex';
   syncBodyScrollLock();
-  document.getElementById('edit-item-name').focus();
-  document.getElementById('edit-item-name').select();
+  revealItemFormStart('edit-modal', 'edit-item-name', { select: true });
 }
 
 function closeEditModal() {

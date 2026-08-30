@@ -881,11 +881,11 @@ button.order-group-title:active {
   height: 100dvh;
   background: rgba(0,0,0,0.5);
   z-index: 1000;
-  justify-content: center;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
   padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 .modal-content {
@@ -894,22 +894,29 @@ button.order-group-title:active {
   border-radius: 12px 12px 8px 8px;
   width: 100%;
   max-width: 560px;
-  overflow: visible;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 .modal-body {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .modal-content h3 {
   margin-top: 0;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   color: #333;
+  flex-shrink: 0;
 }
 .modal-content label {
   font-size: 0.85em;
@@ -986,7 +993,8 @@ button.order-group-title:active {
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 0;
+  flex-shrink: 0;
 }
 .btn-delete {
   margin-right: auto;
@@ -1150,7 +1158,7 @@ button.order-group-title:active {
     padding: 20px 20px calc(72px + env(safe-area-inset-bottom));
   }
   .modal-overlay {
-    align-items: center;
+    justify-content: center;
   }
   .modal-content {
     border-radius: 8px;
