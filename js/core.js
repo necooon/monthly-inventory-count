@@ -55,6 +55,7 @@ customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.plac
 let inventoryCycleFilter = ALL_FILTER;
 let inventoryPlaceFilter = ALL_FILTER;
 let inventoryCollapsedPlaces = loadInventoryCollapsedPlaces();
+let orderCollapsedDests = loadOrderCollapsedDests();
 let settingsOpenSections = loadSettingsOpenSections();
 let catalogCycleFilter = ALL_FILTER;
 let catalogPlaceFilter = ALL_FILTER;
@@ -477,9 +478,18 @@ const MASTER_KINDS = {
     },
     afterRename: (oldName, next) => {
       remapSelectedSet(orderPurchaseDestFilter, oldName, next);
+      if (orderCollapsedDests.has(oldName)) {
+        orderCollapsedDests.delete(oldName);
+        orderCollapsedDests.add(next);
+        persistOrderCollapsedDests();
+      }
     },
     afterDelete: name => {
       remapSelectedSet(orderPurchaseDestFilter, name, null);
+      if (orderCollapsedDests.has(name)) {
+        orderCollapsedDests.delete(name);
+        persistOrderCollapsedDests();
+      }
     }
   }),
   unit: {

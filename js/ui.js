@@ -1001,6 +1001,13 @@ function appendOrderItemRow(parent, item) {
   parent.appendChild(itemDiv);
 }
 
+function toggleOrderDestGroup(dest) {
+  if (orderCollapsedDests.has(dest)) orderCollapsedDests.delete(dest);
+  else orderCollapsedDests.add(dest);
+  persistOrderCollapsedDests();
+  saveAndRender();
+}
+
 function renderOrderList() {
   const orderDiv = document.getElementById('order-list');
   const filterDiv = document.getElementById('order-filters');
@@ -1046,21 +1053,30 @@ function renderOrderList() {
   const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
   const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
   sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
-    const group = document.createElement('div');
-    group.className = 'order-group';
-    const title = document.createElement('div');
-    title.className = 'order-group-title';
-    title.textContent = dest;
-    group.appendChild(title);
     const cats = destGroups.get(dest);
+    const destCount = [...cats.values()].reduce((n, list) => n + list.length, 0);
+    const collapsed = orderCollapsedDests.has(dest);
+    const group = document.createElement('div');
+    group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+    const title = document.createElement('button');
+    title.type = 'button';
+    title.className = 'order-group-title';
+    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    title.setAttribute('aria-label', `${dest}、${destCount}件`);
+    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
+    title.onclick = () => toggleOrderDestGroup(dest);
+    group.appendChild(title);
+    const body = document.createElement('div');
+    body.className = 'order-group-items';
     sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
       const sub = document.createElement('div');
       sub.className = 'order-subgroup-title';
       sub.textContent = cat;
-      group.appendChild(sub);
+      body.appendChild(sub);
       cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
-        .forEach(item => appendOrderItemRow(group, item));
+        .forEach(item => appendOrderItemRow(body, item));
     });
+    group.appendChild(body);
     orderDiv.appendChild(group);
   });
 }

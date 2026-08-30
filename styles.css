@@ -431,7 +431,7 @@ button.order-group-title:active {
   font-size: 0.85em;
   margin: 10px 0 6px 4px;
 }
-.order-group-title + .order-subgroup-title {
+.order-group-items > .order-subgroup-title:first-child {
   margin-top: 4px;
 }
 .field-pair.cycle-place-pair {
