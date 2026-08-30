@@ -2,7 +2,6 @@ const SUPABASE_CONFIG = {
   url: 'https://dmvznvxczrpbqrzfcqcc.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdnpudnhjenJwYnFyemZjcWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjgxNjUsImV4cCI6MjEwMzU0NDE2NX0.tOPfmnQr5HTPk28H-bvfTIuhLzhjBB33JLeZldxzndM'
 };
-const HOUSEHOLD_ID = 'personal';
 const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
@@ -49,7 +48,6 @@ let cloudPushInProgress = false;
 let pullAfterPush = false;
 let skipScheduledCloudSave = false;
 let localSyncEpoch = 0;
-let householdId = HOUSEHOLD_ID;
 
 const APP_TITLE = 'Check＆Stock';
 const PAGE_IDS = ['inventory', 'order', 'settings'];
@@ -1299,7 +1297,7 @@ function initSupabase() {
 }
 
 function isCloudReady() {
-  return !!(supabaseClient && householdId);
+  return !!supabaseClient;
 }
 
 function scheduleCloudSave() {
@@ -1404,61 +1402,48 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
 }
 
 async function fetchCloudState() {
-  const { data: household, error: householdError } = await supabaseClient
-    .from('households')
-    .select('id')
-    .eq('id', householdId)
-    .maybeSingle();
-  if (householdError) throw householdError;
-  if (!household) return null;
-
   const { data: cycleRows, error: cycleError } = await supabaseClient
     .from('cycles')
     .select('id,name,sort_order')
-    .eq('household_id', householdId)
     .order('sort_order');
   if (cycleError) throw cycleError;
 
   const { data: locs, error: locError } = await supabaseClient
     .from('locations')
     .select('id,name,sort_order')
-    .eq('household_id', householdId)
     .order('sort_order');
   if (locError) throw locError;
 
   const { data: categoryRows, error: categoryError } = await supabaseClient
     .from('categories')
     .select('id,name,sort_order')
-    .eq('household_id', householdId)
     .order('sort_order');
   if (categoryError) throw categoryError;
 
   const { data: stockUnitRows, error: stockUnitError } = await supabaseClient
     .from('units')
     .select('id,name,sort_order')
-    .eq('household_id', householdId)
     .order('sort_order');
   if (stockUnitError) throw stockUnitError;
 
   const { data: checkUnitRows, error: checkUnitError } = await supabaseClient
     .from('check_units')
     .select('id,cycle_id,location_id,sort_order')
-    .eq('household_id', householdId)
     .order('sort_order');
   if (checkUnitError) throw checkUnitError;
 
   const { data: rows, error: itemError } = await supabaseClient
     .from('items')
-    .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category')
-    .eq('household_id', householdId);
+    .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
   if (itemError) throw itemError;
 
   let memberships = [];
   const { data: membershipRows, error: membershipError } = await supabaseClient
     .from('item_check_units')
-    .select('item_id,check_unit_id')
-    .eq('household_id', householdId);
+    .select('item_id,check_unit_id');
   if (!membershipError) memberships = membershipRows || [];
+
+  if (!(cycleRows || []).length && !(rows || []).length) return null;
 
   return stateFromCloudRows(cycleRows, locs, checkUnitRows, categoryRows, stockUnitRows, rows, memberships);
 }
@@ -1519,7 +1504,6 @@ async function purgeRemovedCloudMasters(cycleRows, locs, cloudCategories, cloudS
     const { data: dropUnits } = await supabaseClient
       .from('check_units')
       .select('id')
-      .eq('household_id', householdId)
       .in('cycle_id', extraCycleIds);
     const dropUnitIds = (dropUnits || []).map(row => row.id);
     if (dropUnitIds.length) {
@@ -1537,7 +1521,6 @@ async function purgeRemovedCloudMasters(cycleRows, locs, cloudCategories, cloudS
     const { error: itemLocClearError } = await supabaseClient
       .from('items')
       .update({ location_id: null })
-      .eq('household_id', householdId)
       .in('location_id', extraLocIds);
     if (itemLocClearError) throw itemLocClearError;
     const { data: locDropUnits } = await supabaseClient
@@ -1574,12 +1557,6 @@ async function pushToCloud() {
   if (!isCloudReady()) return false;
   cloudPushInProgress = true;
   try {
-    const { error: householdError } = await supabaseClient.from('households').upsert({
-      id: householdId,
-      updated_at: new Date().toISOString()
-    });
-    if (householdError) throw householdError;
-
     const [
       { data: preCycleRows, error: preCycleReadError },
       { data: preLocs, error: preLocReadError },
@@ -1587,11 +1564,11 @@ async function pushToCloud() {
       { data: preStockUnits, error: preStockUnitReadError },
       { data: preCheckUnits, error: preCheckUnitReadError }
     ] = await Promise.all([
-      supabaseClient.from('cycles').select('id,name').eq('household_id', householdId),
-      supabaseClient.from('locations').select('id,name').eq('household_id', householdId),
-      supabaseClient.from('categories').select('id,name').eq('household_id', householdId),
-      supabaseClient.from('units').select('id,name').eq('household_id', householdId),
-      supabaseClient.from('check_units').select('id,cycle_id,location_id').eq('household_id', householdId)
+      supabaseClient.from('cycles').select('id,name'),
+      supabaseClient.from('locations').select('id,name'),
+      supabaseClient.from('categories').select('id,name'),
+      supabaseClient.from('units').select('id,name'),
+      supabaseClient.from('check_units').select('id,cycle_id,location_id')
     ]);
     if (preCycleReadError) throw preCycleReadError;
     if (preLocReadError) throw preLocReadError;
@@ -1602,50 +1579,43 @@ async function pushToCloud() {
     await purgeRemovedCloudMasters(preCycleRows, preLocs, preCategories, preStockUnits, preCheckUnits);
 
     await upsertNamedRows('cycles', customCycles.map((name, index) => ({
-      household_id: householdId,
       name,
       sort_order: index
-    })), 'household_id,name');
+    })), 'name');
 
     await upsertNamedRows('locations', customPlaces.map((name, index) => ({
-      household_id: householdId,
       name,
       sort_order: index
-    })), 'household_id,name');
+    })), 'name');
 
     await upsertNamedRows('categories', customCategories.map((name, index) => ({
-      household_id: householdId,
       name,
       sort_order: index
-    })), 'household_id,name');
+    })), 'name');
 
     await upsertNamedRows('units', customUnits.map((name, index) => ({
-      household_id: householdId,
       name,
       sort_order: index
-    })), 'household_id,name');
+    })), 'name');
 
     const { data: cycleRows, error: cycleReadError } = await supabaseClient
       .from('cycles')
-      .select('id,name')
-      .eq('household_id', householdId);
+      .select('id,name');
     if (cycleReadError) throw cycleReadError;
     const cycleNameToId = Object.fromEntries((cycleRows || []).map(row => [row.name, row.id]));
 
     const { data: locs, error: locReadError } = await supabaseClient
       .from('locations')
-      .select('id,name')
-      .eq('household_id', householdId);
+      .select('id,name');
     if (locReadError) throw locReadError;
     const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
 
     const placedRows = customCheckUnits.map((unit, index) => ({
-      household_id: householdId,
       cycle_id: cycleNameToId[unit.cycle],
       location_id: unit.place ? nameToId[unit.place] : null,
       sort_order: index
     })).filter(row => row.cycle_id && row.location_id);
-    await upsertNamedRows('check_units', placedRows, 'household_id,cycle_id,location_id');
+    await upsertNamedRows('check_units', placedRows, 'cycle_id,location_id');
 
     for (const unit of customCheckUnits.filter(u => u.cycle && !u.place)) {
       const cycleId = cycleNameToId[unit.cycle];
@@ -1653,13 +1623,11 @@ async function pushToCloud() {
       const { data: existingNull } = await supabaseClient
         .from('check_units')
         .select('id')
-        .eq('household_id', householdId)
         .eq('cycle_id', cycleId)
         .is('location_id', null)
         .maybeSingle();
       if (!existingNull) {
         const { error: nullInsertError } = await supabaseClient.from('check_units').insert({
-          household_id: householdId,
           cycle_id: cycleId,
           location_id: null,
           sort_order: 0
@@ -1670,8 +1638,7 @@ async function pushToCloud() {
 
     const { data: cloudUnits, error: unitReadError } = await supabaseClient
       .from('check_units')
-      .select('id,cycle_id,location_id')
-      .eq('household_id', householdId);
+      .select('id,cycle_id,location_id');
     if (unitReadError) throw unitReadError;
     const unitKeyToId = {};
     (cloudUnits || []).forEach(row => {
@@ -1690,7 +1657,6 @@ async function pushToCloud() {
       const firstPlaced = units.find(u => u.place);
       return {
         id: String(item.id),
-        household_id: householdId,
         location_id: (firstPlaced && nameToId[firstPlaced.place]) || null,
         category: normalizeCategory(item.category),
         name: item.name,
@@ -1712,8 +1678,7 @@ async function pushToCloud() {
 
     const { data: cloudItems, error: itemReadError } = await supabaseClient
       .from('items')
-      .select('id')
-      .eq('household_id', householdId);
+      .select('id');
     if (itemReadError) throw itemReadError;
     const localIds = new Set(stockItems.map(item => String(item.id)));
     const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
@@ -1725,15 +1690,14 @@ async function pushToCloud() {
         if (!checkUnitId) return;
         membershipRows.push({
           item_id: String(item.id),
-          check_unit_id: checkUnitId,
-          household_id: householdId
+          check_unit_id: checkUnitId
         });
       });
     });
     const { error: membershipClearError } = await supabaseClient
       .from('item_check_units')
       .delete()
-      .eq('household_id', householdId);
+      .not('item_id', 'is', null);
     if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
       throw membershipClearError;
     }
@@ -1866,40 +1830,40 @@ async function startCloudListener() {
   await pullFromCloud();
 
   const channel = supabaseClient
-    .channel('household-' + householdId)
+    .channel('app-sync')
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'items', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'items' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'locations', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'locations' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'item_check_units', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'item_check_units' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'cycles', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'cycles' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'check_units', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'check_units' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'categories', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'categories' },
       () => { scheduleCloudPull(); }
     )
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'units', filter: 'household_id=eq.' + householdId },
+      { event: '*', schema: 'public', table: 'units' },
       () => { scheduleCloudPull(); }
     )
     .subscribe();
