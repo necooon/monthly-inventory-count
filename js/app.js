@@ -2069,9 +2069,8 @@ function renderInventory() {
           <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
           <span class="item-name">
             <span class="item-name-text">${item.name}</span>
-            ${itemNeedsOrder ? '<span class="order-badge">発注</span>' : ''}
           </span>
-          ${countControls}
+          <div class="inventory-count">${countControls}</div>
         </div>
       `;
       body.appendChild(itemDiv);
