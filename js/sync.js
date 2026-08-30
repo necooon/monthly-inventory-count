@@ -33,6 +33,15 @@ function applyFetchedState(state) {
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
   customPurchaseDests = (state.purchaseDests && state.purchaseDests.length ? state.purchaseDests : [...DEFAULT_PURCHASE_DESTS]);
+  if (state.purchaseDestKindsFromDb && state.purchaseDestKinds) {
+    purchaseDestKinds = { ...state.purchaseDestKinds };
+  } else {
+    const nextKinds = { ...purchaseDestKinds };
+    customPurchaseDests.forEach(name => {
+      if (!nextKinds[name]) nextKinds[name] = (state.purchaseDestKinds && state.purchaseDestKinds[name]) || defaultKindForDest(name);
+    });
+    purchaseDestKinds = nextKinds;
+  }
   customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
@@ -74,6 +83,26 @@ async function pullFromCloud() {
     if (!state) {
       await pushToCloud();
       return;
+    }
+    if (!state.purchaseDestKindsFromDb) {
+      const merged = { ...purchaseDestKinds };
+      (state.purchaseDests || []).forEach(name => {
+        if (!merged[name]) merged[name] = defaultKindForDest(name);
+      });
+      state.purchaseDestKinds = merged;
+    }
+    if (!state.itemPendingFromDb) {
+      const localById = Object.fromEntries(stockItems.map(item => [String(item.id), item]));
+      state.items = (state.items || []).map(item => {
+        const local = localById[String(item.id)];
+        if (!local) return item;
+        return {
+          ...item,
+          pendingMode: local.pendingMode,
+          pendingDest: local.pendingDest,
+          pendingQty: local.pendingQty
+        };
+      });
     }
     if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) {
       return;

@@ -32,6 +32,15 @@ function appendSettingsSection(root, title, kind, names, options = {}) {
     const label = document.createElement('span');
     label.className = 'settings-row-name';
     label.textContent = name;
+    if (typeof options.nameExtra === 'function') {
+      const extra = options.nameExtra(name);
+      if (extra) {
+        const chip = document.createElement('span');
+        chip.className = 'settings-row-extra';
+        chip.textContent = extra;
+        label.appendChild(chip);
+      }
+    }
     const isLocked = locked.has(name);
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -46,6 +55,7 @@ function appendSettingsSection(root, title, kind, names, options = {}) {
     deleteBtn.disabled = isLocked;
     deleteBtn.onclick = () => deleteMasterName(kind, name);
     row.appendChild(label);
+    if (typeof options.extraAction === 'function') options.extraAction(name, row);
     if (options.reorder) {
       const index = names.indexOf(name);
       const upBtn = document.createElement('button');
@@ -96,8 +106,18 @@ function renderSettings() {
     reorder: true
   });
   appendSettingsSection(root, '購入先', 'purchaseDest', allPurchaseDests(), {
-    hint: '発注リストのまとめに使います。1つの品を複数の店で買えます。↑↓で並び順を変えられます。',
-    reorder: true
+    hint: '発注リストのまとめに使います。1つの品を複数の店で買えます。ネット／店舗で発注後の流れが変わります。↑↓で並び順を変えられます。',
+    reorder: true,
+    nameExtra: name => destKindLabel(name),
+    extraAction: (name, row) => {
+      const kindBtn = document.createElement('button');
+      kindBtn.type = 'button';
+      kindBtn.className = 'settings-edit';
+      kindBtn.textContent = '種別';
+      kindBtn.setAttribute('aria-label', name + 'の種別を変更');
+      kindBtn.onclick = () => changePurchaseDestKind(name);
+      row.appendChild(kindBtn);
+    }
   });
   const danger = document.createElement('div');
   danger.className = 'settings-section';
@@ -138,7 +158,7 @@ function overlayIsOpen(el) {
 }
 
 function openOverlays() {
-  return ['prompt-modal', 'edit-modal', 'add-modal']
+  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal']
     .map(id => document.getElementById(id))
     .filter(overlayIsOpen);
 }
@@ -150,6 +170,10 @@ function syncBodyScrollLock() {
 function closeTopOverlay() {
   if (overlayIsOpen(document.getElementById('prompt-modal'))) {
     resolvePrompt(null);
+    return;
+  }
+  if (overlayIsOpen(document.getElementById('choice-modal'))) {
+    resolveChoice(null);
     return;
   }
   if (overlayIsOpen(document.getElementById('edit-modal'))) {
@@ -227,6 +251,39 @@ function resolvePrompt(value) {
   const resolve = promptResolver;
   promptResolver = null;
   if (resolve) resolve(value);
+}
+
+let choiceResolver = null;
+
+function showChoice(title, hint) {
+  document.getElementById('choice-title').textContent = title;
+  const hintEl = document.getElementById('choice-hint');
+  if (hintEl) hintEl.textContent = hint || '';
+  document.getElementById('choice-modal').style.display = 'flex';
+  syncBodyScrollLock();
+  return new Promise(resolve => { choiceResolver = resolve; });
+}
+
+function resolveChoice(value) {
+  document.getElementById('choice-modal').style.display = 'none';
+  syncBodyScrollLock();
+  const resolve = choiceResolver;
+  choiceResolver = null;
+  if (resolve) resolve(value);
+}
+
+function pickPurchaseDestKind() {
+  return showChoice(
+    '購入先の種別',
+    'ネットショップは「注文済み」のあと受け取り待ちへ、店舗は買い物リストへ入ります。'
+  );
+}
+
+async function changePurchaseDestKind(name) {
+  const chosen = await pickPurchaseDestKind();
+  if (!chosen) return;
+  setPurchaseDestKind(name, chosen);
+  await persistAndFlushCloud();
 }
 
 
@@ -307,6 +364,10 @@ async function addNameFromForm(kind, containerId) {
     return;
   }
   spec.ensure(trimmed);
+  if (kind === 'purchaseDest') {
+    const chosen = await pickPurchaseDestKind();
+    setPurchaseDestKind(trimmed, chosen || 'store');
+  }
   persistMasters();
   if (!selected.includes(trimmed)) selected.push(trimmed);
   fillNamePicker(containerId, spec.uniqueNames(), selected);
@@ -525,6 +586,14 @@ function syncUnitReadouts() {
   if (editThreshold) editThreshold.textContent = editUnit;
 }
 
+function itemStatusBadgeHtml(item) {
+  const pending = itemPendingMode(item);
+  if (pending === 'shopping') return '<span class="order-badge pending-shopping">買い物中</span>';
+  if (pending === 'receipt') return '<span class="order-badge pending-receipt">受け取り待ち</span>';
+  if (needsOrder(item)) return '<span class="order-badge">発注</span>';
+  return '';
+}
+
 function formatQty(n, unit) {
   return `${n}${unit || '個'}`;
 }
@@ -716,7 +785,7 @@ function renderItemsCatalog() {
     return;
   }
   items.forEach(item => {
-    const itemNeedsOrder = needsOrder(item);
+    const itemNeedsOrder = needsOrderAction(item);
     const itemDiv = document.createElement('div');
     itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
     itemDiv.dataset.itemId = item.id;
@@ -726,7 +795,7 @@ function renderItemsCatalog() {
       <div class="item-info">
         <span class="item-name">
           <span class="item-name-text">${item.name}</span>
-          ${itemNeedsOrder ? '<span class="order-badge">発注</span>' : ''}
+          ${itemStatusBadgeHtml(item)}
         </span>
         ${itemFieldsHtml(item)}
         <span class="item-meta">在庫: ${stockText}　必要: ${formatQty(item.target, item.unit)}　補充基準: ${formatQty(item.orderThreshold, item.unit)}</span>
@@ -940,7 +1009,7 @@ function renderInventory() {
     const body = document.createElement('div');
     body.className = 'order-group-items';
     placeItems.forEach(item => {
-      const itemNeedsOrder = needsOrder(item);
+      const itemNeedsOrder = needsOrderAction(item);
       const itemDiv = document.createElement('div');
       itemDiv.className = `item inventory-item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
       itemDiv.dataset.itemId = item.id;
@@ -957,6 +1026,7 @@ function renderInventory() {
           <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
           <span class="item-name">
             <span class="item-name-text">${item.name}</span>
+            ${itemStatusBadgeHtml(item)}
           </span>
           <div class="inventory-count">${countControls}</div>
         </div>
@@ -980,24 +1050,46 @@ function renderAll() {
 
 // 発注リストを描画する関数
 
-function appendOrderItemRow(parent, item) {
-  const orderAmount = Math.max(0, item.target - item.count);
+function appendOrderItemRow(parent, item, dest, view) {
+  const orderAmount = itemOrderQty(item);
   const itemDiv = document.createElement('div');
   itemDiv.className = 'item empty order-item';
   const lastOrder = formatLastOrder(item.lastOrderedOn);
-  itemDiv.innerHTML = `
-    <div class="item-info">
+  const destLabel = dest && dest !== UNSET_PURCHASE_DEST_LABEL ? dest : '';
+  const destNote = destLabel ? `<span class="item-last-order">購入先: ${destLabel}（${destKindLabel(destLabel)}）</span>` : '';
+  const info = document.createElement('div');
+  info.className = 'item-info';
+  info.innerHTML = `
       <span class="item-name"><span class="item-name-text">${item.name}</span></span>
+      ${destNote}
       <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
       <span class="order-amount">買う数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
-    </div>
-    <div class="controls">
-      <label class="order-check-label">
-        <input type="checkbox" class="order-check" data-item-id="${item.id}" onchange="markAsOrdered(this.dataset.itemId)">
-        発注済み
-      </label>
-    </div>
   `;
+  const controls = document.createElement('div');
+  controls.className = 'controls';
+  if (view === 'order') {
+    const kind = destKind(dest);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'order-action-btn';
+    btn.textContent = kind === 'online' ? '注文済み' : '買い物リストへ';
+    btn.onclick = () => queueFulfillment(item.id, dest);
+    controls.appendChild(btn);
+  } else {
+    const label = document.createElement('label');
+    label.className = 'order-check-label';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'order-check';
+    input.onchange = () => completeFulfillment(item.id);
+    const text = document.createElement('span');
+    text.textContent = view === 'receipt' ? '受け取り済み' : '買った';
+    label.appendChild(input);
+    label.appendChild(text);
+    controls.appendChild(label);
+  }
+  itemDiv.appendChild(info);
+  itemDiv.appendChild(controls);
   parent.appendChild(itemDiv);
 }
 
@@ -1008,27 +1100,32 @@ function toggleOrderDestGroup(dest) {
   saveAndRender();
 }
 
-function renderOrderList() {
-  const orderDiv = document.getElementById('order-list');
-  const filterDiv = document.getElementById('order-filters');
-  orderDiv.innerHTML = '';
-  if (filterDiv) {
-    filterDiv.innerHTML = '';
-    bindPurchaseDestFilters(filterDiv);
-    orderCategoryFilter = bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => { orderCategoryFilter = value; });
-  }
+function setOrderFulfillmentView(view) {
+  if (view !== 'order' && view !== 'shopping' && view !== 'receipt') return;
+  orderFulfillmentView = view;
+  persistOrderFulfillmentView();
+  saveAndRender();
+}
 
-  const itemsToOrder = stockItems.filter(item =>
-    needsOrder(item) &&
-    itemMatchesCategory(item, orderCategoryFilter) &&
-    itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
-  );
+function updateOrderSubnav() {
+  const counts = {
+    order: stockItems.filter(needsOrderAction).length,
+    shopping: stockItems.filter(item => itemPendingMode(item) === 'shopping').length,
+    receipt: stockItems.filter(item => itemPendingMode(item) === 'receipt').length
+  };
+  const labels = { order: '発注', shopping: '買い物', receipt: '受け取り' };
+  ['order', 'shopping', 'receipt'].forEach(view => {
+    const btn = document.getElementById('order-view-' + view);
+    if (!btn) return;
+    const on = orderFulfillmentView === view;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    const count = counts[view];
+    btn.textContent = count ? `${labels[view]}（${count}）` : labels[view];
+  });
+}
 
-  if (itemsToOrder.length === 0) {
-    orderDiv.innerHTML = '<div class="empty-message">発注が必要なアイテムはありません 🎉</div>';
-    return;
-  }
-
+function renderGroupedOrderItems(orderDiv, items, view) {
   const destGroups = new Map();
   const addToGroup = (dest, item) => {
     if (!destGroups.has(dest)) destGroups.set(dest, new Map());
@@ -1037,18 +1134,33 @@ function renderOrderList() {
     if (!cats.has(cat)) cats.set(cat, []);
     cats.get(cat).push(item);
   };
-  itemsToOrder.forEach(item => {
-    const dests = itemPurchaseDests(item);
-    if (!dests.length) {
-      addToGroup(UNSET_PURCHASE_DEST_LABEL, item);
+  items.forEach(item => {
+    if (view === 'order') {
+      const dests = itemPurchaseDests(item);
+      if (!dests.length) {
+        addToGroup(UNSET_PURCHASE_DEST_LABEL, item);
+        return;
+      }
+      dests.forEach(dest => {
+        if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
+          addToGroup(dest, item);
+        }
+      });
       return;
     }
-    dests.forEach(dest => {
-      if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
-        addToGroup(dest, item);
-      }
-    });
+    const dest = normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL;
+    addToGroup(dest, item);
   });
+
+  if (!destGroups.size) {
+    const empty = {
+      order: '発注が必要なアイテムはありません 🎉',
+      shopping: '買い物リストは空です',
+      receipt: '受け取り待ちはありません'
+    };
+    orderDiv.innerHTML = `<div class="empty-message">${empty[view] || empty.order}</div>`;
+    return;
+  }
 
   const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
   const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
@@ -1074,15 +1186,86 @@ function renderOrderList() {
       sub.textContent = cat;
       body.appendChild(sub);
       cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
-        .forEach(item => appendOrderItemRow(body, item));
+        .forEach(item => appendOrderItemRow(body, item, dest, view));
     });
     group.appendChild(body);
     orderDiv.appendChild(group);
   });
 }
 
+function renderOrderList() {
+  const orderDiv = document.getElementById('order-list');
+  const filterDiv = document.getElementById('order-filters');
+  if (!orderDiv) return;
+  orderDiv.innerHTML = '';
+  updateOrderSubnav();
+  if (filterDiv) {
+    filterDiv.innerHTML = '';
+    bindPurchaseDestFilters(filterDiv);
+    orderCategoryFilter = bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => { orderCategoryFilter = value; });
+  }
 
-// 発注済みにして在庫を必要数まで補充する関数
+  const view = orderFulfillmentView;
+  let items = [];
+  if (view === 'shopping') {
+    items = stockItems.filter(item =>
+      itemPendingMode(item) === 'shopping' &&
+      itemMatchesCategory(item, orderCategoryFilter) &&
+      itemMatchesPendingDest(item, orderPurchaseDestFilter)
+    );
+  } else if (view === 'receipt') {
+    items = stockItems.filter(item =>
+      itemPendingMode(item) === 'receipt' &&
+      itemMatchesCategory(item, orderCategoryFilter) &&
+      itemMatchesPendingDest(item, orderPurchaseDestFilter)
+    );
+  } else {
+    items = stockItems.filter(item =>
+      needsOrderAction(item) &&
+      itemMatchesCategory(item, orderCategoryFilter) &&
+      itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
+    );
+  }
+
+  renderGroupedOrderItems(orderDiv, items, view);
+}
+
+
+// 発注フロー：リストへ移す／受け取り・買い物完了
+
+function fulfillmentSnapshot(item) {
+  return {
+    id: item.id,
+    count: item.count,
+    entered: item.entered,
+    lastOrderedOn: item.lastOrderedOn,
+    pendingMode: item.pendingMode || null,
+    pendingDest: item.pendingDest || '',
+    pendingQty: item.pendingQty == null ? null : item.pendingQty
+  };
+}
+
+function applyFulfillmentSnapshot(item, snap) {
+  item.count = snap.count;
+  item.entered = snap.entered;
+  item.lastOrderedOn = snap.lastOrderedOn;
+  item.pendingMode = snap.pendingMode;
+  item.pendingDest = snap.pendingDest;
+  item.pendingQty = snap.pendingQty;
+}
+
+function clearPending(item) {
+  item.pendingMode = null;
+  item.pendingDest = '';
+  item.pendingQty = null;
+}
+
+function applyStockFilled(item) {
+  item.count = item.target;
+  item.entered = true;
+  item.lastOrderedOn = todayIsoDate();
+  clearPending(item);
+}
 
 function hideUndoToast() {
   const toast = document.getElementById('undo-toast');
@@ -1106,30 +1289,35 @@ function showUndoToast(message) {
   }, 8000);
 }
 
-function markAsOrdered(id) {
+function queueFulfillment(id, dest) {
   const item = findItemById(id);
   if (!item) return;
-  lastOrderUndo = {
-    id: item.id,
-    count: item.count,
-    entered: item.entered,
-    lastOrderedOn: item.lastOrderedOn
-  };
-  item.count = item.target;
-  item.entered = true;
-  item.lastOrderedOn = todayIsoDate();
+  lastOrderUndo = fulfillmentSnapshot(item);
+  const mode = destKind(dest) === 'online' ? 'receipt' : 'shopping';
+  item.pendingMode = mode;
+  item.pendingDest = dest === UNSET_PURCHASE_DEST_LABEL ? '' : (normalizePurchaseDest(dest) || '');
+  item.pendingQty = Math.max(0, item.target - item.count);
   saveAndRender();
-  showUndoToast(`「${item.name}」を発注済みにしました`);
+  const message = mode === 'receipt'
+    ? `「${item.name}」を受け取り待ちにしました`
+    : `「${item.name}」を買い物リストへ移しました`;
+  showUndoToast(message);
+}
+
+function completeFulfillment(id) {
+  const item = findItemById(id);
+  if (!item) return;
+  lastOrderUndo = fulfillmentSnapshot(item);
+  const wasReceipt = itemPendingMode(item) === 'receipt';
+  applyStockFilled(item);
+  saveAndRender();
+  showUndoToast(wasReceipt ? `「${item.name}」を受け取り済みにしました` : `「${item.name}」を購入済みにしました`);
 }
 
 function undoLastOrder() {
   if (!lastOrderUndo) return;
   const item = findItemById(lastOrderUndo.id);
-  if (item) {
-    item.count = lastOrderUndo.count;
-    item.entered = lastOrderUndo.entered;
-    item.lastOrderedOn = lastOrderUndo.lastOrderedOn;
-  }
+  if (item) applyFulfillmentSnapshot(item, lastOrderUndo);
   lastOrderUndo = null;
   hideUndoToast();
   saveAndRender();
@@ -1331,7 +1519,10 @@ function addItem() {
     id: newItemId(),
     count: 0,
     entered: false,
-    lastOrderedOn: null
+    lastOrderedOn: null,
+    pendingMode: null,
+    pendingDest: '',
+    pendingQty: null
   };
   applyFormToItem(item, fields);
   stockItems.push(item);

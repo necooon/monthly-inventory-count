@@ -48,6 +48,8 @@ if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
 
 let customCategories = loadNameList(StorageKeys.CATEGORIES, DEFAULT_CATEGORIES);
 let customPurchaseDests = loadNameList(StorageKeys.PURCHASE_DESTS, DEFAULT_PURCHASE_DESTS);
+let purchaseDestKinds = {};
+let orderFulfillmentView = loadOrderFulfillmentView();
 
 let customCheckUnits = loadCheckUnitMaster();
 customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
@@ -186,11 +188,88 @@ function allPurchaseDests() {
   );
 }
 
-function ensurePurchaseDest(name) {
+function defaultKindForDest(name) {
+  return String(name || '').trim() === 'LOHACO' ? 'online' : 'store';
+}
+
+function normalizeDestKind(value, destName) {
+  const kind = String(value || '').trim().toLowerCase();
+  if (kind === 'online' || kind === 'store') return kind;
+  return defaultKindForDest(destName);
+}
+
+function destKind(name) {
+  const trimmed = normalizePurchaseDest(name);
+  if (!trimmed) return 'store';
+  const stored = purchaseDestKinds[trimmed];
+  if (stored === 'online' || stored === 'store') return stored;
+  return defaultKindForDest(trimmed);
+}
+
+function destKindLabel(name) {
+  return destKind(name) === 'online' ? 'ネット' : '店舗';
+}
+
+function setPurchaseDestKind(name, kind) {
+  const trimmed = normalizePurchaseDest(name);
+  if (!trimmed) return;
+  purchaseDestKinds[trimmed] = normalizeDestKind(kind, trimmed);
+}
+
+function loadPurchaseDestKinds() {
+  const parsed = loadJson(StorageKeys.PURCHASE_DEST_KINDS, null);
+  const map = {};
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    Object.keys(parsed).forEach(rawName => {
+      const key = normalizePurchaseDest(rawName);
+      if (!key) return;
+      map[key] = normalizeDestKind(parsed[rawName], key);
+    });
+  }
+  customPurchaseDests.forEach(name => {
+    if (!map[name]) map[name] = defaultKindForDest(name);
+  });
+  return map;
+}
+
+function ensurePurchaseDest(name, kind) {
   const trimmed = normalizePurchaseDest(name);
   if (!trimmed) return '';
-  return ensureName(customPurchaseDests, trimmed);
+  const added = !customPurchaseDests.includes(trimmed);
+  ensureName(customPurchaseDests, trimmed);
+  if (kind) setPurchaseDestKind(trimmed, kind);
+  else if (added && purchaseDestKinds[trimmed] == null) {
+    purchaseDestKinds[trimmed] = defaultKindForDest(trimmed);
+  }
+  return trimmed;
 }
+
+function rewritePendingDest(oldName, nextName) {
+  stockItems.forEach(item => {
+    if (normalizePurchaseDest(item.pendingDest) !== oldName) return;
+    item.pendingDest = nextName || '';
+  });
+}
+
+function itemPendingMode(item) {
+  const mode = item && item.pendingMode;
+  return mode === 'shopping' || mode === 'receipt' ? mode : null;
+}
+
+function itemOrderQty(item) {
+  const pending = itemPendingMode(item);
+  if (pending && item.pendingQty != null && item.pendingQty !== '') {
+    const qty = Number(item.pendingQty);
+    if (Number.isFinite(qty) && qty >= 0) return Math.round(qty);
+  }
+  return Math.max(0, Number(item.target || 0) - Number(item.count || 0));
+}
+
+function needsOrderAction(item) {
+  return needsOrder(item) && !itemPendingMode(item);
+}
+
+purchaseDestKinds = loadPurchaseDestKinds();
 
 function itemPurchaseDests(item) {
   return normalizePurchaseDests(item && item.purchaseDests);
@@ -475,6 +554,11 @@ const MASTER_KINDS = {
           ? dests.map(dest => dest === oldName ? next : dest)
           : dests.filter(dest => dest !== oldName);
       });
+      rewritePendingDest(oldName, next);
+      if (next) {
+        purchaseDestKinds[next] = purchaseDestKinds[oldName] || destKind(oldName);
+      }
+      delete purchaseDestKinds[oldName];
     },
     afterRename: (oldName, next) => {
       remapSelectedSet(orderPurchaseDestFilter, oldName, next);
@@ -531,6 +615,10 @@ async function addMasterName(kind) {
   const trimmed = raw.trim();
   if (spec.validate && !spec.validate(trimmed)) return;
   spec.ensure(trimmed);
+  if (kind === 'purchaseDest' && typeof pickPurchaseDestKind === 'function') {
+    const chosen = await pickPurchaseDestKind();
+    setPurchaseDestKind(trimmed, chosen || 'store');
+  }
   await persistAndFlushCloud();
   return trimmed;
 }
@@ -667,6 +755,14 @@ function itemMatchesPurchaseDests(item, selectedSet) {
   return dests.some(dest => selectedSet.has(dest));
 }
 
+function itemMatchesPendingDest(item, selectedSet) {
+  if (!selectedSet || selectedSet.size === 0) return true;
+  const dest = normalizePurchaseDest(item.pendingDest);
+  if (dest) return selectedSet.has(dest);
+  if (!itemPurchaseDests(item).length) return selectedSet.has(UNSET_PURCHASE_DEST_LABEL);
+  return itemMatchesPurchaseDests(item, selectedSet);
+}
+
 function needsOrder(item) {
   return item.entered && item.count <= item.orderThreshold;
 }
@@ -713,6 +809,11 @@ function migrateItem(item) {
   if (next.category) ensureCategory(next.category);
   next.purchaseDests = normalizePurchaseDests(next.purchaseDests);
   next.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
+  next.pendingMode = itemPendingMode(next);
+  next.pendingDest = next.pendingMode ? (normalizePurchaseDest(next.pendingDest) || '') : '';
+  const pendingQty = Number(next.pendingQty);
+  next.pendingQty = next.pendingMode && Number.isFinite(pendingQty) ? Math.max(0, Math.round(pendingQty)) : null;
+  if (next.pendingDest) ensurePurchaseDest(next.pendingDest);
   units = dedupeUnits(units);
   units.forEach(u => ensureCheckUnit(u.cycle, u.place));
   next.checkUnits = units;
