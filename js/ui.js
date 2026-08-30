@@ -1149,7 +1149,7 @@ function renderProductCatalog() {
     const row = document.createElement('div');
     row.className = 'item';
     const dests = product.purchaseDests.length
-      ? product.purchaseDests.map(d => `${d}（${destKindLabel(d)}）`).join('、')
+      ? formatPurchaseDestList(product.purchaseDests)
       : '購入先なし';
     row.innerHTML = `
       <div class="item-info">
@@ -1196,7 +1196,10 @@ function renderLinkedProducts(containerId, itemId) {
     row.className = 'settings-row';
     const name = document.createElement('span');
     name.className = 'settings-row-name';
-    name.textContent = product.name;
+    const dests = productPurchaseDestNames(product);
+    name.textContent = dests.length
+      ? `${product.name} — ${formatPurchaseDestList(dests)}`
+      : `${product.name}（購入先なし）`;
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.className = 'settings-edit';
