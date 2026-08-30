@@ -5,7 +5,7 @@ const SUPABASE_CONFIG = {
 const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
-const DEFAULT_UNITS = ['個', '本', '袋', '箱', '缶', '瓶', 'パック', 'セット', '巻', 'ロール', '枚', '束', 'ケース', 'kg', 'g', 'L', 'ml', '食', 'チューブ'];
+const DEFAULT_UNITS = ['個', '本', '袋', '箱', 'パック'];
 const CATEGORY_PLACE_NAMES = new Set(DEFAULT_CATEGORIES);
 const REMOVED_LOCATION = 'その他';
 const ALL_FILTER = 'すべて';
@@ -16,7 +16,7 @@ const ADD_NEW_VALUE = 'ADD_NEW';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
 
-let customUnits = loadNameList('stockUnits', DEFAULT_UNITS);
+let customUnits = [...DEFAULT_UNITS];
 
 let customCycles = loadNameList('stockCycles', DEFAULT_CYCLES);
 let customPlaces = loadNameList('stockPlaces', loadNameList('stockLocations', DEFAULT_PLACES));
@@ -132,8 +132,18 @@ function settingsCategoryNames() {
   return allCategories();
 }
 
-function ensureUnit(name) {
+function canonicalizeStockUnit(name) {
   const trimmed = String(name || '').trim();
+  if (DEFAULT_UNITS.includes(trimmed)) return trimmed;
+  if (['巻', 'ロール', 'チューブ'].includes(trimmed)) return '本';
+  if (['缶', '瓶', 'ケース'].includes(trimmed)) return '箱';
+  if (trimmed === 'パック') return 'パック';
+  if (trimmed === '袋') return '袋';
+  return '個';
+}
+
+function ensureUnit(name) {
+  const trimmed = canonicalizeStockUnit(name);
   if (!trimmed) return null;
   return ensureName(customUnits, trimmed);
 }
@@ -1457,7 +1467,7 @@ function applyFetchedState(state) {
     place
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-  customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
+  customUnits = [...DEFAULT_UNITS];
   stockItems = state.items.map(migrateItem);
   stockItems.forEach(item => {
     if (item.category) ensureCategory(item.category);
@@ -1801,6 +1811,7 @@ function migrateItem(item) {
   if (next.target === undefined) next.target = 1;
   if (next.entered === undefined) next.entered = true;
   if (next.unit === undefined) next.unit = '個';
+  next.unit = canonicalizeStockUnit(next.unit);
   if (next.orderThreshold === undefined) next.orderThreshold = Math.max(0, next.target - 1);
   next.lastOrderedOn = normalizeDate(next.lastOrderedOn);
   let categoryFromPlaces = '';

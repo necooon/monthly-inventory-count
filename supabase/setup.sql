@@ -377,21 +377,7 @@ cross join (values
   ('本', 1),
   ('袋', 2),
   ('箱', 3),
-  ('缶', 4),
-  ('瓶', 5),
-  ('パック', 6),
-  ('セット', 7),
-  ('巻', 8),
-  ('ロール', 9),
-  ('枚', 10),
-  ('束', 11),
-  ('ケース', 12),
-  ('kg', 13),
-  ('g', 14),
-  ('L', 15),
-  ('ml', 16),
-  ('食', 17),
-  ('チューブ', 18)
+  ('パック', 4)
 ) as v(name, sort_order)
 on conflict (household_id, name) do nothing;
 
@@ -538,3 +524,21 @@ begin
     drop table if exists public.households;
   end if;
 end $$;
+
+-- 単位候補を 個・本・袋・箱・パック の5つにまとめる
+update public.items
+set unit = case
+  when unit in ('本', '巻', 'ロール', 'チューブ') then '本'
+  when unit = '袋' then '袋'
+  when unit in ('箱', '缶', '瓶', 'ケース') then '箱'
+  when unit = 'パック' then 'パック'
+  else '個'
+end
+where coalesce(unit, '') <> '';
+
+delete from public.units
+where name not in ('個', '本', '袋', '箱', 'パック');
+
+insert into public.units (name, sort_order)
+values ('個', 0), ('本', 1), ('袋', 2), ('箱', 3), ('パック', 4)
+on conflict (name) do update set sort_order = excluded.sort_order;
