@@ -1909,18 +1909,8 @@ function primaryCountPlace(item) {
 function updatePageTitle() {
   const titleEl = document.getElementById('page-title');
   if (!titleEl) return;
-  if (currentPage !== 'inventory') {
-    titleEl.textContent = APP_TITLE;
-    document.title = APP_TITLE;
-    return;
-  }
-  const items = getScopeItems();
-  const remaining = items.filter(item => !item.entered).length;
-  const place = inventoryPlaceFilter !== ALL_FILTER ? placeLabel(inventoryPlaceFilter === UNSET_PLACE_FILTER ? '' : inventoryPlaceFilter) : '';
-  const rest = remaining === 0 ? '完了' : `未入力 ${remaining}`;
-  const text = place ? `${place} · ${rest}` : rest;
-  titleEl.textContent = text;
-  document.title = text;
+  titleEl.textContent = APP_TITLE;
+  document.title = APP_TITLE;
 }
 
 function updateInventoryProgress() {
@@ -2061,7 +2051,7 @@ function renderInventory() {
       const minusDisabled = item.entered && item.count <= 0;
       const countControls = showCount ? `
                   <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1減らす" ${minusDisabled ? 'disabled' : ''} onclick="adjustCount(event, this.dataset.itemId, -1)">−</button>
-                  <input type="text" class="count-input${item.entered ? '' : ' unentered'}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" placeholder="未入力" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
+                  <input type="text" class="count-input${item.entered ? '' : ' unentered'}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="filterCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
                   <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1増やす" onclick="adjustCount(event, this.dataset.itemId, 1)">＋</button>
                   <span class="unit-suffix">${item.unit}</span>` : `<span class="count-shared-note">「${primaryCountPlace(item)}」で入力${item.entered ? ` · ${formatQty(item.count, item.unit)}` : ' · 未入力'}</span>`;
       itemDiv.innerHTML = `

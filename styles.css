@@ -234,11 +234,13 @@ h1 {
   text-align: right;
 }
 .inventory-count .count-input {
-  width: 5em;
-  min-width: 5em;
+  width: calc(2.2ch + 1.15em);
+  min-width: calc(2.2ch + 1.15em);
   flex: 0 0 auto;
   padding-left: 6px;
   padding-right: 6px;
+  background: none;
+  border-color: #ccc;
 }
 .inventory-count .unit-suffix {
   width: 4.5em;
@@ -250,6 +252,7 @@ h1 {
   min-width: 40px;
   min-height: 40px;
   padding: 0;
+  background: none;
 }
 .item-head {
   display: flex;
@@ -263,7 +266,7 @@ h1 {
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid #ccc;
-  background: white;
+  background: none;
   border-radius: 8px;
   font-size: 18px;
   line-height: 1;
@@ -572,7 +575,6 @@ button.order-group-title:active {
   cursor: default;
 }
 .count-input.unentered {
-  border-color: #cfd8dc;
   font-weight: normal;
   color: #546e7a;
 }
@@ -662,8 +664,8 @@ button.order-group-title:active {
   min-height: 44px;
   text-align: right; 
   font-weight: bold;
-  border: 1px solid #90caf9;
-  background: transparent;
+  border: 1px solid #ccc;
+  background: none;
   border-radius: 8px;
   padding: 8px 8px 8px 6px;
   box-sizing: border-box;
@@ -671,9 +673,9 @@ button.order-group-title:active {
 }
 .count-input:focus {
   outline: none;
-  border-color: #1565c0;
-  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
-  background: transparent;
+  border-color: #ccc;
+  box-shadow: none;
+  background: none;
 }
 .count-input::placeholder {
   color: #90a4ae;
