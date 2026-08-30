@@ -269,6 +269,109 @@ function needsOrderAction(item) {
   return needsOrder(item) && !itemPendingMode(item);
 }
 
+function itemSyncPending(item) {
+  const mode = itemPendingMode(item);
+  if (!mode) return { pendingMode: null, pendingDest: '', pendingQty: null };
+  return {
+    pendingMode: mode,
+    pendingDest: normalizePurchaseDest(item.pendingDest) || '',
+    pendingQty: itemOrderQty(item)
+  };
+}
+
+function captureFulfillment(item) {
+  return {
+    id: item.id,
+    count: item.count,
+    entered: item.entered,
+    lastOrderedOn: item.lastOrderedOn,
+    pendingMode: item.pendingMode || null,
+    pendingDest: item.pendingDest || '',
+    pendingQty: item.pendingQty == null ? null : item.pendingQty
+  };
+}
+
+function restoreFulfillment(item, snap) {
+  item.count = snap.count;
+  item.entered = snap.entered;
+  item.lastOrderedOn = snap.lastOrderedOn;
+  item.pendingMode = snap.pendingMode;
+  item.pendingDest = snap.pendingDest;
+  item.pendingQty = snap.pendingQty;
+}
+
+function clearItemPending(item) {
+  item.pendingMode = null;
+  item.pendingDest = '';
+  item.pendingQty = null;
+}
+
+function fillItemToTarget(item) {
+  item.count = item.target;
+  item.entered = true;
+  item.lastOrderedOn = todayIsoDate();
+  clearItemPending(item);
+}
+
+function queueItemFulfillment(item, dest) {
+  const mode = destKind(dest) === 'online' ? 'receipt' : 'shopping';
+  item.pendingMode = mode;
+  item.pendingDest = dest === UNSET_PURCHASE_DEST_LABEL ? '' : (normalizePurchaseDest(dest) || '');
+  item.pendingQty = Math.max(0, Number(item.target || 0) - Number(item.count || 0));
+  return mode;
+}
+
+function fulfillmentCounts() {
+  return {
+    order: stockItems.filter(needsOrderAction).length,
+    shopping: stockItems.filter(item => itemPendingMode(item) === 'shopping').length,
+    receipt: stockItems.filter(item => itemPendingMode(item) === 'receipt').length
+  };
+}
+
+function itemsForOrderView(view) {
+  if (view === 'shopping' || view === 'receipt') {
+    return stockItems.filter(item =>
+      itemPendingMode(item) === view &&
+      itemMatchesCategory(item, orderCategoryFilter) &&
+      itemMatchesPendingDest(item, orderPurchaseDestFilter)
+    );
+  }
+  return stockItems.filter(item =>
+    needsOrderAction(item) &&
+    itemMatchesCategory(item, orderCategoryFilter) &&
+    itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
+  );
+}
+
+function groupOrderItemsByDest(items, view) {
+  const destGroups = new Map();
+  const addToGroup = (dest, item) => {
+    if (!destGroups.has(dest)) destGroups.set(dest, new Map());
+    const cats = destGroups.get(dest);
+    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+    if (!cats.has(cat)) cats.set(cat, []);
+    cats.get(cat).push(item);
+  };
+  items.forEach(item => {
+    if (view === 'order') {
+      const dests = itemPurchaseDests(item);
+      if (!dests.length) {
+        addToGroup(UNSET_PURCHASE_DEST_LABEL, item);
+        return;
+      }
+      dests.forEach(dest => {
+        if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
+          addToGroup(dest, item);
+        }
+      });
+      return;
+    }
+    addToGroup(normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL, item);
+  });
+  return destGroups;
+}
+
 purchaseDestKinds = loadPurchaseDestKinds();
 
 function itemPurchaseDests(item) {
