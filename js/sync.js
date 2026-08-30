@@ -112,9 +112,12 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
     const key = String(row.id);
     const fromJoin = unitsByItem[key];
     const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
-    const checkUnits = fromJoin && fromJoin.length
-      ? fromJoin
-      : (fallbackPlace ? [{ cycle: cycles[0] || DEFAULT_CYCLES[0], place: fallbackPlace }] : []);
+    const defaultCycle = cycles[0] || DEFAULT_CYCLES[0];
+    let checkUnits = fromJoin && fromJoin.length ? fromJoin : [];
+    if (!checkUnits.length) {
+      if (fallbackPlace) checkUnits = [{ cycle: defaultCycle, place: fallbackPlace }];
+      else checkUnits = [{ cycle: defaultCycle, place: '' }];
+    }
     return migrateItem({
       id: row.id,
       name: row.name,
@@ -168,11 +171,11 @@ async function fetchCloudState() {
     .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
   if (itemError) throw itemError;
 
-  let memberships = [];
   const { data: membershipRows, error: membershipError } = await supabaseClient
     .from('item_check_units')
     .select('item_id,check_unit_id');
-  if (!membershipError) memberships = membershipRows || [];
+  if (membershipError) throw membershipError;
+  const memberships = membershipRows || [];
 
   if (!(cycleRows || []).length && !(rows || []).length) return null;
 
@@ -181,14 +184,14 @@ async function fetchCloudState() {
 
 function applyFetchedState(state) {
   applyingRemote = true;
-  customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
+  customCycles = migrateCycleNames(state.cycles.length ? state.cycles : [...DEFAULT_CYCLES]);
   customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
   customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
     cycle: customCycles[0] || DEFAULT_CYCLES[0],
     place
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-  customUnits = [...DEFAULT_UNITS];
+  customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
   stockItems = stockItems.map(migrateItem);
@@ -446,13 +449,18 @@ async function pushToCloud() {
 
     const membershipRows = [];
     const membershipItemIds = [];
+    let unresolvedMemberships = 0;
     stockItems.forEach(item => {
       const itemId = String(item.id);
       const rows = [];
       const units = itemCheckUnits(item);
       units.forEach(unit => {
         const checkUnitId = unitKeyToId[unitKey(unit)];
-        if (!checkUnitId) return;
+        if (!checkUnitId) {
+          unresolvedMemberships += 1;
+          console.warn('check_unit not found for membership sync', unitKey(unit), unit);
+          return;
+        }
         rows.push({
           item_id: itemId,
           check_unit_id: checkUnitId
@@ -464,6 +472,16 @@ async function pushToCloud() {
         membershipItemIds.push(itemId);
       }
     });
+    const expectedMemberships = stockItems.reduce((count, item) => count + itemCheckUnits(item).length, 0);
+    if (expectedMemberships > 0 && membershipRows.length === 0) {
+      console.error('skip membership sync: could not resolve any check_unit ids', {
+        expectedMemberships,
+        unresolvedMemberships,
+        customCheckUnits,
+        unitKeyToId
+      });
+      throw new Error('check_unit id resolution failed');
+    }
     if (membershipItemIds.length) {
       const { error: membershipClearError } = await supabaseClient
         .from('item_check_units')
