@@ -2,7 +2,8 @@ const SUPABASE_CONFIG = {
   url: 'https://dmvznvxczrpbqrzfcqcc.supabase.co',
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdnpudnhjenJwYnFyemZjcWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjgxNjUsImV4cCI6MjEwMzU0NDE2NX0.tOPfmnQr5HTPk28H-bvfTIuhLzhjBB33JLeZldxzndM'
 };
-const DEFAULT_CYCLES = ['MONTHLY', 'WEEKLY'];
+const DEFAULT_CYCLES = ['月単位', '週単位'];
+const LEGACY_CYCLE_NAMES = { MONTHLY: '月単位', WEEKLY: '週単位' };
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
 const DEFAULT_UNITS = ['個', '本', '袋', '箱', 'パック'];
@@ -16,9 +17,26 @@ const ADD_NEW_VALUE = 'ADD_NEW';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
 
-let customUnits = [...DEFAULT_UNITS];
+let customUnits = loadNameList('stockUnits', DEFAULT_UNITS);
 
-let customCycles = loadNameList('stockCycles', DEFAULT_CYCLES);
+function normalizeCycleName(name) {
+  const trimmed = String(name || '').trim();
+  return LEGACY_CYCLE_NAMES[trimmed] || trimmed;
+}
+
+function migrateCycleNames(list) {
+  const seen = new Set();
+  const next = [];
+  (list || []).forEach(name => {
+    const normalized = normalizeCycleName(name);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    next.push(normalized);
+  });
+  return next.length ? next : [...DEFAULT_CYCLES];
+}
+
+let customCycles = migrateCycleNames(loadNameList('stockCycles', DEFAULT_CYCLES));
 let customPlaces = loadNameList('stockPlaces', loadNameList('stockLocations', DEFAULT_PLACES));
 customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(loc));
 if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
@@ -172,7 +190,7 @@ function fallbackCycleName() {
 function normalizeUnit(raw) {
   if (!raw) return null;
   if (typeof raw === 'object' && raw.cycle) {
-    const cycle = String(raw.cycle).trim();
+    const cycle = normalizeCycleName(String(raw.cycle).trim());
     const place = String(raw.place || '').trim();
     if (!cycle || place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
     return { cycle, place };

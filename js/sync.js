@@ -112,13 +112,19 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
     const key = String(row.id);
     const fromJoin = unitsByItem[key];
     const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
+    const defaultCycle = cycles[0] || DEFAULT_CYCLES[0];
+    let checkUnits = fromJoin && fromJoin.length ? fromJoin : [];
+    if (!checkUnits.length) {
+      if (fallbackPlace) checkUnits = [{ cycle: defaultCycle, place: fallbackPlace }];
+      else checkUnits = [{ cycle: defaultCycle, place: '' }];
+    }
     return migrateItem({
       id: row.id,
       name: row.name,
       category: row.category,
       count: row.count,
       location: fallbackPlace,
-      checkUnits: fromJoin && fromJoin.length ? fromJoin : [],
+      checkUnits,
       target: row.target_qty,
       orderThreshold: row.order_threshold,
       unit: row.unit,
@@ -165,11 +171,11 @@ async function fetchCloudState() {
     .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
   if (itemError) throw itemError;
 
-  let memberships = [];
   const { data: membershipRows, error: membershipError } = await supabaseClient
     .from('item_check_units')
     .select('item_id,check_unit_id');
-  if (!membershipError) memberships = membershipRows || [];
+  if (membershipError) throw membershipError;
+  const memberships = membershipRows || [];
 
   if (!(cycleRows || []).length && !(rows || []).length) return null;
 
@@ -178,14 +184,14 @@ async function fetchCloudState() {
 
 function applyFetchedState(state) {
   applyingRemote = true;
-  customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
+  customCycles = migrateCycleNames(state.cycles.length ? state.cycles : [...DEFAULT_CYCLES]);
   customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
   customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
     cycle: customCycles[0] || DEFAULT_CYCLES[0],
     place
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-  customUnits = [...DEFAULT_UNITS];
+  customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
   stockItems.forEach(item => {
     if (item.category) ensureCategory(item.category);
@@ -436,28 +442,46 @@ async function pushToCloud() {
     const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
 
     const membershipRows = [];
+    let unresolvedMemberships = 0;
     stockItems.forEach(item => {
       itemCheckUnits(item).forEach(unit => {
         const checkUnitId = unitKeyToId[unitKey(unit)];
-        if (!checkUnitId) return;
+        if (!checkUnitId) {
+          unresolvedMemberships += 1;
+          console.warn('check_unit not found for membership sync', unitKey(unit), unit);
+          return;
+        }
         membershipRows.push({
           item_id: String(item.id),
           check_unit_id: checkUnitId
         });
       });
     });
-    const { error: membershipClearError } = await supabaseClient
-      .from('item_check_units')
-      .delete()
-      .not('item_id', 'is', null);
-    if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
-      throw membershipClearError;
+    const expectedMemberships = stockItems.reduce((count, item) => count + itemCheckUnits(item).length, 0);
+    if (expectedMemberships > 0 && membershipRows.length === 0) {
+      console.error('skip membership sync: could not resolve any check_unit ids', {
+        expectedMemberships,
+        unresolvedMemberships,
+        customCheckUnits,
+        unitKeyToId
+      });
+      throw new Error('check_unit id resolution failed');
     }
-    if (!membershipClearError && membershipRows.length) {
-      const { error: membershipInsertError } = await supabaseClient
+    const localItemIds = stockItems.map(item => String(item.id));
+    if (localItemIds.length) {
+      const { error: membershipClearError } = await supabaseClient
         .from('item_check_units')
-        .insert(membershipRows);
-      if (membershipInsertError) throw membershipInsertError;
+        .delete()
+        .in('item_id', localItemIds);
+      if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
+        throw membershipClearError;
+      }
+      if (!membershipClearError && membershipRows.length) {
+        const { error: membershipInsertError } = await supabaseClient
+          .from('item_check_units')
+          .insert(membershipRows);
+        if (membershipInsertError) throw membershipInsertError;
+      }
     }
     if (extraItemIds.length) {
       const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
