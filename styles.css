@@ -221,31 +221,40 @@ h1 {
 }
 .inventory-count {
   grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: 1fr 44px auto 44px 1fr;
   align-items: center;
-  gap: 6px;
+  column-gap: 6px;
   width: 100%;
   min-width: 0;
 }
 .inventory-count .count-shared-note {
-  flex: 1;
+  grid-column: 1 / -1;
   margin: 0;
-  text-align: right;
+  text-align: center;
+}
+.inventory-count .count-step:first-of-type {
+  grid-column: 2;
 }
 .inventory-count .count-input {
-  width: calc(2.2ch + 1.15em);
-  min-width: calc(2.2ch + 1.15em);
-  flex: 0 0 auto;
+  grid-column: 3;
+  width: calc(2.6ch + 1.15em);
+  min-width: calc(2.6ch + 1.15em);
+  justify-self: center;
   padding-left: 6px;
   padding-right: 6px;
+  text-align: center;
   background: none;
   border-color: #ccc;
 }
+.inventory-count .count-step:last-of-type {
+  grid-column: 4;
+}
 .inventory-count .unit-suffix {
-  width: 4.5em;
-  flex: 0 0 4.5em;
-  max-width: none;
+  grid-column: 5;
+  width: auto;
+  max-width: 4.5em;
+  justify-self: start;
   text-align: left;
 }
 .item.inventory-item .item-edit-btn {
@@ -253,6 +262,8 @@ h1 {
   min-height: 40px;
   padding: 0;
   background: none;
+  color: #555;
+  border-color: #bbb;
 }
 .item-head {
   display: flex;
@@ -265,8 +276,9 @@ h1 {
   min-width: 44px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid #ccc;
+  border: 1px solid #bbb;
   background: none;
+  color: #555;
   border-radius: 8px;
   font-size: 18px;
   line-height: 1;
@@ -364,6 +376,21 @@ button.order-group-title:active {
 .order-group-chevron {
   flex-shrink: 0;
   width: 1em;
+}
+.order-group-check {
+  flex-shrink: 0;
+  color: #2e7d32;
+  font-weight: bold;
+}
+.order-group.place-complete > .order-group-title {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.order-group.place-complete > .order-group-title:active {
+  background: #c8e6c9;
+}
+.order-group.place-complete .order-group-count {
+  color: #2e7d32;
 }
 .order-group-count {
   margin-left: auto;
@@ -662,14 +689,14 @@ button.order-group-title:active {
   font-size: 1.35em; 
   width: 100%; 
   min-height: 44px;
-  text-align: right; 
+  text-align: center; 
   font-weight: bold;
   border: 1px solid #ccc;
   background: none;
   border-radius: 8px;
-  padding: 8px 8px 8px 6px;
+  padding: 8px 6px;
   box-sizing: border-box;
-  caret-color: #1565c0;
+  caret-color: #555;
 }
 .count-input:focus {
   outline: none;
@@ -681,7 +708,7 @@ button.order-group-title:active {
   color: #90a4ae;
   font-weight: normal;
   font-size: 0.85em;
-  text-align: right;
+  text-align: center;
 }
 /* 数値入力のスピンボタンを非表示にする（すっきり見せるため） */
 .count-input::-webkit-outer-spin-button,

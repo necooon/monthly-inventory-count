@@ -48,6 +48,7 @@ let cloudPushInProgress = false;
 let pullAfterPush = false;
 let skipScheduledCloudSave = false;
 let localSyncEpoch = 0;
+let cloudHydrated = false;
 
 const APP_TITLE = 'Check＆Stock';
 const PAGE_IDS = ['inventory', 'order', 'settings'];
@@ -609,10 +610,10 @@ function persistLocalState() {
   stockItems.forEach(syncItemFlags);
   localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
   persistMasters();
-  if (!applyingRemote) {
-    localSyncEpoch += 1;
-    if (!skipScheduledCloudSave) scheduleCloudSave();
-  }
+  if (applyingRemote) return;
+  if (typeof isCloudReady === 'function' && isCloudReady() && !cloudHydrated) return;
+  localSyncEpoch += 1;
+  if (!skipScheduledCloudSave) scheduleCloudSave();
 }
 
 function saveAndRender() {
