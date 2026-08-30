@@ -9,7 +9,8 @@ const StorageKeys = {
   CHECK_UNITS: 'stockCheckUnits',
   CURRENT_PAGE: 'currentPage',
   SETTINGS_SECTIONS: 'settingsOpenSections',
-  INVENTORY_COLLAPSED: 'inventoryCollapsedPlaces'
+  INVENTORY_COLLAPSED: 'inventoryCollapsedPlaces',
+  ORDER_COLLAPSED: 'orderCollapsedDests'
 };
 
 function loadJson(key, fallback) {
@@ -47,6 +48,10 @@ function persistInventoryCollapsedPlaces() {
   saveJson(StorageKeys.INVENTORY_COLLAPSED, [...inventoryCollapsedPlaces]);
 }
 
+function persistOrderCollapsedDests() {
+  saveJson(StorageKeys.ORDER_COLLAPSED, [...orderCollapsedDests]);
+}
+
 function persistSettingsOpenSections() {
   saveJson(StorageKeys.SETTINGS_SECTIONS, [...settingsOpenSections]);
 }
@@ -61,6 +66,12 @@ function loadItems(fallback) {
 
 function loadInventoryCollapsedPlaces() {
   const parsed = loadJson(StorageKeys.INVENTORY_COLLAPSED, null);
+  if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
+  return new Set();
+}
+
+function loadOrderCollapsedDests() {
+  const parsed = loadJson(StorageKeys.ORDER_COLLAPSED, null);
   if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
   return new Set();
 }
