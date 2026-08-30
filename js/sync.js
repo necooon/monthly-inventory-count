@@ -91,6 +91,19 @@ async function pullFromCloud() {
       });
       state.purchaseDestKinds = merged;
     }
+    if (!state.itemPendingFromDb) {
+      const localById = Object.fromEntries(stockItems.map(item => [String(item.id), item]));
+      state.items = (state.items || []).map(item => {
+        const local = localById[String(item.id)];
+        if (!local) return item;
+        return {
+          ...item,
+          pendingMode: local.pendingMode,
+          pendingDest: local.pendingDest,
+          pendingQty: local.pendingQty
+        };
+      });
+    }
     if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) {
       return;
     }

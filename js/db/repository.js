@@ -51,12 +51,14 @@ const DbRepository = {
       .order('sort_order');
     if (checkUnitError) throw checkUnitError;
 
-    const { data: rows, error: itemError } = await (async () => {
+    const itemSelect = await (async () => {
       const preferred = await client.from('items').select(ITEM_COLUMNS);
-      if (!preferred.error) return preferred;
-      if (!isMissingColumnError(preferred.error)) return preferred;
-      return client.from('items').select(ITEM_COLUMNS_FALLBACK);
+      if (!preferred.error) return { ...preferred, pendingFromDb: true };
+      if (!isMissingColumnError(preferred.error)) return { ...preferred, pendingFromDb: false };
+      const fallback = await client.from('items').select(ITEM_COLUMNS_FALLBACK);
+      return { ...fallback, pendingFromDb: false };
     })();
+    const { data: rows, error: itemError, pendingFromDb: itemPendingFromDb } = itemSelect;
     if (itemError) throw itemError;
 
     const { data: membershipRows, error: membershipError } = await client
@@ -67,7 +69,9 @@ const DbRepository = {
 
     if (!(cycleRows || []).length && !(rows || []).length) return null;
 
-    return DbMapper.stateFromCloudRows(cycleRows, locs, checkUnitRows, categoryRows, stockUnitRows, rows, memberships, destRows);
+    const state = DbMapper.stateFromCloudRows(cycleRows, locs, checkUnitRows, categoryRows, stockUnitRows, rows, memberships, destRows);
+    if (state) state.itemPendingFromDb = !!itemPendingFromDb;
+    return state;
   },
 
   async fetchMasterSnapshots() {
