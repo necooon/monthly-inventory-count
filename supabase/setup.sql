@@ -527,11 +527,7 @@ begin
     alter table public.units add constraint units_name_key unique (name);
 
     create unique index if not exists check_units_cycle_loc_uidx
-      on public.check_units (cycle_id, location_id)
-      where location_id is not null;
-    create unique index if not exists check_units_cycle_null_loc_uidx
-      on public.check_units (cycle_id)
-      where location_id is null;
+      on public.check_units (cycle_id, location_id) nulls not distinct;
 
     create index if not exists locations_sort_order_idx on public.locations (sort_order);
     create index if not exists cycles_sort_order_idx on public.cycles (sort_order);

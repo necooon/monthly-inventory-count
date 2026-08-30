@@ -1472,8 +1472,25 @@ function applyFetchedState(state) {
 async function upsertNamedRows(table, rows, onConflict) {
   if (!rows.length) return;
   const { error } = await supabaseClient.from(table).upsert(rows, { onConflict });
-  if (error) {
-    for (const row of rows) {
+  if (!error) return;
+  for (const row of rows) {
+    let finder = supabaseClient.from(table).select('id');
+    if (row.name != null) {
+      finder = finder.eq('name', row.name);
+    } else if (row.cycle_id != null) {
+      finder = finder.eq('cycle_id', row.cycle_id);
+      finder = row.location_id == null ? finder.is('location_id', null) : finder.eq('location_id', row.location_id);
+    } else {
+      const { error: insertError } = await supabaseClient.from(table).insert(row);
+      if (insertError && insertError.code !== '23505') throw insertError;
+      continue;
+    }
+    const { data: existing, error: findError } = await finder.maybeSingle();
+    if (findError) throw findError;
+    if (existing) {
+      const { error: updateError } = await supabaseClient.from(table).update(row).eq('id', existing.id);
+      if (updateError) throw updateError;
+    } else {
       const { error: insertError } = await supabaseClient.from(table).insert(row);
       if (insertError && insertError.code !== '23505') throw insertError;
     }
