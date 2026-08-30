@@ -162,19 +162,44 @@ function overlayFocusables(overlay) {
     .filter(el => !el.disabled && el.offsetParent !== null);
 }
 
+function syncVisualViewportVars() {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  if (!vv) {
+    root.style.setProperty('--vv-top', '0px');
+    root.style.setProperty('--vv-height', window.innerHeight + 'px');
+    return;
+  }
+  root.style.setProperty('--vv-top', Math.max(0, vv.offsetTop) + 'px');
+  root.style.setProperty('--vv-height', Math.max(0, vv.height) + 'px');
+}
+
+function isCoarsePointer() {
+  return window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
 function revealItemFormStart(overlayId, nameInputId, options = {}) {
+  syncVisualViewportVars();
   const overlay = document.getElementById(overlayId);
   const input = document.getElementById(nameInputId);
   const body = overlay && overlay.querySelector('.modal-body');
   if (overlay) overlay.scrollTop = 0;
   if (body) body.scrollTop = 0;
   requestAnimationFrame(() => {
+    syncVisualViewportVars();
     if (overlay) overlay.scrollTop = 0;
     if (body) body.scrollTop = 0;
-    if (!input) return;
+    if (!input || isCoarsePointer()) return;
     input.focus({ preventScroll: true });
     if (options.select) input.select();
   });
+}
+
+syncVisualViewportVars();
+window.addEventListener('resize', syncVisualViewportVars);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncVisualViewportVars);
+  window.visualViewport.addEventListener('scroll', syncVisualViewportVars);
 }
 
 // 入力モーダルを表示して入力値を返す（prompt() の代替。IMEでの日本語入力が可能）
@@ -1064,13 +1089,10 @@ function closeEditModal() {
 }
 
 function itemFormFieldsHtml(prefix, options = {}) {
-  const namePh = options.namePlaceholder || 'アイテム名';
   const targetAttr = options.targetValue != null ? ` value="${options.targetValue}"` : '';
   const thresholdAttr = options.thresholdValue != null ? ` value="${options.thresholdValue}"` : '';
   const readout = prefix === 'new-item' ? 'new' : 'edit';
   return `
-      <label for="${prefix}-name">アイテム名</label>
-      <input type="text" id="${prefix}-name" placeholder="${namePh}">
       <label for="${prefix}-category">カテゴリ</label>
       <select id="${prefix}-category" onchange="handleCategorySelectChange(this)"></select>
       <div class="field-pair cycle-place-pair">
@@ -1109,7 +1131,6 @@ function mountItemForms() {
   const add = document.getElementById('new-item-form');
   if (edit) edit.innerHTML = itemFormFieldsHtml('edit-item');
   if (add) add.innerHTML = itemFormFieldsHtml('new-item', {
-    namePlaceholder: 'アイテム名（例：シャンプー）',
     targetValue: 1,
     thresholdValue: 0
   });
