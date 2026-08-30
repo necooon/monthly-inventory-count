@@ -302,6 +302,13 @@ async function pushToCloud() {
   if (!isCloudReady()) return false;
   cloudPushInProgress = true;
   try {
+    const { count: cloudItemCount, error: cloudCountError } = await supabaseClient
+      .from('items')
+      .select('id', { count: 'exact', head: true });
+    if (!cloudCountError && cloudItemCount != null && stockItems.length < 20 && cloudItemCount > Math.max(stockItems.length * 2, 10)) {
+      console.error('skip cloud save: local catalog is much smaller than cloud');
+      return false;
+    }
     const [
       { data: preCycleRows, error: preCycleReadError },
       { data: preLocs, error: preLocReadError },
@@ -511,10 +518,12 @@ async function startCloudListener() {
     syncUnsub = null;
   }
   if (!isCloudReady()) {
+    cloudHydrated = true;
     return;
   }
 
   await pullFromCloud();
+  cloudHydrated = true;
 
   const channel = supabaseClient
     .channel('app-sync')

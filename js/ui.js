@@ -842,14 +842,16 @@ function renderInventory() {
   keys.forEach(place => {
     const placeItems = groups.get(place).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
     const collapsed = inventoryCollapsedPlaces.has(place);
+    const placeDone = placeItems.length > 0 && placeItems.every(item => item.entered);
     const group = document.createElement('div');
-    group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+    group.className = `order-group${collapsed ? ' collapsed' : ''}${placeDone ? ' place-complete' : ''}`;
     group.dataset.place = place;
     const title = document.createElement('button');
     title.type = 'button';
     title.className = 'order-group-title';
     title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
+    if (placeDone) title.setAttribute('aria-label', `${place}、チェック完了、${placeItems.length}件`);
+    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span>${placeDone ? '<span class="order-group-check" aria-hidden="true">✓</span>' : ''}<span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
     title.onclick = () => toggleInventoryPlaceGroup(place);
     group.appendChild(title);
     const body = document.createElement('div');
