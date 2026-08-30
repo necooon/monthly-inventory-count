@@ -112,13 +112,16 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
     const key = String(row.id);
     const fromJoin = unitsByItem[key];
     const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
+    const checkUnits = fromJoin && fromJoin.length
+      ? fromJoin
+      : (fallbackPlace ? [{ cycle: cycles[0] || DEFAULT_CYCLES[0], place: fallbackPlace }] : []);
     return migrateItem({
       id: row.id,
       name: row.name,
       category: row.category,
       count: row.count,
       location: fallbackPlace,
-      checkUnits: fromJoin && fromJoin.length ? fromJoin : [],
+      checkUnits,
       target: row.target_qty,
       orderThreshold: row.order_threshold,
       unit: row.unit,
@@ -187,6 +190,8 @@ function applyFetchedState(state) {
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
   customUnits = [...DEFAULT_UNITS];
   stockItems = state.items.map(migrateItem);
+  migrateLegacyCycleNames();
+  stockItems = stockItems.map(migrateItem);
   stockItems.forEach(item => {
     if (item.category) ensureCategory(item.category);
     if (item.unit) ensureUnit(item.unit);
@@ -362,6 +367,10 @@ async function pushToCloud() {
     if (locReadError) throw locReadError;
     const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
 
+    stockItems.forEach(item => {
+      itemCheckUnits(item).forEach(unit => ensureCheckUnit(unit.cycle, unit.place));
+    });
+
     const placedRows = customCheckUnits.map((unit, index) => ({
       cycle_id: cycleNameToId[unit.cycle],
       location_id: unit.place ? nameToId[unit.place] : null,
@@ -432,32 +441,43 @@ async function pushToCloud() {
       .from('items')
       .select('id');
     if (itemReadError) throw itemReadError;
-    const localIds = new Set(stockItems.map(item => String(item.id)));
-    const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
+    const localIdSet = new Set(stockItems.map(item => String(item.id)));
+    const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIdSet.has(String(id)));
 
     const membershipRows = [];
+    const membershipItemIds = [];
     stockItems.forEach(item => {
-      itemCheckUnits(item).forEach(unit => {
+      const itemId = String(item.id);
+      const rows = [];
+      const units = itemCheckUnits(item);
+      units.forEach(unit => {
         const checkUnitId = unitKeyToId[unitKey(unit)];
         if (!checkUnitId) return;
-        membershipRows.push({
-          item_id: String(item.id),
+        rows.push({
+          item_id: itemId,
           check_unit_id: checkUnitId
         });
       });
+      const hasPlacedUnits = units.some(unit => unit.place);
+      if (rows.length || !hasPlacedUnits) {
+        membershipRows.push(...rows);
+        membershipItemIds.push(itemId);
+      }
     });
-    const { error: membershipClearError } = await supabaseClient
-      .from('item_check_units')
-      .delete()
-      .not('item_id', 'is', null);
-    if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
-      throw membershipClearError;
-    }
-    if (!membershipClearError && membershipRows.length) {
-      const { error: membershipInsertError } = await supabaseClient
+    if (membershipItemIds.length) {
+      const { error: membershipClearError } = await supabaseClient
         .from('item_check_units')
-        .insert(membershipRows);
-      if (membershipInsertError) throw membershipInsertError;
+        .delete()
+        .in('item_id', membershipItemIds);
+      if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
+        throw membershipClearError;
+      }
+      if (!membershipClearError && membershipRows.length) {
+        const { error: membershipInsertError } = await supabaseClient
+          .from('item_check_units')
+          .insert(membershipRows);
+        if (membershipInsertError) throw membershipInsertError;
+      }
     }
     if (extraItemIds.length) {
       const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
