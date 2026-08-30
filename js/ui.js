@@ -542,9 +542,14 @@ async function handleCategorySelectChange(select) {
 }
 
 function fillPlaceSelect(select, selectedValue) {
+  const trimmed = String(selectedValue || '').trim();
+  let names = customPlaces.filter(name => name && name !== REMOVED_LOCATION);
+  if (trimmed && !names.includes(trimmed) && !isReservedPlaceName(trimmed)) {
+    names = [trimmed, ...names];
+  }
   fillNamedSelect(select, {
-    names: customPlaces.filter(name => name && name !== REMOVED_LOCATION),
-    selectedValue: String(selectedValue || '').trim(),
+    names,
+    selectedValue: trimmed,
     emptyValue: '',
     emptyLabel: UNSET_PLACE_FILTER,
     addLabel: '＋新しい場所を追加...',

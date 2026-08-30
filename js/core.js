@@ -3,7 +3,10 @@ const SUPABASE_CONFIG = {
   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdnpudnhjenJwYnFyemZjcWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjgxNjUsImV4cCI6MjEwMzU0NDE2NX0.tOPfmnQr5HTPk28H-bvfTIuhLzhjBB33JLeZldxzndM'
 };
 const DEFAULT_CYCLES = ['月単位', '週単位'];
-const LEGACY_CYCLE_NAMES = { MONTHLY: '月単位', WEEKLY: '週単位' };
+const LEGACY_CYCLE_NAMES = {
+  MONTHLY: '月単位',
+  WEEKLY: '週単位'
+};
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
 const DEFAULT_UNITS = ['個', '本', '袋', '箱', 'パック'];
@@ -185,6 +188,21 @@ function unitsEqual(a, b) {
 
 function fallbackCycleName() {
   return customCycles[0] || DEFAULT_CYCLES[0];
+}
+
+function migrateLegacyCycleNames() {
+  customCycles = [...new Set(customCycles.map(normalizeCycleName))];
+  customCheckUnits = dedupeUnits(customCheckUnits.map(unit => ({
+    cycle: normalizeCycleName(unit.cycle),
+    place: unit.place
+  })));
+  stockItems.forEach(item => {
+    if (!Array.isArray(item.checkUnits)) return;
+    item.checkUnits = item.checkUnits.map(unit => ({
+      cycle: normalizeCycleName(unit.cycle),
+      place: unit.place
+    }));
+  });
 }
 
 function normalizeUnit(raw) {
@@ -523,13 +541,18 @@ function itemCheckUnits(item) {
     const one = normalizeUnit(item.location);
     if (one) units = [one];
   }
-  units = dedupeUnits(units).filter(u => customCheckUnits.some(master => unitsEqual(master, u)));
+  if (!units.length && item.location && !CATEGORY_PLACE_NAMES.has(item.location)) {
+    const one = normalizeUnit(item.location);
+    if (one) units = [one];
+  }
+  units = dedupeUnits(units);
+  units.forEach(u => ensureCheckUnit(u.cycle, u.place));
   return units;
 }
 
 function setItemCheckUnits(item, units) {
-  const next = dedupeUnits((units || []).map(normalizeUnit).filter(Boolean))
-    .filter(u => customCheckUnits.some(master => unitsEqual(master, u)));
+  const next = dedupeUnits((units || []).map(normalizeUnit).filter(Boolean));
+  next.forEach(u => ensureCheckUnit(u.cycle, u.place));
   item.checkUnits = next;
   item.location = item.checkUnits[0] ? item.checkUnits[0].place : '';
 }
@@ -594,7 +617,8 @@ function migrateItem(item) {
     const normalized = normalizeUnit(raw);
     if (normalized) units.push(normalized);
   });
-  if (!Array.isArray(item.checkUnits) && next.location && !CATEGORY_PLACE_NAMES.has(next.location)) {
+  const hasStoredUnits = Array.isArray(next.checkUnits) && next.checkUnits.length > 0;
+  if (!hasStoredUnits && next.location && !CATEGORY_PLACE_NAMES.has(next.location)) {
     const one = normalizeUnit(next.location);
     if (one) units = [one];
   }
@@ -651,6 +675,8 @@ let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) ||
   { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', checkUnits: [{ cycle: '月単位', place: 'キッチン' }], target: 2, orderThreshold: 0, unit: '本', entered: false }
 ];
 
+stockItems = stockItems.map(migrateItem);
+migrateLegacyCycleNames();
 stockItems = stockItems.map(migrateItem);
 localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
 stockItems.forEach(item => rememberUnit(item.unit));

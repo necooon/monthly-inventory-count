@@ -193,6 +193,8 @@ function applyFetchedState(state) {
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
   customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
+  migrateLegacyCycleNames();
+  stockItems = stockItems.map(migrateItem);
   stockItems.forEach(item => {
     if (item.category) ensureCategory(item.category);
     if (item.unit) ensureUnit(item.unit);
@@ -368,6 +370,10 @@ async function pushToCloud() {
     if (locReadError) throw locReadError;
     const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
 
+    stockItems.forEach(item => {
+      itemCheckUnits(item).forEach(unit => ensureCheckUnit(unit.cycle, unit.place));
+    });
+
     const placedRows = customCheckUnits.map((unit, index) => ({
       cycle_id: cycleNameToId[unit.cycle],
       location_id: unit.place ? nameToId[unit.place] : null,
@@ -438,24 +444,33 @@ async function pushToCloud() {
       .from('items')
       .select('id');
     if (itemReadError) throw itemReadError;
-    const localIds = new Set(stockItems.map(item => String(item.id)));
-    const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
+    const localIdSet = new Set(stockItems.map(item => String(item.id)));
+    const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIdSet.has(String(id)));
 
     const membershipRows = [];
+    const membershipItemIds = [];
     let unresolvedMemberships = 0;
     stockItems.forEach(item => {
-      itemCheckUnits(item).forEach(unit => {
+      const itemId = String(item.id);
+      const rows = [];
+      const units = itemCheckUnits(item);
+      units.forEach(unit => {
         const checkUnitId = unitKeyToId[unitKey(unit)];
         if (!checkUnitId) {
           unresolvedMemberships += 1;
           console.warn('check_unit not found for membership sync', unitKey(unit), unit);
           return;
         }
-        membershipRows.push({
-          item_id: String(item.id),
+        rows.push({
+          item_id: itemId,
           check_unit_id: checkUnitId
         });
       });
+      const hasPlacedUnits = units.some(unit => unit.place);
+      if (rows.length || !hasPlacedUnits) {
+        membershipRows.push(...rows);
+        membershipItemIds.push(itemId);
+      }
     });
     const expectedMemberships = stockItems.reduce((count, item) => count + itemCheckUnits(item).length, 0);
     if (expectedMemberships > 0 && membershipRows.length === 0) {
@@ -467,12 +482,11 @@ async function pushToCloud() {
       });
       throw new Error('check_unit id resolution failed');
     }
-    const localItemIds = stockItems.map(item => String(item.id));
-    if (localItemIds.length) {
+    if (membershipItemIds.length) {
       const { error: membershipClearError } = await supabaseClient
         .from('item_check_units')
         .delete()
-        .in('item_id', localItemIds);
+        .in('item_id', membershipItemIds);
       if (membershipClearError && membershipClearError.code !== '42P01' && membershipClearError.code !== 'PGRST205') {
         throw membershipClearError;
       }
