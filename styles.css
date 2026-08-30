@@ -921,6 +921,9 @@ button.order-group-title:active {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+.modal-body > * {
+  flex-shrink: 0;
+}
 .modal-content h3 {
   margin-top: 0;
   margin-bottom: 0;
@@ -939,12 +942,20 @@ button.order-group-title:active {
   font-size: 16px;
   width: 100%;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 .modal-content select {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 48px;
   min-height: 48px;
-  line-height: 1.4;
-  padding-right: 36px;
+  padding: 0 40px 0 12px;
+  line-height: 48px;
   background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%23555' d='M4.2 6.2 8 10l3.8-3.8 1.4 1.4L8 12.8 2.8 7.6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
   cursor: pointer;
 }
 .modal-content select option {
