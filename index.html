@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=43">
+<link rel="stylesheet" href="styles.css?v=44">
 </head>
 <body>
   <header class="app-header">
@@ -38,6 +38,11 @@
 
   <!-- 発注画面 -->
   <div class="page" id="page-order">
+  <div class="order-subnav" role="tablist" aria-label="発注の手順">
+    <button type="button" id="order-view-order" class="active" role="tab" aria-selected="true" onclick="setOrderFulfillmentView('order')">発注</button>
+    <button type="button" id="order-view-shopping" role="tab" aria-selected="false" onclick="setOrderFulfillmentView('shopping')">買い物</button>
+    <button type="button" id="order-view-receipt" role="tab" aria-selected="false" onclick="setOrderFulfillmentView('receipt')">受け取り</button>
+  </div>
   <div class="filter-bar" id="order-filters"></div>
   <div id="order-list"></div>
   <details class="ai-advisor-container">
@@ -64,8 +69,21 @@
   </div>
 
   <div class="undo-toast" id="undo-toast" role="status">
-    <span id="undo-toast-text">発注済みにしました</span>
+    <span id="undo-toast-text">リストへ移しました</span>
     <button type="button" onclick="undoLastOrder()">元に戻す</button>
+  </div>
+
+  <!-- 汎用選択モーダル -->
+  <div class="modal-overlay" id="choice-modal" role="presentation" onclick="if (event.target === this) resolveChoice(null)">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="choice-title">
+      <h3 id="choice-title">購入先の種別</h3>
+      <p class="settings-hint" id="choice-hint">ネットショップは注文後に受け取り待ちへ、店舗は買い物リストへ入ります。</p>
+      <div class="modal-actions dest-kind-actions">
+        <button type="button" class="btn-save" onclick="resolveChoice('online')">ネットショップ</button>
+        <button type="button" class="btn-save" onclick="resolveChoice('store')">店舗</button>
+        <button type="button" class="btn-cancel" onclick="resolveChoice(null)">キャンセル</button>
+      </div>
+    </div>
   </div>
 
   <!-- 汎用入力モーダル（日本語入力対応のため prompt() の代わりに使用） -->
@@ -114,13 +132,13 @@
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/db/localStore.js?v=43"></script>
-<script src="js/core.js?v=43"></script>
-<script src="js/db/client.js?v=43"></script>
-<script src="js/db/mapper.js?v=43"></script>
-<script src="js/db/repository.js?v=43"></script>
-<script src="js/sync.js?v=43"></script>
-<script src="js/ui.js?v=43"></script>
-<script src="js/boot.js?v=43"></script>
+<script src="js/db/localStore.js?v=44"></script>
+<script src="js/core.js?v=44"></script>
+<script src="js/db/client.js?v=44"></script>
+<script src="js/db/mapper.js?v=44"></script>
+<script src="js/db/repository.js?v=44"></script>
+<script src="js/sync.js?v=44"></script>
+<script src="js/ui.js?v=44"></script>
+<script src="js/boot.js?v=44"></script>
 </body>
 </html>

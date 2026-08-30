@@ -5,6 +5,7 @@ const DbMapper = {
       places: state.places,
       categories: state.categories,
       purchaseDests: state.purchaseDests,
+      purchaseDestKinds: state.purchaseDestKinds || Object.fromEntries((state.purchaseDests || []).map(name => [name, destKind(name)])),
       units: state.units,
       checkUnits: state.checkUnits.map(u => ({ cycle: u.cycle, place: u.place })),
       items: state.items.map(item => ({
@@ -18,7 +19,10 @@ const DbMapper = {
         orderThreshold: item.orderThreshold,
         unit: item.unit,
         entered: !!item.entered,
-        lastOrderedOn: normalizeDate(item.lastOrderedOn)
+        lastOrderedOn: normalizeDate(item.lastOrderedOn),
+        pendingMode: itemPendingMode(item),
+        pendingDest: itemPendingMode(item) ? (normalizePurchaseDest(item.pendingDest) || '') : '',
+        pendingQty: itemPendingMode(item) ? itemOrderQty(item) : null
       }))
     });
   },
@@ -29,6 +33,7 @@ const DbMapper = {
       places: customPlaces,
       categories: customCategories,
       purchaseDests: customPurchaseDests,
+      purchaseDestKinds,
       units: customUnits,
       checkUnits: customCheckUnits,
       items: stockItems
@@ -46,6 +51,14 @@ const DbMapper = {
     const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
     const destNames = (destRows || []).map(row => row.name).filter(Boolean);
     const purchaseDests = destNames.length ? destNames : [...DEFAULT_PURCHASE_DESTS];
+    const destKindColumn = (destRows || []).some(row => row && Object.prototype.hasOwnProperty.call(row, 'kind'));
+    const purchaseDestKinds = {};
+    purchaseDests.forEach(name => {
+      const row = (destRows || []).find(r => r && r.name === name);
+      purchaseDestKinds[name] = destKindColumn
+        ? normalizeDestKind(row && row.kind, name)
+        : defaultKindForDest(name);
+    });
     const unitNames = (stockUnitRows || []).map(row => row.name).filter(Boolean);
     const units = unitNames.length ? unitNames : [...DEFAULT_UNITS];
     const unitIdToUnit = {};
@@ -93,10 +106,23 @@ const DbMapper = {
         orderThreshold: row.order_threshold,
         unit: row.unit,
         entered: row.entered,
-        lastOrderedOn: row.last_ordered_on
+        lastOrderedOn: row.last_ordered_on,
+        pendingMode: row.pending_mode,
+        pendingDest: row.pending_dest,
+        pendingQty: row.pending_qty
       });
     });
-    return { cycles, places, categories, purchaseDests, units, checkUnits: resolvedUnits, items };
+    return {
+      cycles,
+      places,
+      categories,
+      purchaseDests,
+      purchaseDestKinds,
+      purchaseDestKindsFromDb: destKindColumn,
+      units,
+      checkUnits: resolvedUnits,
+      items
+    };
   },
 
   itemToDbRow(item, nameToId) {
@@ -114,6 +140,9 @@ const DbMapper = {
       unit: item.unit || '個',
       entered: !!item.entered,
       last_ordered_on: normalizeDate(item.lastOrderedOn),
+      pending_mode: itemPendingMode(item),
+      pending_dest: itemPendingMode(item) ? (normalizePurchaseDest(item.pendingDest) || '') : null,
+      pending_qty: itemPendingMode(item) ? itemOrderQty(item) : null,
       updated_at: new Date().toISOString()
     };
   },
@@ -169,6 +198,14 @@ const DbMapper = {
 
   namedMasterRows(names) {
     return names.map((name, index) => ({ name, sort_order: index }));
+  },
+
+  purchaseDestMasterRows() {
+    return customPurchaseDests.map((name, index) => ({
+      name,
+      sort_order: index,
+      kind: destKind(name)
+    }));
   },
 
   checkUnitRows(customCheckUnits, cycleNameToId, nameToId) {

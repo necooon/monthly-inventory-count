@@ -12,7 +12,7 @@ async function getAIAdvice() {
   const resultDiv = document.getElementById('ai-result');
   const loadingSpinner = document.getElementById('ai-loading');
   
-  const itemsToOrder = stockItems.filter(needsOrder);
+  const itemsToOrder = stockItems.filter(needsOrderAction);
   
   if (itemsToOrder.length === 0) {
     resultDiv.style.display = 'block';

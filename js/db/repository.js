@@ -4,6 +4,26 @@ async function fetchOrderedMaster(client, table) {
   return data || [];
 }
 
+function isMissingColumnError(error) {
+  if (!error) return false;
+  const code = String(error.code || '');
+  if (code === '42703' || code === 'PGRST204') return true;
+  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
+  return /schema cache|column .* does not exist|could not find .* column/i.test(text);
+}
+
+async function fetchPurchaseDestinations(client) {
+  const preferred = await client.from('purchase_destinations').select('id,name,sort_order,kind').order('sort_order');
+  if (!preferred.error) return preferred.data || [];
+  if (!isMissingColumnError(preferred.error)) throw preferred.error;
+  const fallback = await client.from('purchase_destinations').select('id,name,sort_order').order('sort_order');
+  if (fallback.error) throw fallback.error;
+  return fallback.data || [];
+}
+
+const ITEM_COLUMNS = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations,pending_mode,pending_dest,pending_qty';
+const ITEM_COLUMNS_FALLBACK = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations';
+
 async function deleteExtraNamedRows(client, table, cloudRows, localNames) {
   const extraIds = (cloudRows || [])
     .filter(row => !localNames.includes(row.name))
@@ -21,7 +41,7 @@ const DbRepository = {
       fetchOrderedMaster(client, 'cycles'),
       fetchOrderedMaster(client, 'locations'),
       fetchOrderedMaster(client, 'categories'),
-      fetchOrderedMaster(client, 'purchase_destinations'),
+      fetchPurchaseDestinations(client),
       fetchOrderedMaster(client, 'units')
     ]);
 
@@ -31,9 +51,12 @@ const DbRepository = {
       .order('sort_order');
     if (checkUnitError) throw checkUnitError;
 
-    const { data: rows, error: itemError } = await client
-      .from('items')
-      .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations');
+    const { data: rows, error: itemError } = await (async () => {
+      const preferred = await client.from('items').select(ITEM_COLUMNS);
+      if (!preferred.error) return preferred;
+      if (!isMissingColumnError(preferred.error)) return preferred;
+      return client.from('items').select(ITEM_COLUMNS_FALLBACK);
+    })();
     if (itemError) throw itemError;
 
     const { data: membershipRows, error: membershipError } = await client
@@ -172,7 +195,12 @@ const DbRepository = {
     await DbRepository.upsertNamedRows('cycles', DbMapper.namedMasterRows(customCycles), 'name');
     await DbRepository.upsertNamedRows('locations', DbMapper.namedMasterRows(customPlaces), 'name');
     await DbRepository.upsertNamedRows('categories', DbMapper.namedMasterRows(customCategories), 'name');
-    await DbRepository.upsertNamedRows('purchase_destinations', DbMapper.namedMasterRows(customPurchaseDests), 'name');
+    try {
+      await DbRepository.upsertNamedRows('purchase_destinations', DbMapper.purchaseDestMasterRows(), 'name');
+    } catch (error) {
+      if (!isMissingColumnError(error)) throw error;
+      await DbRepository.upsertNamedRows('purchase_destinations', DbMapper.namedMasterRows(customPurchaseDests), 'name');
+    }
     await DbRepository.upsertNamedRows('units', DbMapper.namedMasterRows(customUnits), 'name');
   },
 
@@ -236,7 +264,17 @@ const DbRepository = {
     const itemRows = stockItems.map(item => DbMapper.itemToDbRow(item, nameToId));
     if (!itemRows.length) return;
     const { error: itemUpsertError } = await client.from('items').upsert(itemRows, { onConflict: 'id' });
-    if (itemUpsertError) throw itemUpsertError;
+    if (!itemUpsertError) return;
+    if (!isMissingColumnError(itemUpsertError)) throw itemUpsertError;
+    const fallbackRows = itemRows.map(row => {
+      const next = { ...row };
+      delete next.pending_mode;
+      delete next.pending_dest;
+      delete next.pending_qty;
+      return next;
+    });
+    const { error: fallbackError } = await client.from('items').upsert(fallbackRows, { onConflict: 'id' });
+    if (fallbackError) throw fallbackError;
   },
 
   async syncItemMemberships(unitKeyToId) {
