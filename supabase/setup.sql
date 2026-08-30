@@ -1,5 +1,5 @@
--- Stock & Check 向けスキーマ
--- Supabase SQL Editor で実行してください（既存の jsonb 版 households があれば自動移行します）
+-- Stock & Check 向けスキーマ（1世帯固定）
+-- Supabase SQL Editor で実行してください（既存の jsonb 版 households があれば自動移行し、最後に household_id を外します）
 
 create table if not exists public.households (
   id text primary key,
@@ -477,5 +477,68 @@ begin
       add constraint item_check_units_item_id_fkey
       foreign key (item_id) references public.items(id) on delete cascade;
     alter table public.item_check_units add primary key (item_id, check_unit_id);
+  end if;
+end $$;
+
+-- 1世帯固定: household_id を廃止
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'items' and column_name = 'household_id'
+  ) then
+    alter table public.locations drop constraint if exists locations_household_id_name_key;
+    alter table public.locations drop constraint if exists locations_household_id_fkey;
+    alter table public.items drop constraint if exists items_household_id_fkey;
+    alter table public.item_check_units drop constraint if exists item_check_units_household_id_fkey;
+    alter table public.cycles drop constraint if exists cycles_household_id_name_key;
+    alter table public.cycles drop constraint if exists cycles_household_id_fkey;
+    alter table public.check_units drop constraint if exists check_units_household_id_fkey;
+    alter table public.categories drop constraint if exists categories_household_id_name_key;
+    alter table public.categories drop constraint if exists categories_household_id_fkey;
+    alter table public.units drop constraint if exists units_household_id_name_key;
+    alter table public.units drop constraint if exists units_household_id_fkey;
+
+    drop index if exists public.locations_household_id_idx;
+    drop index if exists public.items_household_id_idx;
+    drop index if exists public.item_check_units_household_id_idx;
+    drop index if exists public.cycles_household_id_idx;
+    drop index if exists public.check_units_household_id_idx;
+    drop index if exists public.categories_household_id_idx;
+    drop index if exists public.units_household_id_idx;
+    drop index if exists public.check_units_hh_cycle_loc_uidx;
+    drop index if exists public.check_units_hh_cycle_null_loc_uidx;
+
+    alter table public.locations drop column if exists household_id;
+    alter table public.items drop column if exists household_id;
+    alter table public.item_check_units drop column if exists household_id;
+    alter table public.cycles drop column if exists household_id;
+    alter table public.check_units drop column if exists household_id;
+    alter table public.categories drop column if exists household_id;
+    alter table public.units drop column if exists household_id;
+
+    alter table public.locations drop constraint if exists locations_name_key;
+    alter table public.locations add constraint locations_name_key unique (name);
+    alter table public.cycles drop constraint if exists cycles_name_key;
+    alter table public.cycles add constraint cycles_name_key unique (name);
+    alter table public.categories drop constraint if exists categories_name_key;
+    alter table public.categories add constraint categories_name_key unique (name);
+    alter table public.units drop constraint if exists units_name_key;
+    alter table public.units add constraint units_name_key unique (name);
+
+    create unique index if not exists check_units_cycle_loc_uidx
+      on public.check_units (cycle_id, location_id)
+      where location_id is not null;
+    create unique index if not exists check_units_cycle_null_loc_uidx
+      on public.check_units (cycle_id)
+      where location_id is null;
+
+    create index if not exists locations_sort_order_idx on public.locations (sort_order);
+    create index if not exists cycles_sort_order_idx on public.cycles (sort_order);
+    create index if not exists categories_sort_order_idx on public.categories (sort_order);
+    create index if not exists units_sort_order_idx on public.units (sort_order);
+    create index if not exists check_units_sort_order_idx on public.check_units (sort_order);
+
+    drop table if exists public.households;
   end if;
 end $$;
