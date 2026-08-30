@@ -117,7 +117,7 @@ function renderSettings() {
 function showPage(page) {
   if (page === 'items') page = 'settings';
   currentPage = page;
-  localStorage.setItem('currentPage', page);
+  localStorage.setItem(StorageKeys.CURRENT_PAGE, page);
   PAGE_IDS.forEach(p => {
     document.getElementById(`page-${p}`).classList.toggle('active', p === page);
     const nav = document.getElementById(`nav-${p}`);

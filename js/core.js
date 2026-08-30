@@ -20,7 +20,7 @@ const ADD_NEW_VALUE = 'ADD_NEW';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
 
-let customUnits = loadNameList('stockUnits', DEFAULT_UNITS);
+let customUnits = loadNameList(StorageKeys.UNITS, DEFAULT_UNITS);
 
 function normalizeCycleName(name) {
   const trimmed = String(name || '').trim();
@@ -39,12 +39,12 @@ function migrateCycleNames(list) {
   return next.length ? next : [...DEFAULT_CYCLES];
 }
 
-let customCycles = migrateCycleNames(loadNameList('stockCycles', DEFAULT_CYCLES));
-let customPlaces = loadNameList('stockPlaces', loadNameList('stockLocations', DEFAULT_PLACES));
+let customCycles = migrateCycleNames(loadNameList(StorageKeys.CYCLES, DEFAULT_CYCLES));
+let customPlaces = loadNameList(StorageKeys.PLACES, loadNameList(StorageKeys.LOCATIONS, DEFAULT_PLACES));
 customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(loc));
 if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
 
-let customCategories = loadNameList('stockCategories', DEFAULT_CATEGORIES);
+let customCategories = loadNameList(StorageKeys.CATEGORIES, DEFAULT_CATEGORIES);
 
 let customCheckUnits = loadCheckUnitMaster();
 customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
@@ -57,11 +57,10 @@ let catalogCycleFilter = ALL_FILTER;
 let catalogPlaceFilter = ALL_FILTER;
 let catalogCategoryFilter = ALL_FILTER;
 let orderCategoryFilter = ALL_FILTER;
-let currentPage = localStorage.getItem('currentPage') || 'inventory';
+let currentPage = localStorage.getItem(StorageKeys.CURRENT_PAGE) || 'inventory';
 let selectedItemId = null;
 let editingItemId = null;
 let applyingRemote = false;
-let supabaseClient = null;
 let syncUnsub = null;
 let syncTimer = null;
 let pullTimer = null;
@@ -97,17 +96,6 @@ if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
 let inventoryUnenteredOnly = false;
 let lastOrderUndo = null;
 let undoToastTimer = null;
-
-function loadNameList(key, fallback) {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(key));
-    if (Array.isArray(parsed)) {
-      const names = parsed.map(v => String(v).trim()).filter(Boolean);
-      if (names.length) return names;
-    }
-  } catch (e) { /* ignore */ }
-  return [...fallback];
-}
 
 function unitKey(unit) {
   return unit.cycle + UNIT_SEP + (unit.place || '');
@@ -224,13 +212,11 @@ function normalizeUnit(raw) {
 }
 
 function loadCheckUnitMaster() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('stockCheckUnits'));
-    if (Array.isArray(parsed) && parsed.length) {
-      const units = parsed.map(normalizeUnit).filter(Boolean);
-      if (units.length) return dedupeUnits(units);
-    }
-  } catch (e) { /* ignore */ }
+  const parsed = loadJson(StorageKeys.CHECK_UNITS, null);
+  if (Array.isArray(parsed) && parsed.length) {
+    const units = parsed.map(normalizeUnit).filter(Boolean);
+    if (units.length) return dedupeUnits(units);
+  }
   return customPlaces.map(place => ({ cycle: fallbackCycleName(), place }));
 }
 
@@ -244,15 +230,6 @@ function dedupeUnits(units) {
     next.push(unit);
   });
   return next;
-}
-
-function persistMasters() {
-  localStorage.setItem('stockCycles', JSON.stringify(customCycles));
-  localStorage.setItem('stockPlaces', JSON.stringify(customPlaces));
-  localStorage.setItem('stockLocations', JSON.stringify(customPlaces));
-  localStorage.setItem('stockCategories', JSON.stringify(customCategories));
-  localStorage.setItem('stockUnits', JSON.stringify(customUnits));
-  localStorage.setItem('stockCheckUnits', JSON.stringify(customCheckUnits));
 }
 
 function ensureName(list, name) {
@@ -501,18 +478,6 @@ async function moveMasterName(kind, name, delta) {
   await persistAndFlushCloud();
 }
 
-function loadSettingsOpenSections() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('settingsOpenSections'));
-    if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
-  } catch (e) { /* ignore */ }
-  return new Set(['items']);
-}
-
-function persistSettingsOpenSections() {
-  localStorage.setItem('settingsOpenSections', JSON.stringify([...settingsOpenSections]));
-}
-
 function todayIsoDate() {
   const now = new Date();
   const y = now.getFullYear();
@@ -636,21 +601,9 @@ function migrateItem(item) {
   return next;
 }
 
-function loadInventoryCollapsedPlaces() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem('inventoryCollapsedPlaces'));
-    if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
-  } catch (e) { /* ignore */ }
-  return new Set();
-}
-
-function persistInventoryCollapsedPlaces() {
-  localStorage.setItem('inventoryCollapsedPlaces', JSON.stringify([...inventoryCollapsedPlaces]));
-}
-
 function persistLocalState() {
   stockItems.forEach(syncItemFlags);
-  localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
+  persistItems(stockItems);
   persistMasters();
   if (applyingRemote) return;
   if (typeof isCloudReady === 'function' && isCloudReady() && !cloudHydrated) return;
@@ -669,15 +622,16 @@ function findItemById(id) {
 }
 
 // データの読み込み
-let stockItems = JSON.parse(localStorage.getItem('monthlyStockWithLocation')) || [
+const DEFAULT_STOCK_ITEMS = [
   { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', checkUnits: [{ cycle: '月単位', place: 'トイレ' }], target: 4, orderThreshold: 1, unit: '巻', entered: true },
   { id: 2, name: '洗濯洗剤', count: 1, location: '洗面所', checkUnits: [{ cycle: '月単位', place: '洗面所' }], target: 2, orderThreshold: 1, unit: '本', entered: true },
   { id: 3, name: '食器用洗剤', count: 0, location: 'キッチン', checkUnits: [{ cycle: '月単位', place: 'キッチン' }], target: 2, orderThreshold: 0, unit: '本', entered: false }
 ];
+let stockItems = loadItems(DEFAULT_STOCK_ITEMS);
 
 stockItems = stockItems.map(migrateItem);
 migrateLegacyCycleNames();
 stockItems = stockItems.map(migrateItem);
-localStorage.setItem('monthlyStockWithLocation', JSON.stringify(stockItems));
+persistItems(stockItems);
 stockItems.forEach(item => rememberUnit(item.unit));
 persistMasters();
