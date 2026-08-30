@@ -202,17 +202,49 @@ h1 {
 }
 .inventory-line {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 40px minmax(52px, 76px) 40px minmax(2em, 2.8em);
+  grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
-  column-gap: 4px;
+  column-gap: 8px;
+  row-gap: 8px;
   width: 100%;
 }
 .inventory-line .item-name {
   min-width: 0;
 }
-.inventory-line .count-shared-note {
-  grid-column: 3 / 7;
+.inventory-line .item-name-text {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: unset;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.inventory-count {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+.inventory-count .count-shared-note {
+  flex: 1;
   margin: 0;
+  text-align: right;
+}
+.inventory-count .count-input {
+  width: 5em;
+  min-width: 5em;
+  flex: 0 0 auto;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.inventory-count .unit-suffix {
+  width: 4.5em;
+  flex: 0 0 4.5em;
+  max-width: none;
+  text-align: left;
 }
 .item.inventory-item .item-edit-btn {
   min-width: 40px;
@@ -518,15 +550,22 @@ button.order-group-title:active {
 .count-step {
   min-width: 44px;
   min-height: 44px;
+  width: 44px;
+  height: 44px;
   padding: 0 !important;
   font-size: 22px !important;
   font-weight: bold;
-  background: #e3f2fd !important;
-  color: #1565c0 !important;
-  border-radius: 8px !important;
+  background: #fff !important;
+  color: #333 !important;
+  border: 1.5px solid #555 !important;
+  border-radius: 50% !important;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .count-step:active {
-  background: #bbdefb !important;
+  background: #e0e0e0 !important;
 }
 .count-step:disabled {
   opacity: 0.35;
