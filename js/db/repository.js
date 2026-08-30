@@ -12,13 +12,20 @@ function isMissingColumnError(error) {
   return /schema cache|column .* does not exist|could not find .* column/i.test(text);
 }
 
+async function selectWithFallback(query, fallbackQuery) {
+  const preferred = await query();
+  if (!preferred.error) return preferred;
+  if (!isMissingColumnError(preferred.error)) return preferred;
+  return fallbackQuery();
+}
+
 async function fetchPurchaseDestinations(client) {
-  const preferred = await client.from('purchase_destinations').select('id,name,sort_order,kind').order('sort_order');
-  if (!preferred.error) return preferred.data || [];
-  if (!isMissingColumnError(preferred.error)) throw preferred.error;
-  const fallback = await client.from('purchase_destinations').select('id,name,sort_order').order('sort_order');
-  if (fallback.error) throw fallback.error;
-  return fallback.data || [];
+  const result = await selectWithFallback(
+    () => client.from('purchase_destinations').select('id,name,sort_order,kind').order('sort_order'),
+    () => client.from('purchase_destinations').select('id,name,sort_order').order('sort_order')
+  );
+  if (result.error) throw result.error;
+  return result.data || [];
 }
 
 const ITEM_COLUMNS = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations,pending_mode,pending_dest,pending_qty';
@@ -51,14 +58,14 @@ const DbRepository = {
       .order('sort_order');
     if (checkUnitError) throw checkUnitError;
 
-    const itemSelect = await (async () => {
-      const preferred = await client.from('items').select(ITEM_COLUMNS);
-      if (!preferred.error) return { ...preferred, pendingFromDb: true };
-      if (!isMissingColumnError(preferred.error)) return { ...preferred, pendingFromDb: false };
-      const fallback = await client.from('items').select(ITEM_COLUMNS_FALLBACK);
-      return { ...fallback, pendingFromDb: false };
-    })();
-    const { data: rows, error: itemError, pendingFromDb: itemPendingFromDb } = itemSelect;
+    const preferredItems = await client.from('items').select(ITEM_COLUMNS);
+    let itemSelect = preferredItems;
+    let itemPendingFromDb = !preferredItems.error;
+    if (preferredItems.error && isMissingColumnError(preferredItems.error)) {
+      itemSelect = await client.from('items').select(ITEM_COLUMNS_FALLBACK);
+      itemPendingFromDb = false;
+    }
+    const { data: rows, error: itemError } = itemSelect;
     if (itemError) throw itemError;
 
     const { data: membershipRows, error: membershipError } = await client

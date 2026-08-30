@@ -20,9 +20,7 @@ const DbMapper = {
         unit: item.unit,
         entered: !!item.entered,
         lastOrderedOn: normalizeDate(item.lastOrderedOn),
-        pendingMode: itemPendingMode(item),
-        pendingDest: itemPendingMode(item) ? (normalizePurchaseDest(item.pendingDest) || '') : '',
-        pendingQty: itemPendingMode(item) ? itemOrderQty(item) : null
+        ...itemSyncPending(item)
       }))
     });
   },
@@ -51,14 +49,7 @@ const DbMapper = {
     const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
     const destNames = (destRows || []).map(row => row.name).filter(Boolean);
     const purchaseDests = destNames.length ? destNames : [...DEFAULT_PURCHASE_DESTS];
-    const destKindColumn = (destRows || []).some(row => row && Object.prototype.hasOwnProperty.call(row, 'kind'));
-    const purchaseDestKinds = {};
-    purchaseDests.forEach(name => {
-      const row = (destRows || []).find(r => r && r.name === name);
-      purchaseDestKinds[name] = destKindColumn
-        ? normalizeDestKind(row && row.kind, name)
-        : defaultKindForDest(name);
-    });
+    const { purchaseDestKinds, purchaseDestKindsFromDb: destKindColumn } = DbMapper.kindsFromDestRows(destRows, purchaseDests);
     const unitNames = (stockUnitRows || []).map(row => row.name).filter(Boolean);
     const units = unitNames.length ? unitNames : [...DEFAULT_UNITS];
     const unitIdToUnit = {};
@@ -128,6 +119,7 @@ const DbMapper = {
   itemToDbRow(item, nameToId) {
     const units = itemCheckUnits(item);
     const firstPlaced = units.find(u => u.place);
+    const pending = itemSyncPending(item);
     return {
       id: String(item.id),
       location_id: (firstPlaced && nameToId[firstPlaced.place]) || null,
@@ -140,11 +132,26 @@ const DbMapper = {
       unit: item.unit || '個',
       entered: !!item.entered,
       last_ordered_on: normalizeDate(item.lastOrderedOn),
-      pending_mode: itemPendingMode(item),
-      pending_dest: itemPendingMode(item) ? (normalizePurchaseDest(item.pendingDest) || '') : null,
-      pending_qty: itemPendingMode(item) ? itemOrderQty(item) : null,
+      pending_mode: pending.pendingMode,
+      pending_dest: pending.pendingMode ? pending.pendingDest || null : null,
+      pending_qty: pending.pendingMode ? pending.pendingQty : null,
       updated_at: new Date().toISOString()
     };
+  },
+
+  kindsFromDestRows(destRows, purchaseDests) {
+    const purchaseDestKindsFromDb = (destRows || []).some(row => row && Object.prototype.hasOwnProperty.call(row, 'kind'));
+    const kindByName = {};
+    (destRows || []).forEach(row => {
+      if (row && row.name) kindByName[row.name] = row.kind;
+    });
+    const purchaseDestKinds = {};
+    purchaseDests.forEach(name => {
+      purchaseDestKinds[name] = purchaseDestKindsFromDb
+        ? normalizeDestKind(kindByName[name], name)
+        : defaultKindForDest(name);
+    });
+    return { purchaseDestKinds, purchaseDestKindsFromDb };
   },
 
   buildUnitKeyToId(cloudUnits, cycleRows, locs) {
