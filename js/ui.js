@@ -95,6 +95,10 @@ function renderSettings() {
     hint: '買い物リストのまとめに使います。↑↓で並び順を変えられます。',
     reorder: true
   });
+  appendSettingsSection(root, '購入先', 'purchaseDest', settingsPurchaseDestNames(), {
+    hint: '発注リストのまとめに使います。1つの品を複数の店で買えます。↑↓で並び順を変えられます。',
+    reorder: true
+  });
   const danger = document.createElement('div');
   danger.className = 'settings-section';
   const heading = document.createElement('h3');
@@ -273,6 +277,7 @@ function openModal() {
   }
   fillCyclePlacePickers('new-item', preset.length ? preset : (customCheckUnits[0] ? [customCheckUnits[0]] : []));
   fillCategorySelect(document.getElementById('new-item-category'), '');
+  fillPurchaseDestPicker('new-item', []);
   fillUnitSelect(document.getElementById('new-item-unit'), '個');
   document.getElementById('new-item-target').value = 1;
   document.getElementById('new-item-threshold').value = 0;
@@ -390,6 +395,10 @@ function itemFieldsHtml(item, options) {
   }
   if (!hideCategory) {
     rows.push(`<div class="item-field"><span class="item-field-label">カテゴリ</span><span class="item-location-wrap">${chips([category])}</span></div>`);
+  }
+  if (!(options && options.hidePurchaseDest)) {
+    const dests = itemPurchaseDests(item);
+    rows.push(`<div class="item-field"><span class="item-field-label">購入先</span><span class="item-location-wrap">${chips(dests.length ? dests : [UNSET_PURCHASE_DEST_LABEL])}</span></div>`);
   }
   if (!hidePlace) {
     rows.push(`<div class="item-field"><span class="item-field-label">場所</span><span class="item-location-wrap">${chips(places.length ? places : [UNSET_PLACE_FILTER])}</span></div>`);
@@ -581,6 +590,10 @@ async function handleCategorySelectChange(select) {
   });
 }
 
+function fillPurchaseDestPicker(prefix, selectedNames) {
+  fillNamePicker(prefix + '-purchase-dests', allPurchaseDests(), selectedNames || []);
+}
+
 function fillPlaceSelect(select, selectedValue) {
   const trimmed = String(selectedValue || '').trim();
   let names = customPlaces.filter(name => name && name !== REMOVED_LOCATION);
@@ -655,6 +668,47 @@ function bindFilterSelect(filterDiv, label, names, selectedValue, assign) {
     assign(value);
     saveAndRender();
   });
+}
+
+function sortKeysByMaster(keys, order) {
+  return [...keys].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    const sa = ia < 0 ? 999 : ia;
+    const sb = ib < 0 ? 999 : ib;
+    return sa - sb || a.localeCompare(b, 'ja');
+  });
+}
+
+function bindPurchaseDestFilters(filterDiv) {
+  const names = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
+  const valid = new Set(names);
+  [...orderPurchaseDestFilter].forEach(name => {
+    if (!valid.has(name)) orderPurchaseDestFilter.delete(name);
+  });
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-dest-bar';
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', '購入先');
+  names.forEach(name => {
+    const label = document.createElement('label');
+    label.className = 'filter-dest-check';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = name;
+    input.checked = orderPurchaseDestFilter.has(name);
+    input.onchange = () => {
+      if (input.checked) orderPurchaseDestFilter.add(name);
+      else orderPurchaseDestFilter.delete(name);
+      saveAndRender();
+    };
+    const span = document.createElement('span');
+    span.textContent = name;
+    label.appendChild(input);
+    label.appendChild(span);
+    wrap.appendChild(label);
+  });
+  filterDiv.appendChild(wrap);
 }
 
 function renderItemsCatalog() {
@@ -942,63 +996,86 @@ function renderAll() {
 
 // 発注リストを描画する関数
 
+function appendOrderItemRow(parent, item) {
+  const orderAmount = Math.max(0, item.target - item.count);
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'item empty order-item';
+  const lastOrder = formatLastOrder(item.lastOrderedOn);
+  itemDiv.innerHTML = `
+    <div class="item-info">
+      <span class="item-name"><span class="item-name-text">${item.name}</span></span>
+      <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
+      <span class="order-amount">買う数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
+    </div>
+    <div class="controls">
+      <label class="order-check-label">
+        <input type="checkbox" class="order-check" data-item-id="${item.id}" onchange="markAsOrdered(this.dataset.itemId)">
+        発注済み
+      </label>
+    </div>
+  `;
+  parent.appendChild(itemDiv);
+}
+
 function renderOrderList() {
   const orderDiv = document.getElementById('order-list');
   const filterDiv = document.getElementById('order-filters');
   orderDiv.innerHTML = '';
   if (filterDiv) {
     filterDiv.innerHTML = '';
+    bindPurchaseDestFilters(filterDiv);
     orderCategoryFilter = bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => { orderCategoryFilter = value; });
   }
 
-  const itemsToOrder = stockItems.filter(item => needsOrder(item) && itemMatchesCategory(item, orderCategoryFilter));
+  const itemsToOrder = stockItems.filter(item =>
+    needsOrder(item) &&
+    itemMatchesCategory(item, orderCategoryFilter) &&
+    itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
+  );
 
   if (itemsToOrder.length === 0) {
     orderDiv.innerHTML = '<div class="empty-message">発注が必要なアイテムはありません 🎉</div>';
     return;
   }
 
-  const groups = new Map();
+  const destGroups = new Map();
+  const addToGroup = (dest, item) => {
+    if (!destGroups.has(dest)) destGroups.set(dest, new Map());
+    const cats = destGroups.get(dest);
+    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+    if (!cats.has(cat)) cats.set(cat, []);
+    cats.get(cat).push(item);
+  };
   itemsToOrder.forEach(item => {
-    const key = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
-  });
-  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
-  const keys = [...groups.keys()].sort((a, b) => {
-    const ia = categoryOrder.indexOf(a);
-    const ib = categoryOrder.indexOf(b);
-    const sa = ia < 0 ? 999 : ia;
-    const sb = ib < 0 ? 999 : ib;
-    return sa - sb || a.localeCompare(b, 'ja');
+    const dests = itemPurchaseDests(item);
+    if (!dests.length) {
+      addToGroup(UNSET_PURCHASE_DEST_LABEL, item);
+      return;
+    }
+    dests.forEach(dest => {
+      if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
+        addToGroup(dest, item);
+      }
+    });
   });
 
-  keys.forEach(key => {
+  const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
+  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
+  sortKeysByMaster(destGroups.keys(), destOrder).forEach(dest => {
     const group = document.createElement('div');
     group.className = 'order-group';
     const title = document.createElement('div');
     title.className = 'order-group-title';
-    title.textContent = key;
+    title.textContent = dest;
     group.appendChild(title);
-    groups.get(key).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(item => {
-      const orderAmount = Math.max(0, item.target - item.count);
-      const itemDiv = document.createElement('div');
-      itemDiv.className = 'item empty order-item';
-      const lastOrder = formatLastOrder(item.lastOrderedOn);
-      itemDiv.innerHTML = `
-        <div class="item-info">
-          <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-          <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
-          <span class="order-amount">買う数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
-        </div>
-        <div class="controls">
-          <label class="order-check-label">
-            <input type="checkbox" class="order-check" data-item-id="${item.id}" onchange="markAsOrdered(this.dataset.itemId)">
-            発注済み
-          </label>
-        </div>
-      `;
-      group.appendChild(itemDiv);
+    const cats = destGroups.get(dest);
+    sortKeysByMaster(cats.keys(), categoryOrder).forEach(cat => {
+      const sub = document.createElement('div');
+      sub.className = 'order-subgroup-title';
+      sub.textContent = cat;
+      group.appendChild(sub);
+      cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
+        .forEach(item => appendOrderItemRow(group, item));
     });
     orderDiv.appendChild(group);
   });
@@ -1075,6 +1152,7 @@ function openEditModal(id) {
   document.getElementById('edit-item-target').value = item.target;
   document.getElementById('edit-item-threshold').value = item.orderThreshold;
   fillCategorySelect(document.getElementById('edit-item-category'), item.category);
+  fillPurchaseDestPicker('edit-item', itemPurchaseDests(item));
   fillCyclePlacePickers('edit-item', itemCheckUnits(item));
   syncUnitReadouts();
   document.getElementById('edit-modal').style.display = 'flex';
@@ -1095,6 +1173,13 @@ function itemFormFieldsHtml(prefix, options = {}) {
   return `
       <label for="${prefix}-category">カテゴリ</label>
       <select id="${prefix}-category" onchange="handleCategorySelectChange(this)"></select>
+      <label>購入先</label>
+      <div class="check-unit-picker-box">
+        <div class="check-unit-picker-toolbar">
+          <button type="button" class="picker-add-btn" onclick="addNameFromForm('purchaseDest', '${prefix}-purchase-dests')" aria-label="新しい購入先を追加">＋</button>
+        </div>
+        <div class="check-unit-picker" id="${prefix}-purchase-dests"></div>
+      </div>
       <div class="field-pair cycle-place-pair">
         <div class="field">
           <label>チェック頻度</label>
@@ -1141,6 +1226,7 @@ function readItemForm(prefix) {
   const picked = unitsFromCyclePlacePickers(prefix);
   const unit = document.getElementById(prefix + '-unit').value;
   const category = normalizeCategory(document.getElementById(prefix + '-category').value);
+  const purchaseDests = normalizePurchaseDests(getSelectedNames(prefix + '-purchase-dests'));
   const target = parseNonNeg(document.getElementById(prefix + '-target').value);
   const orderThreshold = parseNonNeg(document.getElementById(prefix + '-threshold').value);
   if (!name) {
@@ -1155,7 +1241,7 @@ function readItemForm(prefix) {
     alert('単位を選択してください');
     return null;
   }
-  return { name, picked, unit, category, target, orderThreshold };
+  return { name, picked, unit, category, purchaseDests, target, orderThreshold };
 }
 
 function applyFormToItem(item, fields) {
@@ -1164,6 +1250,8 @@ function applyFormToItem(item, fields) {
   item.name = fields.name;
   item.category = fields.category;
   if (item.category) ensureCategory(item.category);
+  item.purchaseDests = normalizePurchaseDests(fields.purchaseDests);
+  item.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
   item.unit = fields.unit;
   item.target = fields.target;
   item.orderThreshold = fields.orderThreshold;

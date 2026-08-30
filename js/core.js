@@ -9,12 +9,14 @@ const LEGACY_CYCLE_NAMES = {
 };
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
+const DEFAULT_PURCHASE_DESTS = ['LOHACO', 'ドラッグストア', 'スーパー'];
 const DEFAULT_UNITS = ['個', '本', '袋', '箱', 'パック'];
 const CATEGORY_PLACE_NAMES = new Set(DEFAULT_CATEGORIES);
 const REMOVED_LOCATION = 'その他';
 const ALL_FILTER = 'すべて';
 const UNSET_PLACE_FILTER = '未選択';
 const UNSET_CATEGORY_LABEL = '未分類';
+const UNSET_PURCHASE_DEST_LABEL = '未設定';
 const UNIT_SEP = '::';
 const ADD_NEW_VALUE = 'ADD_NEW';
 const RENAME_VALUE = 'RENAME';
@@ -45,6 +47,7 @@ customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_
 if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
 
 let customCategories = loadNameList(StorageKeys.CATEGORIES, DEFAULT_CATEGORIES);
+let customPurchaseDests = loadNameList(StorageKeys.PURCHASE_DESTS, DEFAULT_PURCHASE_DESTS);
 
 let customCheckUnits = loadCheckUnitMaster();
 customCheckUnits = customCheckUnits.filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
@@ -57,6 +60,7 @@ let catalogCycleFilter = ALL_FILTER;
 let catalogPlaceFilter = ALL_FILTER;
 let catalogCategoryFilter = ALL_FILTER;
 let orderCategoryFilter = ALL_FILTER;
+let orderPurchaseDestFilter = new Set();
 let currentPage = localStorage.getItem(StorageKeys.CURRENT_PAGE) || 'inventory';
 let selectedItemId = null;
 let editingItemId = null;
@@ -141,6 +145,56 @@ function allCategories() {
 
 function settingsCategoryNames() {
   return allCategories();
+}
+
+function normalizePurchaseDest(value) {
+  const name = String(value || '').trim();
+  if (!name || name === UNSET_PURCHASE_DEST_LABEL) return '';
+  return name;
+}
+
+function normalizePurchaseDests(raw) {
+  const seen = new Set();
+  const names = [];
+  const list = Array.isArray(raw)
+    ? raw
+    : (raw == null || raw === '' ? [] : String(raw).split(','));
+  list.forEach(value => {
+    const name = normalizePurchaseDest(value);
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    names.push(name);
+  });
+  return names;
+}
+
+function allPurchaseDests() {
+  return collectUniqueNames(
+    customPurchaseDests,
+    stockItems.flatMap(item => item.purchaseDests || []),
+    normalizePurchaseDest
+  );
+}
+
+function settingsPurchaseDestNames() {
+  return allPurchaseDests();
+}
+
+function ensurePurchaseDest(name) {
+  const trimmed = normalizePurchaseDest(name);
+  if (!trimmed) return '';
+  return ensureName(customPurchaseDests, trimmed);
+}
+
+function itemPurchaseDests(item) {
+  return normalizePurchaseDests(item && item.purchaseDests);
+}
+
+function remapSelectedSet(set, oldName, nextName) {
+  if (!set.has(oldName)) return set;
+  set.delete(oldName);
+  if (nextName) set.add(nextName);
+  return set;
 }
 
 function canonicalizeStockUnit(name) {
@@ -380,6 +434,34 @@ const MASTER_KINDS = {
       return true;
     }
   },
+  purchaseDest: {
+    addTitle: '新しい購入先の名前を入力してください',
+    renameTitle: '購入先の新しい名前',
+    deleteExtra: count => count ? `\n${count}件のアイテムからこの購入先が外れます。` : '',
+    uniqueNames: () => allPurchaseDests(),
+    moveList: () => settingsPurchaseDestNames(),
+    setList: list => { customPurchaseDests = list; },
+    ensure: name => ensurePurchaseDest(name),
+    usageCount: name => stockItems.filter(item => itemPurchaseDests(item).includes(name)).length,
+    applyRename: (oldName, next) => {
+      if (!customPurchaseDests.includes(oldName)) customPurchaseDests.push(oldName);
+      const idx = customPurchaseDests.indexOf(oldName);
+      customPurchaseDests[idx] = next;
+      stockItems.forEach(item => {
+        item.purchaseDests = itemPurchaseDests(item).map(dest => dest === oldName ? next : dest);
+      });
+      remapSelectedSet(orderPurchaseDestFilter, oldName, next);
+      return true;
+    },
+    applyDelete: name => {
+      customPurchaseDests = customPurchaseDests.filter(v => v !== name);
+      stockItems.forEach(item => {
+        item.purchaseDests = itemPurchaseDests(item).filter(dest => dest !== name);
+      });
+      remapSelectedSet(orderPurchaseDestFilter, name, null);
+      return true;
+    }
+  },
   unit: {
     addTitle: '新しい単位を入力してください',
     renameTitle: '単位の新しい名前',
@@ -548,6 +630,13 @@ function itemMatchesCategory(item, categoryFilter) {
   return category === categoryFilter;
 }
 
+function itemMatchesPurchaseDests(item, selectedSet) {
+  if (!selectedSet || selectedSet.size === 0) return true;
+  const dests = itemPurchaseDests(item);
+  if (!dests.length) return selectedSet.has(UNSET_PURCHASE_DEST_LABEL);
+  return dests.some(dest => selectedSet.has(dest));
+}
+
 function needsOrder(item) {
   return item.entered && item.count <= item.orderThreshold;
 }
@@ -592,6 +681,8 @@ function migrateItem(item) {
   }
   next.category = normalizeCategory(next.category) || categoryFromPlaces;
   if (next.category) ensureCategory(next.category);
+  next.purchaseDests = normalizePurchaseDests(next.purchaseDests);
+  next.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
   units = dedupeUnits(units);
   units.forEach(u => ensureCheckUnit(u.cycle, u.place));
   next.checkUnits = units;

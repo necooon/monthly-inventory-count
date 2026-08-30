@@ -542,3 +542,38 @@ where name not in ('個', '本', '袋', '箱', 'パック');
 insert into public.units (name, sort_order)
 values ('個', 0), ('本', 1), ('袋', 2), ('箱', 3), ('パック', 4)
 on conflict (name) do update set sort_order = excluded.sort_order;
+
+-- 購入先マスター
+create table if not exists public.purchase_destinations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.purchase_destinations drop constraint if exists purchase_destinations_name_key;
+alter table public.purchase_destinations add constraint purchase_destinations_name_key unique (name);
+create index if not exists purchase_destinations_sort_order_idx on public.purchase_destinations (sort_order);
+
+alter table public.items add column if not exists purchase_destinations text[] not null default '{}';
+
+insert into public.purchase_destinations (name, sort_order)
+values ('LOHACO', 0), ('ドラッグストア', 1), ('スーパー', 2)
+on conflict (name) do nothing;
+
+alter table public.purchase_destinations enable row level security;
+drop policy if exists "purchase_destinations_select" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_insert" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_update" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_delete" on public.purchase_destinations;
+create policy "purchase_destinations_select" on public.purchase_destinations for select using (true);
+create policy "purchase_destinations_insert" on public.purchase_destinations for insert with check (true);
+create policy "purchase_destinations_update" on public.purchase_destinations for update using (true);
+create policy "purchase_destinations_delete" on public.purchase_destinations for delete using (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.purchase_destinations;
+exception
+  when duplicate_object then null;
+end $$;
+

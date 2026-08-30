@@ -32,12 +32,14 @@ function applyFetchedState(state) {
     place
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
+  customPurchaseDests = (state.purchaseDests && state.purchaseDests.length ? state.purchaseDests : [...DEFAULT_PURCHASE_DESTS]);
   customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
   stockItems = stockItems.map(migrateItem);
   stockItems.forEach(item => {
     if (item.category) ensureCategory(item.category);
+    itemPurchaseDests(item).forEach(dest => ensurePurchaseDest(dest));
     if (item.unit) ensureUnit(item.unit);
   });
   persistMasters();
@@ -83,7 +85,7 @@ async function pullFromCloud() {
   }
 }
 
-const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'units'];
+const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units'];
 
 async function startCloudListener() {
   if (syncUnsub) {

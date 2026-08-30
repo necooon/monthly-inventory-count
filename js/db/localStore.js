@@ -4,6 +4,7 @@ const StorageKeys = {
   PLACES: 'stockPlaces',
   LOCATIONS: 'stockLocations',
   CATEGORIES: 'stockCategories',
+  PURCHASE_DESTS: 'stockPurchaseDests',
   UNITS: 'stockUnits',
   CHECK_UNITS: 'stockCheckUnits',
   CURRENT_PAGE: 'currentPage',
@@ -37,6 +38,7 @@ function persistMasters() {
   saveJson(StorageKeys.PLACES, customPlaces);
   saveJson(StorageKeys.LOCATIONS, customPlaces);
   saveJson(StorageKeys.CATEGORIES, customCategories);
+  saveJson(StorageKeys.PURCHASE_DESTS, customPurchaseDests);
   saveJson(StorageKeys.UNITS, customUnits);
   saveJson(StorageKeys.CHECK_UNITS, customCheckUnits);
 }

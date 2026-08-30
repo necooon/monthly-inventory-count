@@ -133,6 +133,30 @@ h1 {
   color: #333;
   min-height: 44px;
 }
+.filter-dest-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 100%;
+}
+.filter-dest-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #333;
+  min-height: 44px;
+  cursor: pointer;
+}
+.filter-dest-check:has(input:checked) {
+  border-color: #1565c0;
+  background: #e3f2fd;
+  color: #1565c0;
+}
 .progress-bar {
   display: flex;
   align-items: center;
@@ -400,6 +424,15 @@ button.order-group-title:active {
 }
 .order-group:first-child .order-group-title {
   margin-top: 0;
+}
+.order-subgroup-title {
+  font-weight: bold;
+  color: #555;
+  font-size: 0.85em;
+  margin: 10px 0 6px 4px;
+}
+.order-group-title + .order-subgroup-title {
+  margin-top: 4px;
 }
 .field-pair.cycle-place-pair {
   grid-template-columns: 1fr;
