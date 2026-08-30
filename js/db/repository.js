@@ -1,37 +1,29 @@
+async function fetchOrderedMaster(client, table) {
+  const { data, error } = await client.from(table).select('id,name,sort_order').order('sort_order');
+  if (error) throw error;
+  return data || [];
+}
+
+async function deleteExtraNamedRows(client, table, cloudRows, localNames) {
+  const extraIds = (cloudRows || [])
+    .filter(row => !localNames.includes(row.name))
+    .map(row => row.id);
+  if (!extraIds.length) return;
+  const { error } = await client.from(table).delete().in('id', extraIds);
+  if (error) throw error;
+}
+
 const DbRepository = {
   async fetchCloudState() {
     const client = getSupabaseClient();
 
-    const { data: cycleRows, error: cycleError } = await client
-      .from('cycles')
-      .select('id,name,sort_order')
-      .order('sort_order');
-    if (cycleError) throw cycleError;
-
-    const { data: locs, error: locError } = await client
-      .from('locations')
-      .select('id,name,sort_order')
-      .order('sort_order');
-    if (locError) throw locError;
-
-    const { data: categoryRows, error: categoryError } = await client
-      .from('categories')
-      .select('id,name,sort_order')
-      .order('sort_order');
-    if (categoryError) throw categoryError;
-
-    let destRows = [];
-    const destResult = await client
-      .from('purchase_destinations')
-      .select('id,name,sort_order')
-      .order('sort_order');
-    if (!destResult.error) destRows = destResult.data || [];
-
-    const { data: stockUnitRows, error: stockUnitError } = await client
-      .from('units')
-      .select('id,name,sort_order')
-      .order('sort_order');
-    if (stockUnitError) throw stockUnitError;
+    const [cycleRows, locs, categoryRows, destRows, stockUnitRows] = await Promise.all([
+      fetchOrderedMaster(client, 'cycles'),
+      fetchOrderedMaster(client, 'locations'),
+      fetchOrderedMaster(client, 'categories'),
+      fetchOrderedMaster(client, 'purchase_destinations'),
+      fetchOrderedMaster(client, 'units')
+    ]);
 
     const { data: checkUnitRows, error: checkUnitError } = await client
       .from('check_units')
@@ -39,17 +31,10 @@ const DbRepository = {
       .order('sort_order');
     if (checkUnitError) throw checkUnitError;
 
-    const itemColumns = 'id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations';
-    let { data: rows, error: itemError } = await client
+    const { data: rows, error: itemError } = await client
       .from('items')
-      .select(itemColumns);
-    if (itemError) {
-      const fallback = await client
-        .from('items')
-        .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
-      if (fallback.error) throw itemError;
-      rows = fallback.data;
-    }
+      .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category,purchase_destinations');
+    if (itemError) throw itemError;
 
     const { data: membershipRows, error: membershipError } = await client
       .from('item_check_units')
@@ -68,7 +53,7 @@ const DbRepository = {
       { data: cycleRows, error: cycleError },
       { data: locs, error: locError },
       { data: categories, error: categoryError },
-      destResult,
+      { data: purchaseDests, error: destError },
       { data: stockUnits, error: stockUnitError },
       { data: checkUnits, error: checkUnitError }
     ] = await Promise.all([
@@ -82,16 +67,10 @@ const DbRepository = {
     if (cycleError) throw cycleError;
     if (locError) throw locError;
     if (categoryError) throw categoryError;
+    if (destError) throw destError;
     if (stockUnitError) throw stockUnitError;
     if (checkUnitError) throw checkUnitError;
-    return {
-      cycleRows,
-      locs,
-      categories,
-      purchaseDests: destResult.error ? [] : (destResult.data || []),
-      stockUnits,
-      checkUnits
-    };
+    return { cycleRows, locs, categories, purchaseDests, stockUnits, checkUnits };
   },
 
   async countItems() {
@@ -184,40 +163,16 @@ const DbRepository = {
       if (locDeleteError) throw locDeleteError;
     }
 
-    const extraCategoryIds = (cloudCategories || [])
-      .filter(row => !customCategories.includes(row.name))
-      .map(row => row.id);
-    if (extraCategoryIds.length) {
-      const { error: categoryDeleteError } = await client.from('categories').delete().in('id', extraCategoryIds);
-      if (categoryDeleteError) throw categoryDeleteError;
-    }
-
-    const extraDestIds = (cloudPurchaseDests || [])
-      .filter(row => !customPurchaseDests.includes(row.name))
-      .map(row => row.id);
-    if (extraDestIds.length) {
-      const { error: destDeleteError } = await client.from('purchase_destinations').delete().in('id', extraDestIds);
-      if (destDeleteError) throw destDeleteError;
-    }
-
-    const extraStockUnitIds = (cloudStockUnits || [])
-      .filter(row => !customUnits.includes(row.name))
-      .map(row => row.id);
-    if (extraStockUnitIds.length) {
-      const { error: stockUnitDeleteError } = await client.from('units').delete().in('id', extraStockUnitIds);
-      if (stockUnitDeleteError) throw stockUnitDeleteError;
-    }
+    await deleteExtraNamedRows(client, 'categories', cloudCategories, customCategories);
+    await deleteExtraNamedRows(client, 'purchase_destinations', cloudPurchaseDests, customPurchaseDests);
+    await deleteExtraNamedRows(client, 'units', cloudStockUnits, customUnits);
   },
 
   async upsertMasters() {
     await DbRepository.upsertNamedRows('cycles', DbMapper.namedMasterRows(customCycles), 'name');
     await DbRepository.upsertNamedRows('locations', DbMapper.namedMasterRows(customPlaces), 'name');
     await DbRepository.upsertNamedRows('categories', DbMapper.namedMasterRows(customCategories), 'name');
-    try {
-      await DbRepository.upsertNamedRows('purchase_destinations', DbMapper.namedMasterRows(customPurchaseDests), 'name');
-    } catch (e) {
-      console.warn('purchase_destinations sync skipped', e);
-    }
+    await DbRepository.upsertNamedRows('purchase_destinations', DbMapper.namedMasterRows(customPurchaseDests), 'name');
     await DbRepository.upsertNamedRows('units', DbMapper.namedMasterRows(customUnits), 'name');
   },
 
@@ -281,14 +236,7 @@ const DbRepository = {
     const itemRows = stockItems.map(item => DbMapper.itemToDbRow(item, nameToId));
     if (!itemRows.length) return;
     const { error: itemUpsertError } = await client.from('items').upsert(itemRows, { onConflict: 'id' });
-    if (!itemUpsertError) return;
-    const withoutDests = itemRows.map(row => {
-      const next = { ...row };
-      delete next.purchase_destinations;
-      return next;
-    });
-    const { error: fallbackError } = await client.from('items').upsert(withoutDests, { onConflict: 'id' });
-    if (fallbackError) throw itemUpsertError;
+    if (itemUpsertError) throw itemUpsertError;
   },
 
   async syncItemMemberships(unitKeyToId) {
