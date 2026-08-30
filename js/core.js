@@ -20,9 +20,26 @@ const ADD_NEW_VALUE = 'ADD_NEW';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
 
-let customUnits = [...DEFAULT_UNITS];
+let customUnits = loadNameList(StorageKeys.UNITS, DEFAULT_UNITS);
 
-let customCycles = loadNameList(StorageKeys.CYCLES, DEFAULT_CYCLES);
+function normalizeCycleName(name) {
+  const trimmed = String(name || '').trim();
+  return LEGACY_CYCLE_NAMES[trimmed] || trimmed;
+}
+
+function migrateCycleNames(list) {
+  const seen = new Set();
+  const next = [];
+  (list || []).forEach(name => {
+    const normalized = normalizeCycleName(name);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    next.push(normalized);
+  });
+  return next.length ? next : [...DEFAULT_CYCLES];
+}
+
+let customCycles = migrateCycleNames(loadNameList(StorageKeys.CYCLES, DEFAULT_CYCLES));
 let customPlaces = loadNameList(StorageKeys.PLACES, loadNameList(StorageKeys.LOCATIONS, DEFAULT_PLACES));
 customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(loc));
 if (customPlaces.length === 0) customPlaces = [...DEFAULT_PLACES];
@@ -161,11 +178,6 @@ function fallbackCycleName() {
   return customCycles[0] || DEFAULT_CYCLES[0];
 }
 
-function normalizeCycleName(name) {
-  const trimmed = String(name || '').trim();
-  return LEGACY_CYCLE_NAMES[trimmed] || trimmed;
-}
-
 function migrateLegacyCycleNames() {
   customCycles = [...new Set(customCycles.map(normalizeCycleName))];
   customCheckUnits = dedupeUnits(customCheckUnits.map(unit => ({
@@ -184,7 +196,7 @@ function migrateLegacyCycleNames() {
 function normalizeUnit(raw) {
   if (!raw) return null;
   if (typeof raw === 'object' && raw.cycle) {
-    const cycle = normalizeCycleName(raw.cycle);
+    const cycle = normalizeCycleName(String(raw.cycle).trim());
     const place = String(raw.place || '').trim();
     if (!cycle || place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return null;
     return { cycle, place };

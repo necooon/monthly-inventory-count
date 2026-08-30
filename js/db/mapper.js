@@ -69,9 +69,13 @@ const DbMapper = {
       const key = String(row.id);
       const fromJoin = unitsByItem[key];
       const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
-      const itemCheckUnitsList = fromJoin && fromJoin.length
-        ? fromJoin
-        : (fallbackPlace ? [{ cycle: cycles[0] || DEFAULT_CYCLES[0], place: fallbackPlace }] : []);
+      const defaultCycle = cycles[0] || DEFAULT_CYCLES[0];
+      let itemCheckUnitsList = fromJoin && fromJoin.length ? fromJoin : [];
+      if (!itemCheckUnitsList.length) {
+        itemCheckUnitsList = fallbackPlace
+          ? [{ cycle: defaultCycle, place: fallbackPlace }]
+          : [{ cycle: defaultCycle, place: '' }];
+      }
       return migrateItem({
         id: row.id,
         name: row.name,
@@ -122,13 +126,18 @@ const DbMapper = {
   buildMembershipRows(stockItems, unitKeyToId) {
     const membershipRows = [];
     const membershipItemIds = [];
+    let unresolvedMemberships = 0;
     stockItems.forEach(item => {
       const itemId = String(item.id);
       const rows = [];
       const units = itemCheckUnits(item);
       units.forEach(unit => {
         const checkUnitId = unitKeyToId[unitKey(unit)];
-        if (!checkUnitId) return;
+        if (!checkUnitId) {
+          unresolvedMemberships += 1;
+          console.warn('check_unit not found for membership sync', unitKey(unit), unit);
+          return;
+        }
         rows.push({ item_id: itemId, check_unit_id: checkUnitId });
       });
       const hasPlacedUnits = units.some(unit => unit.place);
@@ -137,7 +146,7 @@ const DbMapper = {
         membershipItemIds.push(itemId);
       }
     });
-    return { membershipRows, membershipItemIds };
+    return { membershipRows, membershipItemIds, unresolvedMemberships };
   },
 
   findOrphanCheckUnitIds(cloudUnits, cycleRows, locs, localUnitKeys, customCycles, customPlaces) {

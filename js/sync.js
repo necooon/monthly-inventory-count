@@ -25,14 +25,14 @@ function scheduleCloudPull() {
 
 function applyFetchedState(state) {
   applyingRemote = true;
-  customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
+  customCycles = migrateCycleNames(state.cycles.length ? state.cycles : [...DEFAULT_CYCLES]);
   customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
   customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
     cycle: customCycles[0] || DEFAULT_CYCLES[0],
     place
   }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
   customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-  customUnits = [...DEFAULT_UNITS];
+  customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
   stockItems = stockItems.map(migrateItem);

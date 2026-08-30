@@ -37,11 +37,11 @@ const DbRepository = {
       .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
     if (itemError) throw itemError;
 
-    let memberships = [];
     const { data: membershipRows, error: membershipError } = await client
       .from('item_check_units')
       .select('item_id,check_unit_id');
-    if (!membershipError) memberships = membershipRows || [];
+    if (membershipError) throw membershipError;
+    const memberships = membershipRows || [];
 
     if (!(cycleRows || []).length && !(rows || []).length) return null;
 
@@ -250,7 +250,17 @@ const DbRepository = {
 
   async syncItemMemberships(unitKeyToId) {
     const client = getSupabaseClient();
-    const { membershipRows, membershipItemIds } = DbMapper.buildMembershipRows(stockItems, unitKeyToId);
+    const { membershipRows, membershipItemIds, unresolvedMemberships } = DbMapper.buildMembershipRows(stockItems, unitKeyToId);
+    const expectedMemberships = stockItems.reduce((count, item) => count + itemCheckUnits(item).length, 0);
+    if (expectedMemberships > 0 && membershipRows.length === 0) {
+      console.error('skip membership sync: could not resolve any check_unit ids', {
+        expectedMemberships,
+        unresolvedMemberships,
+        customCheckUnits,
+        unitKeyToId
+      });
+      throw new Error('check_unit id resolution failed');
+    }
     if (!membershipItemIds.length) return;
 
     const { error: membershipClearError } = await client
