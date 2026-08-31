@@ -5,7 +5,7 @@ const ORDER_EMPTY_MESSAGE = {
   receipt: '受け取り待ちはありません'
 };
 const ORDER_HINT = {
-  lohaco: 'LOHACO で買うものにチェックを入れて確定します。残ったものは店舗などの発注へ進みます。',
+  lohaco: 'LOHACO で買うものにチェックを入れて注文します。チェックしていないものはかいものリストへ追加できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
 let pendingProductSelect = null;
@@ -170,15 +170,38 @@ function setOrderLohacoActionsVisible(visible) {
   const page = document.getElementById('page-order');
   if (bar) bar.hidden = !visible;
   if (page) page.classList.toggle('lohaco-select-step', !!visible);
-  if (visible) syncLohacoConfirmButton();
+  if (visible) syncLohacoSelectButtons();
 }
 
-function syncLohacoConfirmButton() {
-  const btn = document.getElementById('confirm-lohaco-select-btn');
-  if (!btn) return;
-  const n = document.querySelectorAll('#order-list .order-lohaco-check:checked').length;
-  btn.disabled = n === 0;
-  btn.textContent = n ? `選んだものを LOHACO で注文（${n}）` : '選んだものを LOHACO で注文';
+function lohacoSelectCheckedItems() {
+  return Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'))
+    .map(input => findItemById(input.dataset.itemId))
+    .filter(Boolean);
+}
+
+function lohacoSelectUncheckedItems() {
+  return Array.from(document.querySelectorAll('#order-list .order-lohaco-check:not(:checked)'))
+    .map(input => findItemById(input.dataset.itemId))
+    .filter(Boolean);
+}
+
+function syncLohacoSelectButtons() {
+  const confirmBtn = document.getElementById('confirm-lohaco-select-btn');
+  const shopBtn = document.getElementById('skip-lohaco-select-btn');
+  const checked = document.querySelectorAll('#order-list .order-lohaco-check:checked').length;
+  const unchecked = document.querySelectorAll('#order-list .order-lohaco-check:not(:checked)').length;
+  if (confirmBtn) {
+    confirmBtn.disabled = checked === 0;
+    confirmBtn.textContent = checked
+      ? `選んだものを LOHACO で注文（${checked}）`
+      : '選んだものを LOHACO で注文';
+  }
+  if (shopBtn) {
+    shopBtn.disabled = unchecked === 0;
+    shopBtn.textContent = unchecked
+      ? `かいものリストへ追加（${unchecked}）`
+      : 'かいものリストへ追加';
+  }
 }
 
 function renderOrderItemsByCategory(orderDiv, items, appendRow) {
@@ -211,8 +234,8 @@ function renderPlaceOrderList() {
   }
   if (showLohacoStep) {
     setOrderHint('lohaco');
-    setOrderLohacoActionsVisible(true);
     renderOrderItemsByCategory(orderDiv, items, appendLohacoSelectRow);
+    setOrderLohacoActionsVisible(true);
     return;
   }
   setOrderHint('place');
@@ -317,8 +340,7 @@ function confirmOrderPlacement(id, productId, destValue) {
 }
 
 function confirmLohacoSelection() {
-  const checked = Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'));
-  const items = checked.map(input => findItemById(input.dataset.itemId)).filter(Boolean);
+  const items = lohacoSelectCheckedItems();
   if (!items.length) return;
   ensurePurchaseDest(LOHACO_DEST_NAME, 'online');
   persistMasters();
@@ -326,14 +348,19 @@ function confirmLohacoSelection() {
   items.forEach(item => {
     queueItemFulfillment(item, LOHACO_DEST_NAME, lohacoProductIdForItem(item));
   });
-  orderLohacoStepDone = true;
   saveAndRender();
   showUndoToast(`${items.length}件を受け取り待ちにしました`);
 }
 
 function skipLohacoSelection() {
-  orderLohacoStepDone = true;
+  const items = lohacoSelectUncheckedItems();
+  if (!items.length) return;
+  lastOrderUndo = items.map(item => captureFulfillment(item));
+  items.forEach(item => {
+    queueItemFulfillment(item, shoppingListDestForItem(item), '');
+  });
   saveAndRender();
+  showUndoToast(`${items.length}件を買い物リストへ移しました`);
 }
 
 function completeFulfillment(id) {

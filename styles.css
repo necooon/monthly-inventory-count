@@ -136,6 +136,12 @@ h1 {
   outline: 2px solid #1565c0;
   outline-offset: 2px;
 }
+.order-skip-btn:disabled {
+  color: #b0bec5;
+  border-color: #eceff1;
+  background: #fafafa;
+  cursor: not-allowed;
+}
 .order-lohaco-item {
   cursor: pointer;
 }
