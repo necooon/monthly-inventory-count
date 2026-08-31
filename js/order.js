@@ -29,48 +29,15 @@ function syncOrderPlacementButton(btn, destSelect) {
   btn.textContent = orderPlacementButtonLabel(dest);
 }
 
-function appendOnlineProductAccessLink(container, { item, product, dest }) {
-  container.innerHTML = '';
-  const destName = normalizePurchaseDest(dest);
-  const productUrl = product?.url && isHttpProductUrl(product.url) ? normalizeProductPageUrl(product.url) : '';
-  if (productUrl && destName && destKind(destName) === 'online') {
-    const link = document.createElement('a');
-    link.href = productUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.className = 'order-online-link';
-    link.textContent = `${destName}で開く`;
-    container.appendChild(link);
-    return;
+async function finishOrderProductRegistration(item, productSelect, created, toastMessage) {
+  if (!created) {
+    productSelect.value = '';
+    return false;
   }
-  if (productUrl && !destName) {
-    const link = document.createElement('a');
-    link.href = productUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.className = 'order-online-link';
-    link.textContent = '商品ページを開く';
-    container.appendChild(link);
-    return;
-  }
-  if (!isLohacoDest(destName)) return;
-  const searchUrl = lohacoSearchUrl(product?.name || item.name);
-  if (!searchUrl) return;
-  const link = document.createElement('a');
-  link.href = searchUrl;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  link.className = 'order-online-link';
-  link.textContent = 'LOHACOで検索';
-  container.appendChild(link);
-}
-
-function syncOnlineProductAccessActions(container, item, productSelect, destSelect) {
-  appendOnlineProductAccessLink(container, {
-    item,
-    product: findProductById(productSelect.value),
-    dest: orderPlacementDestValue(destSelect)
-  });
+  if (toastMessage) showUndoToast(toastMessage);
+  pendingProductSelect = { itemId: item.id, productId: created.id };
+  saveAndRender();
+  return true;
 }
 
 function pendingProductNote(item) {
@@ -107,16 +74,8 @@ function appendFulfillItemRow(parent, item, dest, view) {
   label.appendChild(input);
   label.appendChild(text);
   controls.appendChild(label);
-  if (destKind(dest) === 'online') {
-    const onlineActions = document.createElement('div');
-    onlineActions.className = 'order-online-actions';
-    appendOnlineProductAccessLink(onlineActions, {
-      item,
-      product: findProductById(item.pendingProductId),
-      dest
-    });
-    if (onlineActions.childElementCount) controls.appendChild(onlineActions);
-  }
+  const onlineActions = mountOnlineAccessActions(item, findProductById(item.pendingProductId), dest);
+  if (onlineActions) controls.appendChild(onlineActions);
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);
   parent.appendChild(itemDiv);
@@ -208,30 +167,28 @@ function appendPlaceOrderRow(parent, item) {
     else if (product && names.length === 1) destSelect.value = names[0];
     else if (!product && names.length === 1) destSelect.value = names[0];
     syncOrderPlacementButton(btn, destSelect);
-    syncOnlineProductAccessActions(onlineActions, item, productSelect, destSelect);
+    renderOnlineProductAccessLinks(onlineActions, {
+      item,
+      product: findProductById(productSelect.value),
+      dest: orderPlacementDestValue(destSelect)
+    });
   };
   productSelect.onchange = async () => {
     if (productSelect.value === ADD_PRODUCT_URL_VALUE) {
       const created = await registerProductFromUrl(item, destSelect.value);
-      if (!created) {
-        productSelect.value = '';
-        syncOrderDestFields();
-        return;
-      }
-      showUndoToast(`「${created.name}」を登録しました。確定で発注できます`);
-      pendingProductSelect = { itemId: item.id, productId: created.id };
-      saveAndRender();
+      const done = await finishOrderProductRegistration(
+        item,
+        productSelect,
+        created,
+        created ? `「${created.name}」を登録しました。確定で発注できます` : ''
+      );
+      if (!done) syncOrderDestFields();
       return;
     }
     if (productSelect.value === ADD_NEW_VALUE) {
       const created = await quickRegisterProductFromOrder(item, destSelect.value);
-      if (!created) {
-        productSelect.value = '';
-        syncOrderDestFields();
-        return;
-      }
-      pendingProductSelect = { itemId: item.id, productId: created.id };
-      saveAndRender();
+      const done = await finishOrderProductRegistration(item, productSelect, created);
+      if (!done) syncOrderDestFields();
       return;
     }
     syncOrderDestFields();
@@ -239,7 +196,11 @@ function appendPlaceOrderRow(parent, item) {
   destSelect.onchange = async () => {
     if (destSelect.value !== ADD_NEW_VALUE) {
       syncOrderPlacementButton(btn, destSelect);
-      syncOnlineProductAccessActions(onlineActions, item, productSelect, destSelect);
+      renderOnlineProductAccessLinks(onlineActions, {
+        item,
+        product: findProductById(productSelect.value),
+        dest: orderPlacementDestValue(destSelect)
+      });
       return;
     }
     const name = await showPrompt('新しい購入先');

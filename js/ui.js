@@ -265,6 +265,28 @@ function resolvePrompt(value) {
   if (resolve) resolve(value);
 }
 
+async function resolveOnlineDestForProductUrl(item, url, destHint) {
+  const hinted = normalizePurchaseDest(destHint);
+  if (hinted && destKind(hinted) === 'online') return hinted;
+
+  const inferred = inferPurchaseDestFromUrl(url);
+  if (inferred) {
+    ensurePurchaseDest(inferred, 'online');
+    return inferred;
+  }
+
+  const itemOnline = itemPurchaseDests(item).filter(name => destKind(name) === 'online');
+  if (itemOnline.length === 1) return itemOnline[0];
+
+  const allOnline = onlinePurchaseDests();
+  if (allOnline.length === 1) return allOnline[0];
+
+  const defaultName = inferred || itemOnline[0] || allOnline[0] || 'LOHACO';
+  const name = await showPrompt('ネットショップ（購入先）', defaultName);
+  if (!name || !String(name).trim()) return '';
+  return ensurePurchaseDest(String(name).trim(), 'online');
+}
+
 async function registerProductFromUrl(item, destHint) {
   const url = await showPrompt('商品ページ URL', '', 'url');
   if (!url || !String(url).trim()) return null;

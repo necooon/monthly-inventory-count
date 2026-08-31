@@ -143,13 +143,11 @@ h1 {
   color: #eceff1;
   cursor: not-allowed;
 }
-.order-lohaco-actions,
 .order-online-actions {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.order-lohaco-link,
 .order-online-link {
   display: inline-flex;
   align-items: center;
@@ -167,7 +165,6 @@ h1 {
   width: 100%;
   box-sizing: border-box;
 }
-.order-lohaco-link:focus-visible,
 .order-online-link:focus-visible {
   outline: 2px solid #1565c0;
   outline-offset: 2px;

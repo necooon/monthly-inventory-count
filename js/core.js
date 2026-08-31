@@ -22,13 +22,6 @@ const ADD_NEW_VALUE = 'ADD_NEW';
 const ADD_PRODUCT_URL_VALUE = 'ADD_PRODUCT_URL';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
-const LOHACO_HOST = 'lohaco.yahoo.co.jp';
-const ONLINE_STORE_HOST_DESTS = [
-  { dest: 'LOHACO', hosts: ['lohaco.yahoo.co.jp'] },
-  { dest: 'Amazon', hosts: ['amazon.co.jp', 'amazon.com', 'www.amazon.co.jp'] },
-  { dest: '楽天', hosts: ['rakuten.co.jp', 'item.rakuten.co.jp'] },
-  { dest: 'ヨドバシ', hosts: ['yodobashi.com', 'www.yodobashi.com'] }
-];
 
 let customUnits = loadNameList(StorageKeys.UNITS, DEFAULT_UNITS);
 let catalogProducts = [];
@@ -209,79 +202,6 @@ function allPurchaseDests() {
 
 function defaultKindForDest(name) {
   return String(name || '').trim() === 'LOHACO' ? 'online' : 'store';
-}
-
-function isLohacoDest(dest) {
-  return normalizePurchaseDest(dest) === 'LOHACO';
-}
-
-function parseHttpUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return null;
-  try {
-    return new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-  } catch {
-    return null;
-  }
-}
-
-function isHttpProductUrl(url) {
-  const parsed = parseHttpUrl(url);
-  return parsed != null && (parsed.protocol === 'http:' || parsed.protocol === 'https:');
-}
-
-function normalizeProductPageUrl(url) {
-  const parsed = parseHttpUrl(url);
-  return parsed ? parsed.href : String(url || '').trim();
-}
-
-function inferPurchaseDestFromUrl(url) {
-  const parsed = parseHttpUrl(url);
-  if (!parsed) return '';
-  const host = parsed.hostname.toLowerCase();
-  for (const entry of ONLINE_STORE_HOST_DESTS) {
-    if (entry.hosts.some(h => host === h || host.endsWith(`.${h}`))) return entry.dest;
-  }
-  return '';
-}
-
-function onlinePurchaseDests() {
-  return allPurchaseDests().filter(name => destKind(name) === 'online');
-}
-
-function isLohacoUrl(url) {
-  const parsed = parseHttpUrl(url);
-  if (!parsed) return false;
-  const host = parsed.hostname.toLowerCase();
-  return host === LOHACO_HOST || host.endsWith(`.${LOHACO_HOST}`);
-}
-
-function lohacoSearchUrl(query) {
-  const q = String(query || '').trim();
-  if (!q) return '';
-  return `https://lohaco.yahoo.co.jp/search/?p=${encodeURIComponent(q)}`;
-}
-
-async function resolveOnlineDestForProductUrl(item, url, destHint) {
-  const hinted = normalizePurchaseDest(destHint);
-  if (hinted && destKind(hinted) === 'online') return hinted;
-
-  const inferred = inferPurchaseDestFromUrl(url);
-  if (inferred) {
-    ensurePurchaseDest(inferred, 'online');
-    return inferred;
-  }
-
-  const itemOnline = itemPurchaseDests(item).filter(name => destKind(name) === 'online');
-  if (itemOnline.length === 1) return itemOnline[0];
-
-  const allOnline = onlinePurchaseDests();
-  if (allOnline.length === 1) return allOnline[0];
-
-  const defaultName = inferred || itemOnline[0] || allOnline[0] || 'LOHACO';
-  const name = await showPrompt('ネットショップ（購入先）', defaultName);
-  if (!name || !String(name).trim()) return '';
-  return ensurePurchaseDest(String(name).trim(), 'online');
 }
 
 function normalizeDestKind(value, destName) {
