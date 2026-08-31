@@ -6,12 +6,6 @@ const ORDER_EMPTY_MESSAGE = {
 };
 let pendingProductSelect = null;
 
-function productOptionLabel(product) {
-  const dests = productPurchaseDestNames(product);
-  if (!dests.length) return `${product.name}（購入先なし）`;
-  return `${product.name} — ${dests.join('、')}`;
-}
-
 function orderPlacementDestValue(destSelect) {
   const dest = normalizePurchaseDest(destSelect.value) || '';
   if (!dest || dest === ADD_NEW_VALUE) return '';
@@ -81,173 +75,13 @@ function appendFulfillItemRow(parent, item, dest, view) {
   parent.appendChild(itemDiv);
 }
 
-function appendPlaceOrderRow(parent, item) {
-  const itemDiv = document.createElement('div');
-  itemDiv.className = 'item order-place-item';
-  itemDiv.dataset.orderItem = item.id;
-  const products = productsForItem(item.id);
-  const info = document.createElement('div');
-  info.className = 'item-info';
-  const lastOrder = formatLastOrder(item.lastOrderedOn);
-  info.innerHTML = `
-      <div class="order-place-head">
-        <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-        <span class="order-place-qty">買う ${formatQty(itemOrderQty(item), item.unit)}</span>
-      </div>
-      <div class="order-place-meta">
-        <span class="order-place-meta-item"><span class="order-place-meta-label">在庫</span>${formatQty(item.count, item.unit)} / ${formatQty(item.target, item.unit)}</span>
-        <span class="order-place-meta-item"><span class="order-place-meta-label">前回</span>${lastOrder || 'なし'}</span>
-      </div>
-  `;
-  const productField = document.createElement('div');
-  productField.className = 'order-field';
-  const productLabel = document.createElement('label');
-  productLabel.className = 'order-field-label';
-  productLabel.textContent = '商品';
-  const productSelect = document.createElement('select');
-  productSelect.className = 'order-product-select';
-  productSelect.id = `order-product-${item.id}`;
-  productLabel.htmlFor = productSelect.id;
-  const noneOpt = document.createElement('option');
-  noneOpt.value = '';
-  noneOpt.textContent = products.length ? '選ばない（購入先を入力）' : '未登録（購入先を入力）';
-  productSelect.appendChild(noneOpt);
-  products.forEach(product => {
-    const opt = document.createElement('option');
-    opt.value = product.id;
-    opt.textContent = productOptionLabel(product);
-    productSelect.appendChild(opt);
+function bindOrderViewFilters(filterDiv) {
+  if (!filterDiv) return orderCategoryFilter;
+  filterDiv.innerHTML = '';
+  bindPurchaseDestFilters(filterDiv);
+  return bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => {
+    orderCategoryFilter = value;
   });
-  const addOpt = document.createElement('option');
-  addOpt.value = ADD_NEW_VALUE;
-  addOpt.textContent = '＋ この場で登録（名前だけ）';
-  productSelect.appendChild(addOpt);
-  const urlOpt = document.createElement('option');
-  urlOpt.value = ADD_PRODUCT_URL_VALUE;
-  urlOpt.textContent = '＋ 商品ページ URLで登録';
-  productSelect.appendChild(urlOpt);
-  const destField = document.createElement('div');
-  destField.className = 'order-field';
-  const destLabel = document.createElement('label');
-  destLabel.className = 'order-field-label';
-  destLabel.textContent = '購入先';
-  const destSelect = document.createElement('select');
-  destSelect.className = 'order-dest-select';
-  destSelect.id = `order-dest-${item.id}`;
-  destLabel.htmlFor = destSelect.id;
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'order-action-btn';
-  btn.disabled = true;
-  btn.textContent = '確定';
-  btn.onclick = () => confirmOrderPlacement(item.id, productSelect.value, destSelect.value);
-  const onlineActions = document.createElement('div');
-  onlineActions.className = 'order-online-actions';
-  const syncOrderDestFields = () => {
-    const product = findProductById(productSelect.value);
-    const names = product
-      ? productPurchaseDestNames(product)
-      : (itemPurchaseDests(item).length ? itemPurchaseDests(item) : allPurchaseDests());
-    const prev = destSelect.value;
-    destSelect.innerHTML = '';
-    const empty = document.createElement('option');
-    empty.value = '';
-    empty.textContent = product ? '商品の購入先を選ぶ' : '購入先を選ぶ';
-    destSelect.appendChild(empty);
-    names.forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = `${name}（${destKindLabel(name)}）`;
-      destSelect.appendChild(opt);
-    });
-    if (!product) {
-      const add = document.createElement('option');
-      add.value = ADD_NEW_VALUE;
-      add.textContent = '＋ 新しい購入先を入力';
-      destSelect.appendChild(add);
-    }
-    if (names.includes(prev)) destSelect.value = prev;
-    else if (product && names.length === 1) destSelect.value = names[0];
-    else if (!product && names.length === 1) destSelect.value = names[0];
-    syncOrderPlacementButton(btn, destSelect);
-    renderOnlineProductAccessLinks(onlineActions, {
-      item,
-      product: findProductById(productSelect.value),
-      dest: orderPlacementDestValue(destSelect)
-    });
-  };
-  productSelect.onchange = async () => {
-    if (productSelect.value === ADD_PRODUCT_URL_VALUE) {
-      const created = await registerProductFromUrl(item, destSelect.value);
-      const done = await finishOrderProductRegistration(
-        item,
-        productSelect,
-        created,
-        created ? `「${created.name}」を登録しました。確定で発注できます` : ''
-      );
-      if (!done) syncOrderDestFields();
-      return;
-    }
-    if (productSelect.value === ADD_NEW_VALUE) {
-      const created = await quickRegisterProductFromOrder(item, destSelect.value);
-      const done = await finishOrderProductRegistration(item, productSelect, created);
-      if (!done) syncOrderDestFields();
-      return;
-    }
-    syncOrderDestFields();
-  };
-  destSelect.onchange = async () => {
-    if (destSelect.value !== ADD_NEW_VALUE) {
-      syncOrderPlacementButton(btn, destSelect);
-      renderOnlineProductAccessLinks(onlineActions, {
-        item,
-        product: findProductById(productSelect.value),
-        dest: orderPlacementDestValue(destSelect)
-      });
-      return;
-    }
-    const name = await showPrompt('新しい購入先');
-    if (!name || !String(name).trim()) {
-      destSelect.value = '';
-      syncOrderPlacementButton(btn, destSelect);
-      return;
-    }
-    const kind = await pickPurchaseDestKind();
-    if (!kind) {
-      destSelect.value = '';
-      syncOrderPlacementButton(btn, destSelect);
-      return;
-    }
-    const dest = ensurePurchaseDest(String(name).trim(), kind);
-    persistMasters();
-    syncOrderDestFields();
-    destSelect.value = dest;
-  };
-  syncOrderDestFields();
-  if (pendingProductSelect && String(pendingProductSelect.itemId) === String(item.id)) {
-    const keepId = pendingProductSelect.productId;
-    pendingProductSelect = null;
-    if ([...productSelect.options].some(o => o.value === keepId)) {
-      productSelect.value = keepId;
-      syncOrderDestFields();
-    }
-  }
-  productField.appendChild(productLabel);
-  productField.appendChild(productSelect);
-  destField.appendChild(destLabel);
-  destField.appendChild(destSelect);
-  const controls = document.createElement('div');
-  controls.className = 'order-place-fields';
-  controls.appendChild(productField);
-  controls.appendChild(destField);
-  controls.appendChild(onlineActions);
-  controls.appendChild(btn);
-  const form = document.createElement('div');
-  form.className = 'order-place-form';
-  form.appendChild(controls);
-  itemDiv.appendChild(info);
-  itemDiv.appendChild(form);
-  parent.appendChild(itemDiv);
 }
 
 function toggleOrderDestGroup(dest) {
@@ -320,11 +154,7 @@ function renderPlaceOrderList() {
   const filterDiv = document.getElementById('order-filters');
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
-  if (filterDiv) {
-    filterDiv.innerHTML = '';
-    bindPurchaseDestFilters(filterDiv);
-    orderCategoryFilter = bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => { orderCategoryFilter = value; });
-  }
+  orderCategoryFilter = bindOrderViewFilters(filterDiv);
   const items = itemsForOrderView('order');
   if (!items.length) {
     orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE.order}</div>`;
@@ -348,11 +178,7 @@ function renderFulfillmentList() {
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
   updateOrderSubnav();
-  if (filterDiv) {
-    filterDiv.innerHTML = '';
-    bindPurchaseDestFilters(filterDiv);
-    orderCategoryFilter = bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => { orderCategoryFilter = value; });
-  }
+  orderCategoryFilter = bindOrderViewFilters(filterDiv);
   renderGroupedFulfillItems(orderDiv, itemsForOrderView(orderFulfillmentView), orderFulfillmentView);
 }
 
