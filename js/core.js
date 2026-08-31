@@ -443,6 +443,22 @@ function itemsForOrderView(view) {
   );
 }
 
+function addItemToDestCategoryGroup(destGroups, dest, item) {
+  if (!destGroups.has(dest)) destGroups.set(dest, new Map());
+  const cats = destGroups.get(dest);
+  const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+  if (!cats.has(cat)) cats.set(cat, []);
+  cats.get(cat).push(item);
+}
+
+function destCategoryGroupCount(cats) {
+  return [...cats.values()].reduce((n, list) => n + list.length, 0);
+}
+
+function sortItemsByNameJa(items) {
+  return items.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
+}
+
 function groupOrderItemsByCategory(items) {
   const cats = new Map();
   items.forEach(item => {
@@ -455,29 +471,32 @@ function groupOrderItemsByCategory(items) {
 
 function groupOrderItemsByDest(items, view) {
   const destGroups = new Map();
-  const addToGroup = (dest, item) => {
-    if (!destGroups.has(dest)) destGroups.set(dest, new Map());
-    const cats = destGroups.get(dest);
-    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
-    if (!cats.has(cat)) cats.set(cat, []);
-    cats.get(cat).push(item);
-  };
   items.forEach(item => {
     if (view === 'order') {
       const dests = itemPurchaseDests(item);
       if (!dests.length) {
-        addToGroup(UNSET_PURCHASE_DEST_LABEL, item);
+        addItemToDestCategoryGroup(destGroups, UNSET_PURCHASE_DEST_LABEL, item);
         return;
       }
       dests.forEach(dest => {
         if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
-          addToGroup(dest, item);
+          addItemToDestCategoryGroup(destGroups, dest, item);
         }
       });
       return;
     }
-    addToGroup(normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL, item);
+    addItemToDestCategoryGroup(
+      destGroups,
+      normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL,
+      item
+    );
   });
+  return destGroups;
+}
+
+function groupSelectItemsByDest(items) {
+  const destGroups = new Map();
+  items.forEach(item => addItemToDestCategoryGroup(destGroups, selectDestForItem(item), item));
   return destGroups;
 }
 
