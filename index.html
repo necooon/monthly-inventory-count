@@ -39,18 +39,9 @@
 
   <!-- 発注画面 -->
   <div class="page" id="page-order">
-  <p class="settings-hint" id="order-hint">何を、どこで買うかを決めます。購入先を選ぶと、ネットは注文、店舗は買いものリストへ進みます。</p>
+  <p class="settings-hint" id="order-hint">商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。</p>
   <div class="filter-bar" id="order-filters"></div>
   <div id="order-list"></div>
-  <details class="ai-advisor-container">
-    <summary>AI 購入アドバイザー</summary>
-    <p style="font-size: 0.8em; color: #555; margin: 10px 0;">発注が必要なアイテムについて、AIがお得な買い方やアドバイスを提案します。</p>
-    <button class="ai-btn" onclick="getAIAdvice()">
-      <span>アドバイスをもらう</span>
-      <div class="loading-spinner" id="ai-loading"></div>
-    </button>
-    <div class="ai-result" id="ai-result"></div>
-  </details>
   </div>
 
   <!-- 買い物・受け取り -->
