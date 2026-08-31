@@ -391,6 +391,13 @@ function itemCanBuyOnLohaco(item) {
   return productsForItem(item.id).some(productHasLohaco);
 }
 
+function shoppingListDestForItem(item) {
+  const dests = itemPurchaseDests(item);
+  const store = dests.find(name => destKind(name) === 'store');
+  if (store) return store;
+  return dests.find(name => name !== LOHACO_DEST_NAME) || '';
+}
+
 function undoSnapshots(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];

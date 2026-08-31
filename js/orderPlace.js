@@ -206,7 +206,7 @@ function appendLohacoSelectRow(parent, item) {
   input.dataset.itemId = item.id;
   input.setAttribute('aria-label', `${item.name}をLOHACOで買う`);
   input.checked = itemCanBuyOnLohaco(item);
-  input.onchange = syncLohacoConfirmButton;
+  input.onchange = syncLohacoSelectButtons;
   const info = document.createElement('div');
   info.className = 'item-info';
   info.innerHTML = orderPlaceInfoHtml(item);
