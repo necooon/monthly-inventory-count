@@ -7,7 +7,6 @@ function orderPlaceInfoHtml(item, options) {
     return `
       <div class="order-place-head">
         <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-        <span class="order-place-last"><span class="order-place-meta-label">前回</span>${lastOrder}</span>
       </div>
       <div class="order-place-qty-line">
         <span class="order-place-qty-part"><span class="order-place-meta-label">注文</span>${qty}</span>
