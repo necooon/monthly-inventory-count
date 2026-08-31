@@ -5,7 +5,7 @@ const ORDER_EMPTY_MESSAGE = {
   receipt: '受け取り待ちはありません'
 };
 const ORDER_HINT = {
-  lohaco: '購入先ごとにまとめています。選んだものを LOHACO で注文するか、買い物リストへ追加できます。',
+  lohaco: '購入先ごとにまとめています。選んだものをネットで注文するか、リストに追加できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
 let pendingProductSelect = null;
@@ -202,14 +202,14 @@ function syncLohacoSelectButtons() {
   if (confirmBtn) {
     confirmBtn.disabled = checked === 0;
     confirmBtn.textContent = checked
-      ? `選んだものを LOHACO で注文（${checked}）`
-      : '選んだものを LOHACO で注文';
+      ? `ネットで注文（${checked}）`
+      : 'ネットで注文';
   }
   if (shopBtn) {
     shopBtn.disabled = checked === 0;
     shopBtn.textContent = checked
-      ? `選んだものを買い物リストへ追加（${checked}）`
-      : '選んだものを買い物リストへ追加';
+      ? `リストに追加（${checked}）`
+      : 'リストに追加';
   }
 }
 
