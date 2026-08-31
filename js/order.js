@@ -18,7 +18,7 @@ function productOptionLabel(product) {
 
 function pendingProductNote(item) {
   const product = findProductById(item.pendingProductId);
-  return product ? `<span class="item-last-order">個別商品: ${product.name}</span>` : '';
+  return product ? `<span class="item-last-order">商品: ${product.name}</span>` : '';
 }
 
 function appendFulfillItemRow(parent, item, dest, view) {
@@ -70,7 +70,7 @@ function appendPlaceOrderRow(parent, item) {
   `;
   const productLabel = document.createElement('label');
   productLabel.className = 'order-field-label';
-  productLabel.textContent = '個別商品';
+  productLabel.textContent = '商品';
   const productSelect = document.createElement('select');
   productSelect.className = 'order-product-select';
   const noneOpt = document.createElement('option');
@@ -104,7 +104,7 @@ function appendPlaceOrderRow(parent, item) {
     destSelect.innerHTML = '';
     if (product && !names.length) {
       productDestSummary.hidden = false;
-      productDestSummary.innerHTML = '<span class="order-dest-empty-hint">この個別商品に購入先がありません。設定で追加してください。</span>';
+      productDestSummary.innerHTML = '<span class="order-dest-empty-hint">この商品に購入先がありません。設定で追加してください。</span>';
       destLabel.hidden = true;
       destSelect.hidden = true;
       return;
@@ -343,7 +343,7 @@ function showUndoToast(message) {
 }
 
 async function quickRegisterProductFromOrder(item, destHint) {
-  const name = await showPrompt('個別商品名', item.name || '');
+  const name = await showPrompt('商品名', item.name || '');
   if (!name || !String(name).trim()) return null;
   const dests = defaultDestsForNewProduct(item.id, destHint);
   if (!dests.length) {
@@ -368,18 +368,18 @@ function confirmOrderPlacement(id, productId, destValue) {
   if (product) {
     const dests = product.purchaseDests;
     if (!dests.length) {
-      alert('この個別商品に購入先がありません。設定で追加してください。');
+      alert('この商品に購入先がありません。設定で追加してください。');
       return;
     }
     dest = dests.includes(dest) ? dest : (dests.length === 1 ? dests[0] : dest);
     if (!dests.includes(dest)) {
-      alert('個別商品の購入先を選んでください。');
+      alert('商品の購入先を選んでください。');
       return;
     }
   } else {
     dest = normalizePurchaseDest(dest) || '';
     if (!dest || dest === ADD_NEW_VALUE) {
-      alert('個別商品を選ぶか、購入先を入力してください。');
+      alert('商品を選ぶか、購入先を入力してください。');
       return;
     }
   }

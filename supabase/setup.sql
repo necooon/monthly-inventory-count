@@ -594,7 +594,7 @@ exception
   when duplicate_object then null;
 end $$;
 
--- 個別商品（アイテム一対多）と購入履歴
+-- 商品（アイテム一対多）と購入履歴
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   item_id uuid references public.items(id) on delete set null,

@@ -1133,7 +1133,7 @@ function itemFormFieldsHtml(prefix, options = {}) {
         <span class="unit-readout" id="${readout}-threshold-unit"></span>
       </div>
       <span class="field-hint">在庫がこの数以下になると発注対象になります</span>
-      ${prefix === 'edit-item' ? `<label>個別商品</label><p class="settings-hint">名前だけで足せます。購入先はアイテムのものを使います。</p><div id="${prefix}-linked-products" class="linked-products"></div>` : ''}
+      ${prefix === 'edit-item' ? `<label>商品</label><p class="settings-hint">名前だけで足せます。購入先はアイテムのものを使います。</p><div id="${prefix}-linked-products" class="linked-products"></div>` : ''}
   `;
 }
 
@@ -1142,7 +1142,7 @@ function renderProductCatalog() {
   if (!list) return;
   list.innerHTML = '';
   if (!catalogProducts.length) {
-    list.innerHTML = '<div class="empty-message">個別商品はまだありません。</div>';
+    list.innerHTML = '<div class="empty-message">商品はまだありません。</div>';
     return;
   }
   catalogProducts.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja')).forEach(product => {
@@ -1233,7 +1233,7 @@ function renderLinkedProducts(containerId, itemId) {
       alert('先にこのアイテムの購入先を付けて保存してください。');
       return;
     }
-    const name = await showPrompt('個別商品名', item.name || '');
+    const name = await showPrompt('商品名', item.name || '');
     if (!name || !String(name).trim()) return;
     dests.forEach(dest => ensurePurchaseDest(dest));
     createCatalogProduct({ name: String(name).trim(), itemId: item.id, dests });
@@ -1300,11 +1300,11 @@ function openProductModal(productId, presetItemId) {
   editingProductId = productId || null;
   const product = findProductById(productId);
   const itemId = product ? product.itemId : (presetItemId || '');
-  document.getElementById('product-modal-title').textContent = product ? '個別商品を編集' : '個別商品を追加';
+  document.getElementById('product-modal-title').textContent = product ? '商品を編集' : '商品を追加';
   const nameInput = document.getElementById('product-name');
   const item = findItemById(itemId);
   nameInput.value = product ? product.name : (item ? item.name : '');
-  nameInput.placeholder = item ? `${item.name}の実商品名` : '例：エリエール 5箱';
+  nameInput.placeholder = item ? `${item.name}の商品名` : '例：エリエール 5箱';
   mountProductForm();
   fillProductItemSelect(itemId);
   fillPurchaseDestPicker('product', product ? product.purchaseDests : (item ? itemPurchaseDests(item) : []));
