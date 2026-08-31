@@ -5,7 +5,7 @@ const ORDER_EMPTY_MESSAGE = {
   receipt: '受け取り待ちはありません'
 };
 const ORDER_HINT = {
-  lohaco: 'LOHACO で買うものにチェックを入れて注文します。チェックしていないものはかいものリストへ追加できます。',
+  lohaco: '購入先ごとにまとめています。選んだものを LOHACO で注文するか、買い物リストへ追加できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
 let pendingProductSelect = null;
@@ -92,7 +92,21 @@ function toggleOrderDestGroup(dest) {
   if (orderCollapsedDests.has(dest)) orderCollapsedDests.delete(dest);
   else orderCollapsedDests.add(dest);
   persistOrderCollapsedDests();
-  saveAndRender();
+  const collapsed = orderCollapsedDests.has(dest);
+  const selector = `.order-group[data-dest="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(dest) : dest}"]`;
+  const groups = document.querySelectorAll(selector);
+  if (!groups.length) {
+    saveAndRender();
+    return;
+  }
+  groups.forEach(group => {
+    group.classList.toggle('collapsed', collapsed);
+    const title = group.querySelector('.order-group-title');
+    if (!title) return;
+    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    const chevron = title.querySelector('.order-group-chevron');
+    if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
+  });
 }
 
 function setOrderFulfillmentView(view) {
@@ -130,6 +144,7 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
     const collapsed = orderCollapsedDests.has(dest);
     const group = document.createElement('div');
     group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+    group.dataset.dest = dest;
     const title = document.createElement('button');
     title.type = 'button';
     title.className = 'order-group-title';
@@ -176,20 +191,14 @@ function setOrderLohacoActionsVisible(visible) {
 function lohacoSelectCheckedItems() {
   return Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'))
     .map(input => findItemById(input.dataset.itemId))
-    .filter(Boolean);
-}
-
-function lohacoSelectUncheckedItems() {
-  return Array.from(document.querySelectorAll('#order-list .order-lohaco-check:not(:checked)'))
-    .map(input => findItemById(input.dataset.itemId))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((item, i, list) => list.findIndex(other => String(other.id) === String(item.id)) === i);
 }
 
 function syncLohacoSelectButtons() {
   const confirmBtn = document.getElementById('confirm-lohaco-select-btn');
   const shopBtn = document.getElementById('skip-lohaco-select-btn');
-  const checked = document.querySelectorAll('#order-list .order-lohaco-check:checked').length;
-  const unchecked = document.querySelectorAll('#order-list .order-lohaco-check:not(:checked)').length;
+  const checked = lohacoSelectCheckedItems().length;
   if (confirmBtn) {
     confirmBtn.disabled = checked === 0;
     confirmBtn.textContent = checked
@@ -197,11 +206,58 @@ function syncLohacoSelectButtons() {
       : '選んだものを LOHACO で注文';
   }
   if (shopBtn) {
-    shopBtn.disabled = unchecked === 0;
-    shopBtn.textContent = unchecked
-      ? `かいものリストへ追加（${unchecked}）`
-      : 'かいものリストへ追加';
+    shopBtn.disabled = checked === 0;
+    shopBtn.textContent = checked
+      ? `選んだものを買い物リストへ追加（${checked}）`
+      : '選んだものを買い物リストへ追加';
   }
+}
+
+function groupSelectItemsByDest(items) {
+  const destGroups = new Map();
+  items.forEach(item => {
+    const dest = selectDestForItem(item);
+    if (!destGroups.has(dest)) destGroups.set(dest, new Map());
+    const cats = destGroups.get(dest);
+    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
+    if (!cats.has(cat)) cats.set(cat, []);
+    cats.get(cat).push(item);
+  });
+  return destGroups;
+}
+
+function renderLohacoSelectList(orderDiv, items) {
+  const destGroups = groupSelectItemsByDest(items);
+  const destOrder = selectDestSortOrder();
+  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
+  sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
+    const cats = destGroups.get(dest);
+    const destCount = [...cats.values()].reduce((n, list) => n + list.length, 0);
+    const collapsed = orderCollapsedDests.has(dest);
+    const group = document.createElement('div');
+    group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+    group.dataset.dest = dest;
+    const title = document.createElement('button');
+    title.type = 'button';
+    title.className = 'order-group-title';
+    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    title.setAttribute('aria-label', `${dest}、${destCount}件`);
+    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
+    title.onclick = () => toggleOrderDestGroup(dest);
+    group.appendChild(title);
+    const body = document.createElement('div');
+    body.className = 'order-group-items';
+    sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
+      const sub = document.createElement('div');
+      sub.className = 'order-subgroup-title';
+      sub.textContent = cat;
+      body.appendChild(sub);
+      cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
+        .forEach(item => appendLohacoSelectRow(body, item, dest));
+    });
+    group.appendChild(body);
+    orderDiv.appendChild(group);
+  });
 }
 
 function renderOrderItemsByCategory(orderDiv, items, appendRow) {
@@ -234,7 +290,7 @@ function renderPlaceOrderList() {
   }
   if (showLohacoStep) {
     setOrderHint('lohaco');
-    renderOrderItemsByCategory(orderDiv, items, appendLohacoSelectRow);
+    renderLohacoSelectList(orderDiv, items);
     setOrderLohacoActionsVisible(true);
     return;
   }
@@ -353,11 +409,22 @@ function confirmLohacoSelection() {
 }
 
 function skipLohacoSelection() {
-  const items = lohacoSelectUncheckedItems();
+  const inputs = Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'));
+  const items = [];
+  const destById = new Map();
+  inputs.forEach(input => {
+    const item = findItemById(input.dataset.itemId);
+    if (!item) return;
+    if (!items.some(existing => String(existing.id) === String(item.id))) items.push(item);
+    const dest = input.dataset.dest === LOHACO_DEST_NAME
+      ? shoppingListDestForItem(item)
+      : (input.dataset.dest || shoppingListDestForItem(item));
+    destById.set(String(item.id), dest);
+  });
   if (!items.length) return;
   lastOrderUndo = items.map(item => captureFulfillment(item));
   items.forEach(item => {
-    queueItemFulfillment(item, shoppingListDestForItem(item), '');
+    queueItemFulfillment(item, destById.get(String(item.id)) || shoppingListDestForItem(item), '');
   });
   saveAndRender();
   showUndoToast(`${items.length}件を買い物リストへ移しました`);

@@ -398,6 +398,23 @@ function shoppingListDestForItem(item) {
   return dests.find(name => name !== LOHACO_DEST_NAME) || '';
 }
 
+function selectDestForItem(item) {
+  if (itemCanBuyOnLohaco(item)) return LOHACO_DEST_NAME;
+  const dests = itemPurchaseDests(item);
+  if (!dests.length) return UNSET_PURCHASE_DEST_LABEL;
+  const order = allPurchaseDests();
+  return dests.slice().sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.localeCompare(b, 'ja');
+  })[0];
+}
+
+function selectDestSortOrder() {
+  const rest = allPurchaseDests().filter(name => name !== LOHACO_DEST_NAME);
+  return [LOHACO_DEST_NAME, ...rest, UNSET_PURCHASE_DEST_LABEL];
+}
+
 function undoSnapshots(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
