@@ -1,6 +1,6 @@
 const ORDER_VIEW_LABELS = { shopping: '買い物', receipt: '受け取り' };
 const ORDER_EMPTY_MESSAGE = {
-  order: '発注が必要なアイテムはありません 🎉',
+  order: '発注が必要なアイテムはありません',
   shopping: '買い物リストは空です',
   receipt: '受け取り待ちはありません'
 };
@@ -70,22 +70,28 @@ function appendFulfillItemRow(parent, item, dest, view) {
 
 function appendPlaceOrderRow(parent, item) {
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'item empty order-item';
+  itemDiv.className = 'item order-place-item';
   itemDiv.dataset.orderItem = item.id;
   const products = productsForItem(item.id);
   const info = document.createElement('div');
   info.className = 'item-info';
   const lastOrder = formatLastOrder(item.lastOrderedOn);
   info.innerHTML = `
-      <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-      <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
-      <span class="order-amount">買う数: ${formatQty(itemOrderQty(item), item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
+      <div class="order-place-head">
+        <span class="item-name"><span class="item-name-text">${item.name}</span></span>
+        <span class="order-place-qty">買う数 ${formatQty(itemOrderQty(item), item.unit)}</span>
+      </div>
+      <span class="item-meta">現在 ${formatQty(item.count, item.unit)} / 必要 ${formatQty(item.target, item.unit)}　前回発注 ${lastOrder || 'なし'}</span>
   `;
+  const productField = document.createElement('div');
+  productField.className = 'order-field';
   const productLabel = document.createElement('label');
   productLabel.className = 'order-field-label';
   productLabel.textContent = '商品';
   const productSelect = document.createElement('select');
   productSelect.className = 'order-product-select';
+  productSelect.id = `order-product-${item.id}`;
+  productLabel.htmlFor = productSelect.id;
   const noneOpt = document.createElement('option');
   noneOpt.value = '';
   noneOpt.textContent = products.length ? '選ばない（購入先を入力）' : '未登録（購入先を入力）';
@@ -100,11 +106,15 @@ function appendPlaceOrderRow(parent, item) {
   addOpt.value = ADD_NEW_VALUE;
   addOpt.textContent = '＋ この場で登録（名前だけ）';
   productSelect.appendChild(addOpt);
+  const destField = document.createElement('div');
+  destField.className = 'order-field';
   const destLabel = document.createElement('label');
   destLabel.className = 'order-field-label';
   destLabel.textContent = '購入先';
   const destSelect = document.createElement('select');
   destSelect.className = 'order-dest-select';
+  destSelect.id = `order-dest-${item.id}`;
+  destLabel.htmlFor = destSelect.id;
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'order-action-btn';
@@ -184,12 +194,14 @@ function appendPlaceOrderRow(parent, item) {
       syncOrderDestFields();
     }
   }
+  productField.appendChild(productLabel);
+  productField.appendChild(productSelect);
+  destField.appendChild(destLabel);
+  destField.appendChild(destSelect);
   const controls = document.createElement('div');
   controls.className = 'order-place-fields';
-  controls.appendChild(productLabel);
-  controls.appendChild(productSelect);
-  controls.appendChild(destLabel);
-  controls.appendChild(destSelect);
+  controls.appendChild(productField);
+  controls.appendChild(destField);
   controls.appendChild(btn);
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);

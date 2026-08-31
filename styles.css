@@ -144,9 +144,15 @@ h1 {
   cursor: not-allowed;
 }
 .order-place-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.order-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 .order-field-label {
@@ -156,8 +162,27 @@ h1 {
 .order-product-select,
 .order-dest-select {
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   font-size: 14px;
+}
+.order-place-fields .order-action-btn {
+  grid-column: 1 / -1;
+}
+.order-place-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.order-place-head .item-name {
+  min-width: 0;
+}
+.order-place-qty {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #1565c0;
 }
 .history-row {
   background: white;
@@ -231,13 +256,13 @@ h1 {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: white;
   border: 1px solid #ccc;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
-  min-height: 44px;
+  min-height: 40px;
   cursor: pointer;
 }
 .filter-dest-check:has(input:checked) {
@@ -304,8 +329,26 @@ h1 {
   flex-shrink: 0;
 }
 .item.order-item,
+.item.order-place-item,
 .item.inventory-item {
   cursor: default;
+}
+.item.order-place-item {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  gap: 8px;
+  border-left: 5px solid #1565c0;
+}
+.order-place-item .item-name {
+  font-size: 1em;
+}
+.order-place-item .item-name-text {
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: unset;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .item.inventory-item {
   padding: 8px 10px;
@@ -420,9 +463,6 @@ h1 {
 }
 @media (prefers-reduced-motion: reduce) {
   .order-badge {
-    animation: none;
-  }
-  .loading-spinner {
     animation: none;
   }
 }
@@ -1220,70 +1260,12 @@ button.order-group-title:active {
   touch-action: manipulation;
 }
 
-/* AIアドバイス機能のデザイン */
-.ai-advisor-container {
-  margin-top: 20px;
-  margin-bottom: 25px;
-  background: #e3f2fd;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #bbdefb;
-}
-.ai-advisor-container summary {
-  cursor: pointer;
-  font-weight: bold;
-  color: #1565c0;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-}
-.ai-btn {
-  padding: 10px 15px;
-  background: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 48px;
-  touch-action: manipulation;
-}
-.ai-btn:hover {
-  background: #1976D2;
-}
-.ai-result {
-  margin-top: 15px;
-  padding: 10px;
-  background: white;
-  border-radius: 4px;
-  font-size: 0.9em;
-  color: #333;
-  display: none;
-  line-height: 1.5;
-}
-.loading-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 3px solid rgba(255,255,255,.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
-  display: none;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 @media (max-width: 360px) {
   .filter-select {
     flex: 1 1 100%;
+  }
+  .order-place-fields {
+    grid-template-columns: 1fr;
   }
   .inventory-action-row {
     flex-direction: column;
