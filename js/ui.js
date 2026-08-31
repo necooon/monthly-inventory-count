@@ -265,6 +265,50 @@ function resolvePrompt(value) {
   if (resolve) resolve(value);
 }
 
+async function resolveOnlineDestForProductUrl(item, url, destHint) {
+  const hinted = normalizePurchaseDest(destHint);
+  if (hinted && destKind(hinted) === 'online') return hinted;
+
+  const inferred = inferPurchaseDestFromUrl(url);
+  if (inferred) {
+    ensurePurchaseDest(inferred, 'online');
+    return inferred;
+  }
+
+  const itemOnline = itemPurchaseDests(item).filter(name => destKind(name) === 'online');
+  if (itemOnline.length === 1) return itemOnline[0];
+
+  const allOnline = onlinePurchaseDests();
+  if (allOnline.length === 1) return allOnline[0];
+
+  const defaultName = inferred || itemOnline[0] || allOnline[0] || 'LOHACO';
+  const name = await showPrompt('ネットショップ（購入先）', defaultName);
+  if (!name || !String(name).trim()) return '';
+  return ensurePurchaseDest(String(name).trim(), 'online');
+}
+
+async function registerProductFromUrl(item, destHint) {
+  const url = await showPrompt('商品ページ URL', '', 'url');
+  if (!url || !String(url).trim()) return null;
+  const trimmedUrl = String(url).trim();
+  if (!isHttpProductUrl(trimmedUrl)) {
+    alert('http または https の商品ページ URL を入力してください。');
+    return null;
+  }
+  const dest = await resolveOnlineDestForProductUrl(item, trimmedUrl, destHint);
+  if (!dest) return null;
+  const name = await showPrompt('商品名', item.name || '');
+  if (!name || !String(name).trim()) return null;
+  ensurePurchaseDest(dest, 'online');
+  const product = createCatalogProduct({
+    name: String(name).trim(),
+    itemId: item.id,
+    dests: [dest],
+    url: normalizeProductPageUrl(trimmedUrl)
+  });
+  return product;
+}
+
 let choiceResolver = null;
 
 function showChoice(title, hint) {
@@ -1240,12 +1284,26 @@ function renderLinkedProducts(containerId, itemId) {
     saveAndRender();
     renderLinkedProducts(containerId, itemId);
   };
+  const urlBtn = document.createElement('button');
+  urlBtn.type = 'button';
+  urlBtn.className = 'settings-add';
+  urlBtn.textContent = '＋ URLで登録';
+  urlBtn.onclick = async (e) => {
+    e.preventDefault();
+    const item = findItemById(itemId);
+    if (!item) return;
+    const product = await registerProductFromUrl(item, '');
+    if (!product) return;
+    saveAndRender();
+    renderLinkedProducts(containerId, itemId);
+  };
   const detailBtn = document.createElement('button');
   detailBtn.type = 'button';
   detailBtn.className = 'settings-add';
   detailBtn.textContent = '詳しく登録';
   detailBtn.onclick = (e) => { e.preventDefault(); openProductModal(null, itemId); };
   box.appendChild(addBtn);
+  box.appendChild(urlBtn);
   box.appendChild(detailBtn);
 }
 
