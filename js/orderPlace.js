@@ -195,7 +195,7 @@ function appendPlaceOrderRow(parent, item) {
   parent.appendChild(itemDiv);
 }
 
-function appendLohacoSelectRow(parent, item) {
+function appendLohacoSelectRow(parent, item, dest) {
   const itemDiv = document.createElement('div');
   itemDiv.className = 'item order-place-item order-lohaco-item';
   const label = document.createElement('label');
@@ -204,8 +204,9 @@ function appendLohacoSelectRow(parent, item) {
   input.type = 'checkbox';
   input.className = 'order-lohaco-check';
   input.dataset.itemId = item.id;
-  input.setAttribute('aria-label', `${item.name}をLOHACOで買う`);
-  input.checked = itemCanBuyOnLohaco(item);
+  input.dataset.dest = dest || '';
+  input.setAttribute('aria-label', `${item.name}を選ぶ`);
+  input.checked = dest === LOHACO_DEST_NAME;
   input.onchange = syncLohacoSelectButtons;
   const info = document.createElement('div');
   info.className = 'item-info';
