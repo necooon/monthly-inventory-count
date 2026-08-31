@@ -379,6 +379,18 @@ function lohacoProductIdForItem(item) {
   return matches.length === 1 ? String(matches[0].id) : '';
 }
 
+function productHasLohaco(product) {
+  if (productPurchaseDestNames(product).includes(LOHACO_DEST_NAME)) return true;
+  return typeof inferPurchaseDestFromUrl === 'function'
+    && inferPurchaseDestFromUrl(product && product.url) === LOHACO_DEST_NAME;
+}
+
+function itemCanBuyOnLohaco(item) {
+  if (!item) return false;
+  if (itemPurchaseDests(item).includes(LOHACO_DEST_NAME)) return true;
+  return productsForItem(item.id).some(productHasLohaco);
+}
+
 function undoSnapshots(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
