@@ -1,13 +1,28 @@
-function orderPlaceInfoHtml(item) {
-  const lastOrder = formatLastOrder(item.lastOrderedOn);
+function orderPlaceInfoHtml(item, options) {
+  const lastOrder = formatLastOrder(item.lastOrderedOn) || 'なし';
+  const qty = formatQty(itemOrderQty(item), item.unit);
+  const stock = formatQty(item.count, item.unit);
+  if (options && options.selectLayout) {
+    return `
+      <div class="order-place-head">
+        <span class="item-name"><span class="item-name-text">${item.name}</span></span>
+        <span class="order-place-last"><span class="order-place-meta-label">前回</span>${lastOrder}</span>
+      </div>
+      <div class="order-place-qty-line">
+        <span class="order-place-meta-label">注文</span>${qty}
+        <span class="order-place-qty-sep">/</span>
+        <span class="order-place-meta-label">在庫</span>${stock}
+      </div>
+    `;
+  }
   return `
       <div class="order-place-head">
         <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-        <span class="order-place-qty">買う ${formatQty(itemOrderQty(item), item.unit)}</span>
+        <span class="order-place-qty">買う ${qty}</span>
       </div>
       <div class="order-place-meta">
-        <span class="order-place-meta-item"><span class="order-place-meta-label">在庫</span>${formatQty(item.count, item.unit)} / ${formatQty(item.target, item.unit)}</span>
-        <span class="order-place-meta-item"><span class="order-place-meta-label">前回</span>${lastOrder || 'なし'}</span>
+        <span class="order-place-meta-item"><span class="order-place-meta-label">在庫</span>${stock} / ${formatQty(item.target, item.unit)}</span>
+        <span class="order-place-meta-item"><span class="order-place-meta-label">前回</span>${lastOrder}</span>
       </div>
   `;
 }
@@ -210,7 +225,7 @@ function appendLohacoSelectRow(parent, item, dest) {
   input.onchange = syncLohacoSelectButtons;
   const info = document.createElement('div');
   info.className = 'item-info';
-  info.innerHTML = orderPlaceInfoHtml(item);
+  info.innerHTML = orderPlaceInfoHtml(item, { selectLayout: true });
   label.appendChild(input);
   label.appendChild(info);
   itemDiv.appendChild(label);

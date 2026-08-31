@@ -333,6 +333,23 @@ h1 {
   color: #1565c0;
   white-space: nowrap;
 }
+.order-place-last {
+  flex-shrink: 0;
+  font-size: 0.8em;
+  color: #666;
+  line-height: 1.35;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+.order-place-qty-line {
+  font-size: 0.88em;
+  color: #333;
+  line-height: 1.4;
+}
+.order-place-qty-sep {
+  margin: 0 6px;
+  color: #90a4ae;
+}
 .order-place-meta {
   display: flex;
   flex-wrap: wrap;
