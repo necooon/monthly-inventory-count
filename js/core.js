@@ -221,6 +221,16 @@ function destKindLabel(name) {
   return destKind(name) === 'online' ? 'ネット' : '店舗';
 }
 
+function productPurchaseDestNames(product) {
+  return product ? normalizePurchaseDests(product.purchaseDests) : [];
+}
+
+function formatPurchaseDestList(dests) {
+  const names = normalizePurchaseDests(dests);
+  if (!names.length) return '購入先なし';
+  return names.map(name => `${name}（${destKindLabel(name)}）`).join('、');
+}
+
 function setPurchaseDestKind(name, kind) {
   const trimmed = normalizePurchaseDest(name);
   if (!trimmed) return;
