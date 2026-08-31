@@ -8,6 +8,8 @@ const ORDER_HINT = {
   lohaco: '購入先ごとにまとめています。選んだものをネットで注文するか、リストに追加できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
+const SELECT_NET_ORDER_LABEL = 'ネットで注文';
+const SELECT_LIST_ADD_LABEL = 'リストに追加';
 let pendingProductSelect = null;
 
 function orderPlacementDestValue(destSelect) {
@@ -93,8 +95,8 @@ function toggleOrderDestGroup(dest) {
   else orderCollapsedDests.add(dest);
   persistOrderCollapsedDests();
   const collapsed = orderCollapsedDests.has(dest);
-  const selector = `.order-group[data-dest="${typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(dest) : dest}"]`;
-  const groups = document.querySelectorAll(selector);
+  const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(dest) : dest;
+  const groups = document.querySelectorAll(`.order-group[data-dest="${escaped}"]`);
   if (!groups.length) {
     saveAndRender();
     return;
@@ -107,6 +109,37 @@ function toggleOrderDestGroup(dest) {
     const chevron = title.querySelector('.order-group-chevron');
     if (chevron) chevron.textContent = collapsed ? '▶' : '▼';
   });
+}
+
+function appendCategoryItemRows(body, cats, appendItem) {
+  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
+  sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
+    const sub = document.createElement('div');
+    sub.className = 'order-subgroup-title';
+    sub.textContent = cat;
+    body.appendChild(sub);
+    sortItemsByNameJa(cats.get(cat)).forEach(item => appendItem(body, item, cat));
+  });
+}
+
+function appendOrderDestGroup(parent, dest, destCount, fillBody) {
+  const collapsed = orderCollapsedDests.has(dest);
+  const group = document.createElement('div');
+  group.className = `order-group${collapsed ? ' collapsed' : ''}`;
+  group.dataset.dest = dest;
+  const title = document.createElement('button');
+  title.type = 'button';
+  title.className = 'order-group-title';
+  title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  title.setAttribute('aria-label', `${dest}、${destCount}件`);
+  title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
+  title.onclick = () => toggleOrderDestGroup(dest);
+  group.appendChild(title);
+  const body = document.createElement('div');
+  body.className = 'order-group-items';
+  fillBody(body);
+  group.appendChild(body);
+  parent.appendChild(group);
 }
 
 function setOrderFulfillmentView(view) {
@@ -137,34 +170,13 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
   }
 
   const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
-  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
   sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
     const cats = destGroups.get(dest);
-    const destCount = [...cats.values()].reduce((n, list) => n + list.length, 0);
-    const collapsed = orderCollapsedDests.has(dest);
-    const group = document.createElement('div');
-    group.className = `order-group${collapsed ? ' collapsed' : ''}`;
-    group.dataset.dest = dest;
-    const title = document.createElement('button');
-    title.type = 'button';
-    title.className = 'order-group-title';
-    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    title.setAttribute('aria-label', `${dest}、${destCount}件`);
-    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
-    title.onclick = () => toggleOrderDestGroup(dest);
-    group.appendChild(title);
-    const body = document.createElement('div');
-    body.className = 'order-group-items';
-    sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
-      const sub = document.createElement('div');
-      sub.className = 'order-subgroup-title';
-      sub.textContent = cat;
-      body.appendChild(sub);
-      cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
-        .forEach(item => appendFulfillItemRow(body, item, dest, view));
+    appendOrderDestGroup(orderDiv, dest, destCategoryGroupCount(cats), body => {
+      appendCategoryItemRows(body, cats, (rowParent, item) => {
+        appendFulfillItemRow(rowParent, item, dest, view);
+      });
     });
-    group.appendChild(body);
-    orderDiv.appendChild(group);
   });
 }
 
@@ -180,6 +192,10 @@ function setOrderHint(mode) {
   if (hint) hint.textContent = ORDER_HINT[mode] || ORDER_HINT.place;
 }
 
+function labeledCount(label, n) {
+  return n ? `${label}（${n}）` : label;
+}
+
 function setOrderLohacoActionsVisible(visible) {
   const bar = document.getElementById('order-lohaco-actions');
   const page = document.getElementById('page-order');
@@ -188,88 +204,49 @@ function setOrderLohacoActionsVisible(visible) {
   if (visible) syncLohacoSelectButtons();
 }
 
-function lohacoSelectCheckedItems() {
-  return Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'))
-    .map(input => findItemById(input.dataset.itemId))
-    .filter(Boolean)
-    .filter((item, i, list) => list.findIndex(other => String(other.id) === String(item.id)) === i);
+function lohacoSelectCheckedRows() {
+  const rows = [];
+  const seen = new Set();
+  document.querySelectorAll('#order-list .order-lohaco-check:checked').forEach(input => {
+    const item = findItemById(input.dataset.itemId);
+    if (!item) return;
+    const id = String(item.id);
+    if (seen.has(id)) return;
+    seen.add(id);
+    rows.push({ item, dest: input.dataset.dest || '' });
+  });
+  return rows;
 }
 
 function syncLohacoSelectButtons() {
+  const n = lohacoSelectCheckedRows().length;
   const confirmBtn = document.getElementById('confirm-lohaco-select-btn');
   const shopBtn = document.getElementById('skip-lohaco-select-btn');
-  const checked = lohacoSelectCheckedItems().length;
   if (confirmBtn) {
-    confirmBtn.disabled = checked === 0;
-    confirmBtn.textContent = checked
-      ? `ネットで注文（${checked}）`
-      : 'ネットで注文';
+    confirmBtn.disabled = n === 0;
+    confirmBtn.textContent = labeledCount(SELECT_NET_ORDER_LABEL, n);
   }
   if (shopBtn) {
-    shopBtn.disabled = checked === 0;
-    shopBtn.textContent = checked
-      ? `リストに追加（${checked}）`
-      : 'リストに追加';
+    shopBtn.disabled = n === 0;
+    shopBtn.textContent = labeledCount(SELECT_LIST_ADD_LABEL, n);
   }
-}
-
-function groupSelectItemsByDest(items) {
-  const destGroups = new Map();
-  items.forEach(item => {
-    const dest = selectDestForItem(item);
-    if (!destGroups.has(dest)) destGroups.set(dest, new Map());
-    const cats = destGroups.get(dest);
-    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
-    if (!cats.has(cat)) cats.set(cat, []);
-    cats.get(cat).push(item);
-  });
-  return destGroups;
 }
 
 function renderLohacoSelectList(orderDiv, items) {
   const destGroups = groupSelectItemsByDest(items);
-  const destOrder = selectDestSortOrder();
-  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
-  sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
+  sortNamesByMaster(destGroups.keys(), selectDestSortOrder()).forEach(dest => {
     const cats = destGroups.get(dest);
-    const destCount = [...cats.values()].reduce((n, list) => n + list.length, 0);
-    const collapsed = orderCollapsedDests.has(dest);
-    const group = document.createElement('div');
-    group.className = `order-group${collapsed ? ' collapsed' : ''}`;
-    group.dataset.dest = dest;
-    const title = document.createElement('button');
-    title.type = 'button';
-    title.className = 'order-group-title';
-    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    title.setAttribute('aria-label', `${dest}、${destCount}件`);
-    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
-    title.onclick = () => toggleOrderDestGroup(dest);
-    group.appendChild(title);
-    const body = document.createElement('div');
-    body.className = 'order-group-items';
-    sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
-      const sub = document.createElement('div');
-      sub.className = 'order-subgroup-title';
-      sub.textContent = cat;
-      body.appendChild(sub);
-      cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
-        .forEach(item => appendLohacoSelectRow(body, item, dest));
+    appendOrderDestGroup(orderDiv, dest, destCategoryGroupCount(cats), body => {
+      appendCategoryItemRows(body, cats, (rowParent, item) => {
+        appendLohacoSelectRow(rowParent, item, dest);
+      });
     });
-    group.appendChild(body);
-    orderDiv.appendChild(group);
   });
 }
 
 function renderOrderItemsByCategory(orderDiv, items, appendRow) {
-  const cats = groupOrderItemsByCategory(items);
-  const categoryOrder = [...allCategories(), UNSET_CATEGORY_LABEL];
-  sortNamesByMaster(cats.keys(), categoryOrder).forEach(cat => {
-    const sub = document.createElement('div');
-    sub.className = 'order-subgroup-title';
-    sub.textContent = cat;
-    orderDiv.appendChild(sub);
-    cats.get(cat).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
-      .forEach(item => appendRow(orderDiv, item));
+  appendCategoryItemRows(orderDiv, groupOrderItemsByCategory(items), (parent, item) => {
+    appendRow(parent, item);
   });
 }
 
@@ -395,39 +372,43 @@ function confirmOrderPlacement(id, productId, destValue) {
     : `「${item.name}」を買い物リストへ移しました`);
 }
 
-function confirmLohacoSelection() {
-  const items = lohacoSelectCheckedItems();
+function queueBulkFulfillment(items, destAndProductForItem, toast) {
   if (!items.length) return;
-  ensurePurchaseDest(LOHACO_DEST_NAME, 'online');
-  persistMasters();
   lastOrderUndo = items.map(item => captureFulfillment(item));
   items.forEach(item => {
-    queueItemFulfillment(item, LOHACO_DEST_NAME, lohacoProductIdForItem(item));
+    const { dest, productId } = destAndProductForItem(item);
+    queueItemFulfillment(item, dest, productId || '');
   });
   saveAndRender();
-  showUndoToast(`${items.length}件を受け取り待ちにしました`);
+  showUndoToast(toast);
+}
+
+function shoppingDestFromSelectRow(row) {
+  if (!row.dest || row.dest === LOHACO_DEST_NAME) return shoppingListDestForItem(row.item);
+  return row.dest;
+}
+
+function confirmLohacoSelection() {
+  const rows = lohacoSelectCheckedRows();
+  if (!rows.length) return;
+  ensurePurchaseDest(LOHACO_DEST_NAME, 'online');
+  persistMasters();
+  queueBulkFulfillment(
+    rows.map(row => row.item),
+    item => ({ dest: LOHACO_DEST_NAME, productId: lohacoProductIdForItem(item) }),
+    `${rows.length}件を受け取り待ちにしました`
+  );
 }
 
 function skipLohacoSelection() {
-  const inputs = Array.from(document.querySelectorAll('#order-list .order-lohaco-check:checked'));
-  const items = [];
-  const destById = new Map();
-  inputs.forEach(input => {
-    const item = findItemById(input.dataset.itemId);
-    if (!item) return;
-    if (!items.some(existing => String(existing.id) === String(item.id))) items.push(item);
-    const dest = input.dataset.dest === LOHACO_DEST_NAME
-      ? shoppingListDestForItem(item)
-      : (input.dataset.dest || shoppingListDestForItem(item));
-    destById.set(String(item.id), dest);
-  });
-  if (!items.length) return;
-  lastOrderUndo = items.map(item => captureFulfillment(item));
-  items.forEach(item => {
-    queueItemFulfillment(item, destById.get(String(item.id)) || shoppingListDestForItem(item), '');
-  });
-  saveAndRender();
-  showUndoToast(`${items.length}件を買い物リストへ移しました`);
+  const rows = lohacoSelectCheckedRows();
+  if (!rows.length) return;
+  const destById = new Map(rows.map(row => [String(row.item.id), shoppingDestFromSelectRow(row)]));
+  queueBulkFulfillment(
+    rows.map(row => row.item),
+    item => ({ dest: destById.get(String(item.id)) || shoppingListDestForItem(item), productId: '' }),
+    `${rows.length}件を買い物リストへ移しました`
+  );
 }
 
 function completeFulfillment(id) {
