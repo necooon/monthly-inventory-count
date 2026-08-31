@@ -19,8 +19,10 @@ const UNSET_CATEGORY_LABEL = '未分類';
 const UNSET_PURCHASE_DEST_LABEL = '未設定';
 const UNIT_SEP = '::';
 const ADD_NEW_VALUE = 'ADD_NEW';
+const ADD_LOHACO_URL_VALUE = 'ADD_LOHACO_URL';
 const RENAME_VALUE = 'RENAME';
 const DELETE_VALUE = 'DELETE';
+const LOHACO_HOST = 'lohaco.yahoo.co.jp';
 
 let customUnits = loadNameList(StorageKeys.UNITS, DEFAULT_UNITS);
 let catalogProducts = [];
@@ -201,6 +203,27 @@ function allPurchaseDests() {
 
 function defaultKindForDest(name) {
   return String(name || '').trim() === 'LOHACO' ? 'online' : 'store';
+}
+
+function isLohacoDest(dest) {
+  return normalizePurchaseDest(dest) === 'LOHACO';
+}
+
+function isLohacoUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return false;
+  try {
+    const parsed = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+    return parsed.hostname === LOHACO_HOST || parsed.hostname.endsWith(`.${LOHACO_HOST}`);
+  } catch {
+    return false;
+  }
+}
+
+function lohacoSearchUrl(query) {
+  const q = String(query || '').trim();
+  if (!q) return '';
+  return `https://lohaco.yahoo.co.jp/search/?p=${encodeURIComponent(q)}`;
 }
 
 function normalizeDestKind(value, destName) {

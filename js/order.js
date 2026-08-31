@@ -29,6 +29,39 @@ function syncOrderPlacementButton(btn, destSelect) {
   btn.textContent = orderPlacementButtonLabel(dest);
 }
 
+function appendLohacoAccessLink(container, { item, product, dest }) {
+  container.innerHTML = '';
+  const lohacoUrl = product?.url && isLohacoUrl(product.url) ? String(product.url).trim() : '';
+  if (lohacoUrl) {
+    const link = document.createElement('a');
+    link.href = lohacoUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'order-lohaco-link';
+    link.textContent = 'LOHACOで開く';
+    container.appendChild(link);
+    return;
+  }
+  if (!isLohacoDest(dest)) return;
+  const searchUrl = lohacoSearchUrl(product?.name || item.name);
+  if (!searchUrl) return;
+  const link = document.createElement('a');
+  link.href = searchUrl;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.className = 'order-lohaco-link';
+  link.textContent = 'LOHACOで検索';
+  container.appendChild(link);
+}
+
+function syncLohacoAccessActions(container, item, productSelect, destSelect) {
+  appendLohacoAccessLink(container, {
+    item,
+    product: findProductById(productSelect.value),
+    dest: orderPlacementDestValue(destSelect)
+  });
+}
+
 function pendingProductNote(item) {
   const product = findProductById(item.pendingProductId);
   return product ? `<span class="item-last-order">商品: ${product.name}</span>` : '';
@@ -63,6 +96,16 @@ function appendFulfillItemRow(parent, item, dest, view) {
   label.appendChild(input);
   label.appendChild(text);
   controls.appendChild(label);
+  if (isLohacoDest(dest)) {
+    const lohacoActions = document.createElement('div');
+    lohacoActions.className = 'order-lohaco-actions';
+    appendLohacoAccessLink(lohacoActions, {
+      item,
+      product: findProductById(item.pendingProductId),
+      dest
+    });
+    if (lohacoActions.childElementCount) controls.appendChild(lohacoActions);
+  }
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);
   parent.appendChild(itemDiv);
@@ -100,6 +143,10 @@ function appendPlaceOrderRow(parent, item) {
   addOpt.value = ADD_NEW_VALUE;
   addOpt.textContent = '＋ この場で登録（名前だけ）';
   productSelect.appendChild(addOpt);
+  const lohacoOpt = document.createElement('option');
+  lohacoOpt.value = ADD_LOHACO_URL_VALUE;
+  lohacoOpt.textContent = '＋ LOHACO URLで登録';
+  productSelect.appendChild(lohacoOpt);
   const destLabel = document.createElement('label');
   destLabel.className = 'order-field-label';
   destLabel.textContent = '購入先';
@@ -111,6 +158,8 @@ function appendPlaceOrderRow(parent, item) {
   btn.disabled = true;
   btn.textContent = '確定';
   btn.onclick = () => confirmOrderPlacement(item.id, productSelect.value, destSelect.value);
+  const lohacoActions = document.createElement('div');
+  lohacoActions.className = 'order-lohaco-actions';
   const syncOrderDestFields = () => {
     const product = findProductById(productSelect.value);
     const names = product
@@ -138,8 +187,20 @@ function appendPlaceOrderRow(parent, item) {
     else if (product && names.length === 1) destSelect.value = names[0];
     else if (!product && names.length === 1) destSelect.value = names[0];
     syncOrderPlacementButton(btn, destSelect);
+    syncLohacoAccessActions(lohacoActions, item, productSelect, destSelect);
   };
   productSelect.onchange = async () => {
+    if (productSelect.value === ADD_LOHACO_URL_VALUE) {
+      const created = await registerLohacoProductFromOrder(item);
+      if (!created) {
+        productSelect.value = '';
+        syncOrderDestFields();
+        return;
+      }
+      pendingProductSelect = { itemId: item.id, productId: created.id };
+      saveAndRender();
+      return;
+    }
     if (productSelect.value === ADD_NEW_VALUE) {
       const created = await quickRegisterProductFromOrder(item, destSelect.value);
       if (!created) {
@@ -156,6 +217,7 @@ function appendPlaceOrderRow(parent, item) {
   destSelect.onchange = async () => {
     if (destSelect.value !== ADD_NEW_VALUE) {
       syncOrderPlacementButton(btn, destSelect);
+      syncLohacoAccessActions(lohacoActions, item, productSelect, destSelect);
       return;
     }
     const name = await showPrompt('新しい購入先');
@@ -190,6 +252,7 @@ function appendPlaceOrderRow(parent, item) {
   controls.appendChild(productSelect);
   controls.appendChild(destLabel);
   controls.appendChild(destSelect);
+  controls.appendChild(lohacoActions);
   controls.appendChild(btn);
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);
@@ -337,6 +400,27 @@ function showUndoToast(message) {
     lastOrderUndo = null;
     hideUndoToast();
   }, 8000);
+}
+
+async function registerLohacoProductFromOrder(item) {
+  const url = await showPrompt('LOHACO の商品ページ URL', '', 'url');
+  if (!url || !String(url).trim()) return null;
+  const trimmedUrl = String(url).trim();
+  if (!isLohacoUrl(trimmedUrl)) {
+    alert('LOHACO の商品ページ URL を入力してください。');
+    return null;
+  }
+  const name = await showPrompt('商品名', item.name || '');
+  if (!name || !String(name).trim()) return null;
+  ensurePurchaseDest('LOHACO');
+  const product = createCatalogProduct({
+    name: String(name).trim(),
+    itemId: item.id,
+    dests: ['LOHACO'],
+    url: trimmedUrl
+  });
+  showUndoToast(`「${product.name}」を登録しました。確定で発注できます`);
+  return product;
 }
 
 async function quickRegisterProductFromOrder(item, destHint) {
