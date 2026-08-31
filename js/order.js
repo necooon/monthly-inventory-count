@@ -12,6 +12,23 @@ function productOptionLabel(product) {
   return `${product.name} — ${dests.join('、')}`;
 }
 
+function orderPlacementDestValue(destSelect) {
+  const dest = normalizePurchaseDest(destSelect.value) || '';
+  if (!dest || dest === ADD_NEW_VALUE) return '';
+  return dest;
+}
+
+function orderPlacementButtonLabel(dest) {
+  if (!dest) return '確定';
+  return destKind(dest) === 'online' ? '注文' : '買いものリストに追加';
+}
+
+function syncOrderPlacementButton(btn, destSelect) {
+  const dest = orderPlacementDestValue(destSelect);
+  btn.disabled = !dest;
+  btn.textContent = orderPlacementButtonLabel(dest);
+}
+
 function pendingProductNote(item) {
   const product = findProductById(item.pendingProductId);
   return product ? `<span class="item-last-order">商品: ${product.name}</span>` : '';
@@ -88,6 +105,12 @@ function appendPlaceOrderRow(parent, item) {
   destLabel.textContent = '購入先';
   const destSelect = document.createElement('select');
   destSelect.className = 'order-dest-select';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'order-action-btn';
+  btn.disabled = true;
+  btn.textContent = '確定';
+  btn.onclick = () => confirmOrderPlacement(item.id, productSelect.value, destSelect.value);
   const syncOrderDestFields = () => {
     const product = findProductById(productSelect.value);
     const names = product
@@ -114,6 +137,7 @@ function appendPlaceOrderRow(parent, item) {
     if (names.includes(prev)) destSelect.value = prev;
     else if (product && names.length === 1) destSelect.value = names[0];
     else if (!product && names.length === 1) destSelect.value = names[0];
+    syncOrderPlacementButton(btn, destSelect);
   };
   productSelect.onchange = async () => {
     if (productSelect.value === ADD_NEW_VALUE) {
@@ -130,15 +154,20 @@ function appendPlaceOrderRow(parent, item) {
     syncOrderDestFields();
   };
   destSelect.onchange = async () => {
-    if (destSelect.value !== ADD_NEW_VALUE) return;
+    if (destSelect.value !== ADD_NEW_VALUE) {
+      syncOrderPlacementButton(btn, destSelect);
+      return;
+    }
     const name = await showPrompt('新しい購入先');
     if (!name || !String(name).trim()) {
       destSelect.value = '';
+      syncOrderPlacementButton(btn, destSelect);
       return;
     }
     const kind = await pickPurchaseDestKind();
     if (!kind) {
       destSelect.value = '';
+      syncOrderPlacementButton(btn, destSelect);
       return;
     }
     const dest = ensurePurchaseDest(String(name).trim(), kind);
@@ -155,11 +184,6 @@ function appendPlaceOrderRow(parent, item) {
       syncOrderDestFields();
     }
   }
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'order-action-btn';
-  btn.textContent = '確定';
-  btn.onclick = () => confirmOrderPlacement(item.id, productSelect.value, destSelect.value);
   const controls = document.createElement('div');
   controls.className = 'order-place-fields';
   controls.appendChild(productLabel);
