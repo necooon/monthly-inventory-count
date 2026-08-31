@@ -10,6 +10,7 @@ const LEGACY_CYCLE_NAMES = {
 const DEFAULT_PLACES = ['洗面所', 'キッチン', 'トイレ'];
 const DEFAULT_CATEGORIES = ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'];
 const DEFAULT_PURCHASE_DESTS = ['LOHACO', 'ドラッグストア', 'スーパー'];
+const LOHACO_DEST_NAME = 'LOHACO';
 const DEFAULT_UNITS = ['個', '本', '袋', '箱', 'パック'];
 const CATEGORY_PLACE_NAMES = new Set(DEFAULT_CATEGORIES);
 const REMOVED_LOCATION = 'その他';
@@ -115,6 +116,7 @@ if (currentPage === 'fulfillment' && orderFulfillmentView !== 'shopping' && orde
 let inventoryUnenteredOnly = false;
 let lastOrderUndo = null;
 let undoToastTimer = null;
+let orderLohacoStepDone = false;
 
 function unitKey(unit) {
   return unit.cycle + UNIT_SEP + (unit.place || '');
@@ -201,7 +203,7 @@ function allPurchaseDests() {
 }
 
 function defaultKindForDest(name) {
-  return String(name || '').trim() === 'LOHACO' ? 'online' : 'store';
+  return String(name || '').trim() === LOHACO_DEST_NAME ? 'online' : 'store';
 }
 
 function normalizeDestKind(value, destName) {
@@ -368,6 +370,18 @@ function queueItemFulfillment(item, dest, productId) {
   item.pendingQty = Math.max(0, Number(item.target || 0) - Number(item.count || 0));
   item.pendingProductId = productId ? String(productId) : '';
   return mode;
+}
+
+function lohacoProductIdForItem(item) {
+  const matches = productsForItem(item.id).filter(product =>
+    productPurchaseDestNames(product).includes(LOHACO_DEST_NAME)
+  );
+  return matches.length === 1 ? String(matches[0].id) : '';
+}
+
+function undoSnapshots(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 function fulfillmentCounts() {

@@ -897,13 +897,24 @@ function inventoryFilterLabel() {
 }
 
 function updateResetLocationButton() {
-  const btn = document.getElementById('reset-location-btn');
+  const resetBtn = document.getElementById('reset-location-btn');
+  const ctaBtn = document.getElementById('go-lohaco-select-btn');
   const row = document.getElementById('inventory-action-row');
+  if (!resetBtn || !row) return;
   const label = inventoryFilterLabel();
-  const show = !!label;
-  btn.hidden = !show;
-  btn.textContent = show ? `「${label}」をリセット` : 'リセット';
-  if (row) row.hidden = !show;
+  const showReset = !!label;
+  resetBtn.hidden = !showReset;
+  resetBtn.textContent = showReset ? `「${label}」をリセット` : 'リセット';
+  const items = getScopeItems();
+  const allEntered = items.length > 0 && items.every(item => item.entered);
+  const showCta = allEntered && items.some(needsOrderAction);
+  if (ctaBtn) ctaBtn.hidden = !showCta;
+  row.hidden = !showReset && !showCta;
+}
+
+function goToLohacoSelect() {
+  orderLohacoStepDone = false;
+  showPage('order');
 }
 
 function resetEnteredItems(cycleFilter, placeFilter) {

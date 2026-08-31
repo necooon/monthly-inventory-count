@@ -194,3 +194,23 @@ function appendPlaceOrderRow(parent, item) {
   itemDiv.appendChild(form);
   parent.appendChild(itemDiv);
 }
+
+function appendLohacoSelectRow(parent, item) {
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'item order-place-item order-lohaco-item';
+  const label = document.createElement('label');
+  label.className = 'order-lohaco-row';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.className = 'order-lohaco-check';
+  input.dataset.itemId = item.id;
+  input.setAttribute('aria-label', `${item.name}をLOHACOで買う`);
+  input.onchange = syncLohacoConfirmButton;
+  const info = document.createElement('div');
+  info.className = 'item-info';
+  info.innerHTML = orderPlaceInfoHtml(item);
+  label.appendChild(input);
+  label.appendChild(info);
+  itemDiv.appendChild(label);
+  parent.appendChild(itemDiv);
+}
