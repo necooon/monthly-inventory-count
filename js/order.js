@@ -241,7 +241,7 @@ function renderOrderList() {
   const orderNav = document.getElementById('nav-order');
   if (orderNav) {
     const n = fulfillmentCounts().order;
-    orderNav.textContent = n ? `発注（${n}）` : '発注';
+    orderNav.textContent = n ? `Select（${n}）` : 'Select';
   }
 }
 
