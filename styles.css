@@ -154,18 +154,6 @@ h1 {
   min-height: 40px;
   font-size: 14px;
 }
-.order-product-dest-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.order-product-dest-summary[hidden] {
-  display: none;
-}
-.order-dest-empty-hint {
-  font-size: 12px;
-  color: #c62828;
-}
 .history-row {
   background: white;
   border-radius: 8px;

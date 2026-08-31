@@ -6,10 +6,6 @@ const ORDER_EMPTY_MESSAGE = {
 };
 let pendingProductSelect = null;
 
-function productDestChipHtml(name) {
-  return `<span class="item-location">${name}（${destKindLabel(name)}）</span>`;
-}
-
 function productOptionLabel(product) {
   const dests = productPurchaseDestNames(product);
   if (!dests.length) return `${product.name}（購入先なし）`;
@@ -87,9 +83,6 @@ function appendPlaceOrderRow(parent, item) {
   addOpt.value = ADD_NEW_VALUE;
   addOpt.textContent = '＋ この場で登録（名前だけ）';
   productSelect.appendChild(addOpt);
-  const productDestSummary = document.createElement('div');
-  productDestSummary.className = 'order-product-dest-summary';
-  productDestSummary.hidden = true;
   const destLabel = document.createElement('label');
   destLabel.className = 'order-field-label';
   destLabel.textContent = '購入先';
@@ -102,13 +95,6 @@ function appendPlaceOrderRow(parent, item) {
       : (itemPurchaseDests(item).length ? itemPurchaseDests(item) : allPurchaseDests());
     const prev = destSelect.value;
     destSelect.innerHTML = '';
-    if (product && !names.length) {
-      productDestSummary.hidden = false;
-      productDestSummary.innerHTML = '<span class="order-dest-empty-hint">この商品に購入先がありません。設定で追加してください。</span>';
-      destLabel.hidden = true;
-      destSelect.hidden = true;
-      return;
-    }
     const empty = document.createElement('option');
     empty.value = '';
     empty.textContent = product ? '商品の購入先を選ぶ' : '購入先を選ぶ';
@@ -128,18 +114,6 @@ function appendPlaceOrderRow(parent, item) {
     if (names.includes(prev)) destSelect.value = prev;
     else if (product && names.length === 1) destSelect.value = names[0];
     else if (!product && names.length === 1) destSelect.value = names[0];
-    if (product) {
-      productDestSummary.hidden = false;
-      productDestSummary.innerHTML = names.map(productDestChipHtml).join('');
-      const singleDest = names.length === 1;
-      destLabel.hidden = singleDest;
-      destSelect.hidden = singleDest;
-    } else {
-      productDestSummary.hidden = true;
-      productDestSummary.innerHTML = '';
-      destLabel.hidden = false;
-      destSelect.hidden = false;
-    }
   };
   productSelect.onchange = async () => {
     if (productSelect.value === ADD_NEW_VALUE) {
@@ -190,7 +164,6 @@ function appendPlaceOrderRow(parent, item) {
   controls.className = 'order-place-fields';
   controls.appendChild(productLabel);
   controls.appendChild(productSelect);
-  controls.appendChild(productDestSummary);
   controls.appendChild(destLabel);
   controls.appendChild(destSelect);
   controls.appendChild(btn);
