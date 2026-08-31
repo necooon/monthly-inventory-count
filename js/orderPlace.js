@@ -222,7 +222,7 @@ function appendLohacoSelectRow(parent, item, dest) {
   input.dataset.itemId = item.id;
   input.dataset.dest = dest || '';
   input.setAttribute('aria-label', `${item.name}を選ぶ`);
-  input.checked = dest === LOHACO_DEST_NAME;
+  input.checked = false;
   input.onchange = syncLohacoSelectButtons;
   const info = document.createElement('div');
   info.className = 'item-info';
