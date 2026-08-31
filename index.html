@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=52">
+<link rel="stylesheet" href="styles.css?v=53">
 </head>
 <body>
   <header class="app-header">
@@ -30,6 +30,7 @@
     <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" id="inventory-progress-fill"></div></div>
   </div>
   <div class="inventory-action-row" id="inventory-action-row" hidden>
+    <button type="button" class="lohaco-select-cta" id="go-lohaco-select-btn" onclick="goToLohacoSelect()" hidden>まず LOHACO で買うものを選ぶ</button>
     <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
   </div>
 
@@ -42,6 +43,10 @@
   <p class="settings-hint" id="order-hint">商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。</p>
   <div class="filter-bar" id="order-filters"></div>
   <div id="order-list"></div>
+  <div class="order-lohaco-actions" id="order-lohaco-actions" hidden>
+    <button type="button" class="order-action-btn" id="confirm-lohaco-select-btn" onclick="confirmLohacoSelection()" disabled>選んだものを LOHACO で注文</button>
+    <button type="button" class="order-skip-btn" id="skip-lohaco-select-btn" onclick="skipLohacoSelection()">LOHACO では買わない（店舗の発注へ）</button>
+  </div>
   </div>
 
   <!-- 買い物・受け取り -->
@@ -157,16 +162,16 @@
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/db/localStore.js?v=52"></script>
-<script src="js/core.js?v=52"></script>
-<script src="js/productUrl.js?v=52"></script>
-<script src="js/db/client.js?v=52"></script>
-<script src="js/db/mapper.js?v=52"></script>
-<script src="js/db/repository.js?v=52"></script>
-<script src="js/sync.js?v=52"></script>
-<script src="js/ui.js?v=52"></script>
-<script src="js/order.js?v=52"></script>
-<script src="js/orderPlace.js?v=52"></script>
-<script src="js/boot.js?v=52"></script>
+<script src="js/db/localStore.js?v=53"></script>
+<script src="js/core.js?v=53"></script>
+<script src="js/productUrl.js?v=53"></script>
+<script src="js/db/client.js?v=53"></script>
+<script src="js/db/mapper.js?v=53"></script>
+<script src="js/db/repository.js?v=53"></script>
+<script src="js/sync.js?v=53"></script>
+<script src="js/ui.js?v=53"></script>
+<script src="js/order.js?v=53"></script>
+<script src="js/orderPlace.js?v=53"></script>
+<script src="js/boot.js?v=53"></script>
 </body>
 </html>
