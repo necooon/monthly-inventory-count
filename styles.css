@@ -138,6 +138,11 @@ h1 {
   white-space: nowrap;
   width: 100%;
 }
+.order-action-btn:disabled {
+  background: #b0bec5;
+  color: #eceff1;
+  cursor: not-allowed;
+}
 .order-place-fields {
   display: flex;
   flex-direction: column;
