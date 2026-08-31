@@ -48,7 +48,7 @@ function pendingProductNote(item) {
 function appendFulfillItemRow(parent, item, dest, view) {
   const orderAmount = itemOrderQty(item);
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'item empty order-item';
+  itemDiv.className = 'item order-place-item order-item';
   const lastOrder = formatLastOrder(item.lastOrderedOn);
   const destLabel = dest && dest !== UNSET_PURCHASE_DEST_LABEL ? dest : '';
   const destNote = destLabel ? `<span class="item-last-order">購入先: ${destLabel}（${destKindLabel(destLabel)}）</span>` : '';
@@ -62,7 +62,7 @@ function appendFulfillItemRow(parent, item, dest, view) {
       <span class="order-amount">買う数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
   `;
   const controls = document.createElement('div');
-  controls.className = 'controls';
+  controls.className = 'controls order-place-form';
   const label = document.createElement('label');
   label.className = 'order-check-label';
   const input = document.createElement('input');
@@ -282,7 +282,9 @@ function renderFulfillmentList() {
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
   updateOrderSubnav();
-  orderCategoryFilter = bindOrderViewFilters(filterDiv);
+  orderCategoryFilter = bindOrderViewFilters(filterDiv, {
+    includeDestFilters: orderFulfillmentView !== 'receipt'
+  });
   renderGroupedFulfillItems(orderDiv, itemsForOrderView(orderFulfillmentView), orderFulfillmentView);
 }
 
@@ -292,7 +294,7 @@ function renderOrderList() {
   const fulfillNav = document.getElementById('nav-fulfillment');
   if (fulfillNav) {
     const n = fulfillmentCounts().shopping + fulfillmentCounts().receipt;
-    fulfillNav.textContent = n ? `買い物（${n}）` : '買い物';
+    fulfillNav.textContent = n ? `Stock（${n}）` : 'Stock';
   }
   const orderNav = document.getElementById('nav-order');
   if (orderNav) {

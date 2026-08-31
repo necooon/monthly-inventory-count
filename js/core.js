@@ -433,7 +433,7 @@ function itemsForOrderView(view) {
     return stockItems.filter(item =>
       itemPendingMode(item) === view &&
       itemMatchesCategory(item, orderCategoryFilter) &&
-      itemMatchesPendingDest(item, orderPurchaseDestFilter)
+      (view === 'receipt' || itemMatchesPendingDest(item, orderPurchaseDestFilter))
     );
   }
   return stockItems.filter(item =>
