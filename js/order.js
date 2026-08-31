@@ -92,9 +92,12 @@ function appendPlaceOrderRow(parent, item) {
   info.innerHTML = `
       <div class="order-place-head">
         <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-        <span class="order-place-qty">買う数 ${formatQty(itemOrderQty(item), item.unit)}</span>
+        <span class="order-place-qty">買う ${formatQty(itemOrderQty(item), item.unit)}</span>
       </div>
-      <span class="item-meta">現在 ${formatQty(item.count, item.unit)} / 必要 ${formatQty(item.target, item.unit)}　前回発注 ${lastOrder || 'なし'}</span>
+      <div class="order-place-meta">
+        <span class="order-place-meta-item"><span class="order-place-meta-label">在庫</span>${formatQty(item.count, item.unit)} / ${formatQty(item.target, item.unit)}</span>
+        <span class="order-place-meta-item"><span class="order-place-meta-label">前回</span>${lastOrder || 'なし'}</span>
+      </div>
   `;
   const productField = document.createElement('div');
   productField.className = 'order-field';
@@ -239,8 +242,11 @@ function appendPlaceOrderRow(parent, item) {
   controls.appendChild(destField);
   controls.appendChild(onlineActions);
   controls.appendChild(btn);
+  const form = document.createElement('div');
+  form.className = 'order-place-form';
+  form.appendChild(controls);
   itemDiv.appendChild(info);
-  itemDiv.appendChild(controls);
+  itemDiv.appendChild(form);
   parent.appendChild(itemDiv);
 }
 
