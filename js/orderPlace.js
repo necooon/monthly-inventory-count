@@ -243,9 +243,17 @@ function appendSelectProductList(parent, item) {
     products.forEach(product => {
       const li = document.createElement('li');
       const dests = productPurchaseDestNames(product);
-      li.textContent = dests.length
+      const text = dests.length
         ? `${product.name} — ${formatPurchaseDestList(dests)}`
         : product.name;
+      const pageLink = createProductPageLink(product);
+      if (pageLink) {
+        li.appendChild(document.createTextNode(`${text} `));
+        pageLink.addEventListener('click', event => event.stopPropagation());
+        li.appendChild(pageLink);
+      } else {
+        li.textContent = text;
+      }
       list.appendChild(li);
     });
     wrap.appendChild(list);
@@ -286,13 +294,16 @@ function appendLohacoSelectRow(parent, item, dest) {
   details.hidden = !expanded;
   appendSelectProductList(details, item);
   const productId = lohacoProductIdForItem(item);
-  const searchLink = lohacoSearchLink(item, productId ? findProductById(productId) : null);
-  if (searchLink) {
-    const actions = document.createElement('div');
-    actions.className = 'order-online-actions order-lohaco-search-bar';
-    actions.appendChild(searchLink);
-    details.appendChild(actions);
-  }
+  const product = productId ? findProductById(productId) : null;
+  const actions = document.createElement('div');
+  actions.className = 'order-online-actions order-lohaco-search-bar';
+  renderOnlineProductAccessLinks(actions, {
+    item,
+    product,
+    dest: dest || LOHACO_DEST_NAME,
+    includeSearch: true
+  });
+  if (actions.childElementCount) details.appendChild(actions);
   trigger.onclick = () => toggleSelectItemExpanded(item.id, itemDiv, details, trigger);
 
   row.appendChild(input);

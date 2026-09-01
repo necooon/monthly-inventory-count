@@ -79,14 +79,20 @@ function onlineProductAccessLinks({ item, product, dest, includeSearch = true })
   return [];
 }
 
-function createOrderExternalLink(href, label) {
+function createOrderExternalLink(href, label, className) {
   const link = document.createElement('a');
   link.href = href;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.className = 'order-online-link';
+  link.className = className || 'order-online-link';
   link.textContent = label;
   return link;
+}
+
+function createProductPageLink(product, label) {
+  const url = productPageUrl(product);
+  if (!url) return null;
+  return createOrderExternalLink(url, label || '商品ページを開く', 'product-page-link');
 }
 
 function renderOnlineProductAccessLinks(container, context) {

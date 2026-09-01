@@ -1206,15 +1206,25 @@ function renderProductCatalog() {
     const dests = product.purchaseDests.length
       ? formatPurchaseDestList(product.purchaseDests)
       : '購入先なし';
-    row.innerHTML = `
-      <div class="item-info">
-        <span class="item-name"><span class="item-name-text">${product.name}</span></span>
-        <span class="item-meta">アイテム: ${itemLabel(product.itemId)}</span>
-        <span class="item-meta">${dests}</span>
-        ${product.barcode ? `<span class="item-meta">バーコード: ${product.barcode}</span>` : ''}
-        ${product.url ? `<span class="item-meta">URL: ${product.url}</span>` : ''}
-      </div>
+    const info = document.createElement('div');
+    info.className = 'item-info';
+    info.innerHTML = `
+      <span class="item-name"><span class="item-name-text">${product.name}</span></span>
+      <span class="item-meta">アイテム: ${itemLabel(product.itemId)}</span>
+      <span class="item-meta">${dests}</span>
+      ${product.barcode ? `<span class="item-meta">バーコード: ${product.barcode}</span>` : ''}
     `;
+    const pageUrl = productPageUrl(product);
+    if (pageUrl) {
+      const urlMeta = document.createElement('span');
+      urlMeta.className = 'item-meta';
+      urlMeta.appendChild(document.createTextNode('URL: '));
+      const link = createProductPageLink(product, product.url);
+      link.addEventListener('click', event => event.stopPropagation());
+      urlMeta.appendChild(link);
+      info.appendChild(urlMeta);
+    }
+    row.appendChild(info);
     row.addEventListener('click', () => openProductModal(product.id));
     list.appendChild(row);
   });
