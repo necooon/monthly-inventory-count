@@ -1,0 +1,16 @@
+{
+  "name": "Check＆Stock",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "python3 -m http.server 8000",
+      "description": "Serves the static Check＆Stock app over HTTP. Open http://localhost:8000/index.html."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web server",
+      "port": 8000
+    }
+  ]
+}
