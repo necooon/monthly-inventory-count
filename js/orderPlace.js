@@ -199,6 +199,20 @@ function appendPlaceOrderRow(parent, item) {
   controls.className = 'order-place-fields';
   controls.appendChild(productField);
   controls.appendChild(destField);
+  mountItemProductAddActions(controls, item, {
+    getDestHint: () => orderPlacementDestValue(destSelect),
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      finishOrderProductRegistration(
+        item,
+        productSelect,
+        product,
+        `「${product.name}」を登録しました。確定で発注できます`
+      );
+    }
+  });
   controls.appendChild(onlineActions);
   controls.appendChild(btn);
 
@@ -224,7 +238,7 @@ function toggleSelectItemExpanded(id, itemDiv, details, trigger) {
   if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function appendSelectProductList(parent, item) {
+function appendSelectProductList(parent, item, options = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'order-select-products';
   const heading = document.createElement('div');
@@ -247,6 +261,16 @@ function appendSelectProductList(parent, item) {
     });
     wrap.appendChild(list);
   }
+  mountItemProductAddActions(wrap, item, {
+    destHint: options.destHint || '',
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      showUndoToast(`「${product.name}」を登録しました`);
+      saveAndRender();
+    }
+  });
   parent.appendChild(wrap);
 }
 
@@ -281,7 +305,7 @@ function appendLohacoSelectRow(parent, item, dest) {
   const details = document.createElement('div');
   details.className = 'order-select-details';
   details.hidden = !expanded;
-  appendSelectProductList(details, item);
+  appendSelectProductList(details, item, { destHint: dest || LOHACO_DEST_NAME });
   const productId = lohacoProductIdForItem(item);
   const product = productId ? findProductById(productId) : null;
   const actions = mountOnlineAccessActions(item, product, dest || LOHACO_DEST_NAME, {

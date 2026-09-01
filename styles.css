@@ -211,6 +211,33 @@ h1 {
 .order-select-product-list li + li {
   margin-top: 4px;
 }
+.order-select-add-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.order-select-add-btn {
+  width: 100%;
+  padding: 12px;
+  background: white;
+  color: #1565c0;
+  border: 1px dashed #90caf9;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  min-height: 48px;
+  touch-action: manipulation;
+}
+.order-select-add-btn:focus-visible {
+  outline: 2px solid #1565c0;
+  outline-offset: 2px;
+}
+.order-place-fields .order-select-add-actions {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
 .product-page-link {
   color: #1565c0;
   font-weight: normal;

@@ -56,6 +56,13 @@ function productsForItem(itemId) {
   return catalogProducts.filter(p => String(p.itemId) === key);
 }
 
+function productOptionLabel(product) {
+  const dests = productPurchaseDestNames(product);
+  return dests.length
+    ? `${product.name} — ${formatPurchaseDestList(dests)}`
+    : `${product.name}（購入先なし）`;
+}
+
 function itemLabel(itemId) {
   const item = findItemById(itemId);
   return item ? item.name : '未所属';
