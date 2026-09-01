@@ -351,7 +351,7 @@ function appendLohacoProductPicker(parent, item) {
   const selectedProduct = selectedId ? findProductById(selectedId) : null;
   const cartActions = mountOnlineAccessActions(item, selectedProduct, LOHACO_DEST_NAME, {
     className: 'order-online-actions order-lohaco-search-bar',
-    includeCartAdd: true,
+    includeCartAdd: false,
     preferSearch: true
   });
   if (cartActions) wrap.appendChild(cartActions);
