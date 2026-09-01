@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=70">
+<link rel="stylesheet" href="styles.css?v=72">
 </head>
 <body>
   <header class="app-header">
@@ -92,11 +92,7 @@
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="choice-title">
       <h3 id="choice-title">購入先の種別</h3>
       <p class="settings-hint" id="choice-hint">ネットショップは注文後に受け取り待ちへ、店舗は買い物リストへ入ります。</p>
-      <div class="modal-actions dest-kind-actions">
-        <button type="button" class="btn-save" onclick="resolveChoice('online')">ネットショップ</button>
-        <button type="button" class="btn-save" onclick="resolveChoice('store')">店舗</button>
-        <button type="button" class="btn-cancel" onclick="resolveChoice(null)">キャンセル</button>
-      </div>
+      <div class="modal-actions" id="choice-actions"></div>
     </div>
   </div>
 
@@ -169,8 +165,8 @@
 <script src="js/db/mapper.js?v=70"></script>
 <script src="js/db/repository.js?v=70"></script>
 <script src="js/sync.js?v=70"></script>
-<script src="js/ui.js?v=70"></script>
-<script src="js/order.js?v=70"></script>
+<script src="js/ui.js?v=72"></script>
+<script src="js/order.js?v=72"></script>
 <script src="js/orderPlace.js?v=70"></script>
 <script src="js/gestures.js?v=71"></script>
 <script src="js/boot.js?v=71"></script>

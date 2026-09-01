@@ -311,13 +311,47 @@ async function registerProductFromUrl(item, destHint) {
 
 let choiceResolver = null;
 
-function showChoice(title, hint) {
+function renderChoiceActions(actions) {
+  const container = document.getElementById('choice-actions');
+  if (!container) return;
+  container.innerHTML = '';
+  actions.forEach(action => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = action.label;
+    if (action.kind === 'cancel') btn.className = 'btn-cancel';
+    else if (action.kind === 'delete') btn.className = 'btn-delete';
+    else btn.className = 'btn-save';
+    btn.onclick = () => resolveChoice(action.value);
+    container.appendChild(btn);
+  });
+}
+
+function showActionChoice(title, hint, actions) {
   document.getElementById('choice-title').textContent = title;
   const hintEl = document.getElementById('choice-hint');
-  if (hintEl) hintEl.textContent = hint || '';
+  if (hintEl) {
+    hintEl.textContent = hint || '';
+    hintEl.hidden = !hint;
+  }
+  renderChoiceActions([
+    ...actions.map(action => ({
+      label: action.label,
+      value: action.value,
+      kind: action.danger ? 'delete' : 'primary'
+    })),
+    { label: 'キャンセル', value: null, kind: 'cancel' }
+  ]);
   document.getElementById('choice-modal').style.display = 'flex';
   syncBodyScrollLock();
   return new Promise(resolve => { choiceResolver = resolve; });
+}
+
+function showChoice(title, hint) {
+  return showActionChoice(title, hint, [
+    { label: 'ネットショップ', value: 'online' },
+    { label: '店舗', value: 'store' }
+  ]);
 }
 
 function resolveChoice(value) {
