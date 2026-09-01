@@ -62,7 +62,7 @@ function productPageUrl(product) {
   return normalizeProductPageUrl(product.url);
 }
 
-function onlineProductAccessLinks({ item, product, dest }) {
+function onlineProductAccessLinks({ item, product, dest, includeSearch = true }) {
   const destName = normalizePurchaseDest(dest);
   const url = productPageUrl(product);
   if (url && destName && destKind(destName) === 'online') {
@@ -71,6 +71,7 @@ function onlineProductAccessLinks({ item, product, dest }) {
   if (url && !destName) {
     return [{ href: url, label: '商品ページを開く' }];
   }
+  if (!includeSearch) return [];
   const searchUrl = onlineStoreSearchUrl(destName, product?.name || item.name);
   if (searchUrl) {
     return [{ href: searchUrl, label: `${destName}で検索` }];
@@ -95,10 +96,22 @@ function renderOnlineProductAccessLinks(container, context) {
   });
 }
 
-function mountOnlineAccessActions(item, product, dest) {
+function lohacoSearchLink(item, product) {
+  const query = (product && product.name) || (item && item.name) || '';
+  const href = onlineStoreSearchUrl(LOHACO_DEST_NAME, query);
+  if (!href) return null;
+  return createOrderExternalLink(href, 'LOHACOで検索');
+}
+
+function mountOnlineAccessActions(item, product, dest, options) {
   if (destKind(dest) !== 'online') return null;
   const actions = document.createElement('div');
   actions.className = 'order-online-actions';
-  renderOnlineProductAccessLinks(actions, { item, product, dest });
+  renderOnlineProductAccessLinks(actions, {
+    item,
+    product,
+    dest,
+    includeSearch: options && options.includeSearch === false ? false : true
+  });
   return actions.childElementCount ? actions : null;
 }
