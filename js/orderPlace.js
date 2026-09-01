@@ -242,17 +242,12 @@ function appendSelectProductList(parent, item) {
     list.className = 'order-select-product-list';
     products.forEach(product => {
       const li = document.createElement('li');
-      const dests = productPurchaseDestNames(product);
-      const text = dests.length
-        ? `${product.name} — ${formatPurchaseDestList(dests)}`
-        : product.name;
-      const pageLink = createProductPageLink(product);
+      const pageLink = createProductPageLink(product, product.name);
       if (pageLink) {
-        li.appendChild(document.createTextNode(`${text} `));
         pageLink.addEventListener('click', event => event.stopPropagation());
         li.appendChild(pageLink);
       } else {
-        li.textContent = text;
+        li.textContent = product.name;
       }
       list.appendChild(li);
     });
