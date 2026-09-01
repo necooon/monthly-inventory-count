@@ -5,10 +5,10 @@ const ORDER_EMPTY_MESSAGE = {
   receipt: '受け取り待ちはありません'
 };
 const ORDER_HINT = {
-  lohaco: '購入先ごとにまとめています。選んだものをネットで注文するか、リストに追加できます。',
+  lohaco: 'LOHACO商品を選んでチェックし、「カートに入れる」でLOHACOのカートへ追加できます。残りはリストに追加できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
-const SELECT_NET_ORDER_LABEL = 'ネットで注文';
+const SELECT_LOHACO_CART_LABEL = 'カートに入れる';
 const SELECT_LIST_ADD_LABEL = 'リストに追加';
 let pendingProductSelect = null;
 let selectCollapsedItemIds = new Set();
@@ -64,15 +64,24 @@ function appendFulfillItemRow(parent, item, dest) {
   `;
   const controls = document.createElement('div');
   controls.className = 'controls order-place-form';
+  const isLohaco = normalizePurchaseDest(dest) === LOHACO_DEST_NAME;
   const onlineActions = mountOnlineAccessActions(
     item,
     findProductById(item.pendingProductId),
     dest,
-    { includeSearch: false }
+    { includeSearch: false, includeCartAdd: isLohaco }
   );
   if (onlineActions) controls.appendChild(onlineActions);
+  if (isLohaco) {
+    const actionBar = onlineActions || document.createElement('div');
+    if (!onlineActions) {
+      actionBar.className = 'order-online-actions';
+      controls.appendChild(actionBar);
+    }
+    actionBar.appendChild(createOrderExternalLink(lohacoCartViewUrl(), 'LOHACOカートを見る', 'order-online-link'));
+  }
   itemDiv.appendChild(info);
-  if (onlineActions) itemDiv.appendChild(controls);
+  if (controls.childElementCount) itemDiv.appendChild(controls);
   itemDiv.addEventListener('click', event => {
     if (event.target.closest('.controls, a, button')) return;
     handleFulfillmentItemTap(item.id);
@@ -217,13 +226,47 @@ function lohacoSelectCheckedRows() {
   return rows;
 }
 
+function lohacoCartUrlsForItems(items) {
+  return items.map(item => {
+    const productId = getLohacoSelectedProductId(item);
+    const product = productId ? findProductById(productId) : null;
+    return product ? lohacoCartAddUrl(product) : '';
+  }).filter(Boolean);
+}
+
+function lohacoCartReadyCount(rows) {
+  return lohacoCartUrlsForItems(rows.map(row => row.item)).length;
+}
+
+function validateLohacoSelection(rows) {
+  for (const row of rows) {
+    const products = lohacoProductsForItem(row.item);
+    if (products.length <= 1) continue;
+    if (!getLohacoSelectedProductId(row.item)) {
+      alert(`「${row.item.name}」のLOHACO商品を選んでください。`);
+      return false;
+    }
+  }
+  return true;
+}
+
+function finishLohacoSelectStep(processedItems) {
+  orderLohacoStepDone = true;
+  clearLohacoSelectedProductIds(processedItems.map(item => item.id));
+}
+
 function syncLohacoSelectButtons() {
-  const n = lohacoSelectCheckedRows().length;
+  const rows = lohacoSelectCheckedRows();
+  const n = rows.length;
+  const cartReady = lohacoCartReadyCount(rows);
   const confirmBtn = document.getElementById('confirm-lohaco-select-btn');
   const shopBtn = document.getElementById('skip-lohaco-select-btn');
   if (confirmBtn) {
     confirmBtn.disabled = n === 0;
-    confirmBtn.textContent = labeledCount(SELECT_NET_ORDER_LABEL, n);
+    if (!n) confirmBtn.textContent = SELECT_LOHACO_CART_LABEL;
+    else if (cartReady === n) confirmBtn.textContent = labeledCount(SELECT_LOHACO_CART_LABEL, n);
+    else if (cartReady > 0) confirmBtn.textContent = `${SELECT_LOHACO_CART_LABEL}（${cartReady}/${n}）`;
+    else confirmBtn.textContent = labeledCount('受け取り待ちへ', n);
   }
   if (shopBtn) {
     shopBtn.disabled = n === 0;
@@ -392,24 +435,33 @@ function shoppingDestFromSelectRow(row) {
 function confirmLohacoSelection() {
   const rows = lohacoSelectCheckedRows();
   if (!rows.length) return;
+  if (!validateLohacoSelection(rows)) return;
   ensurePurchaseDest(LOHACO_DEST_NAME, 'online');
   persistMasters();
+  const items = rows.map(row => row.item);
+  const cartUrls = lohacoCartUrlsForItems(items);
   queueBulkFulfillment(
-    rows.map(row => row.item),
-    item => ({ dest: LOHACO_DEST_NAME, productId: lohacoProductIdForItem(item) }),
-    `${rows.length}件を受け取り待ちにしました`
+    items,
+    item => ({ dest: LOHACO_DEST_NAME, productId: getLohacoSelectedProductId(item) }),
+    cartUrls.length
+      ? `${items.length}件を受け取り待ちにし、LOHACOカートへ追加します`
+      : `${items.length}件を受け取り待ちにしました`
   );
+  finishLohacoSelectStep(items);
+  if (cartUrls.length) openLohacoCartAdds(cartUrls);
 }
 
 function skipLohacoSelection() {
   const rows = lohacoSelectCheckedRows();
   if (!rows.length) return;
   const destById = new Map(rows.map(row => [String(row.item.id), shoppingDestFromSelectRow(row)]));
+  const items = rows.map(row => row.item);
   queueBulkFulfillment(
-    rows.map(row => row.item),
+    items,
     item => ({ dest: destById.get(String(item.id)) || shoppingListDestForItem(item), productId: '' }),
     `${rows.length}件を買い物リストへ移しました`
   );
+  finishLohacoSelectStep(items);
 }
 
 async function handleFulfillmentItemTap(id) {
