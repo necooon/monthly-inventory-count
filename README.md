@@ -4,7 +4,7 @@
 
 家の在庫として数える単位は **アイテム**（例: ティッシュ）です。店やネットで買うものは **商品** です。ひとつのアイテムに複数の商品を付けられます。買った記録は履歴に残り、在庫数は次の Check で合わせます。
 
-詳細は [docs/requirements.md](docs/requirements.md) を参照してください。
+詳細は [docs/requirements.md](docs/requirements.md) を参照してください。商品ページ URL からの登録フローは [docs/url-registration.md](docs/url-registration.md) を参照してください。
 
 ## 画面
 
