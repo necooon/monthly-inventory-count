@@ -211,6 +211,47 @@ h1 {
 .order-select-product-list li + li {
   margin-top: 4px;
 }
+.order-lohaco-product-picker {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.order-lohaco-product-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.order-lohaco-product-option input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.order-lohaco-product-name {
+  flex: 1;
+  min-width: 0;
+  color: #333;
+}
+.order-lohaco-add-url-btn {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 1px dashed #90a4ae;
+  border-radius: 8px;
+  background: white;
+  color: #1565c0;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.order-lohaco-add-url-btn:focus-visible {
+  outline: 2px solid #1565c0;
+  outline-offset: 2px;
+}
+.order-lohaco-cart-link {
+  font-weight: bold;
+}
 .product-page-link {
   color: #1565c0;
   font-weight: normal;
