@@ -134,8 +134,14 @@ async function registerProductFromUrl(item, destHint) {
   }
   const dest = await resolveOnlineDestForProductUrl(item, trimmedUrl, destHint);
   if (!dest) return null;
-  const name = await showPrompt('商品名', item.name || '');
+  const meta = await fetchLohacoProductMeta(trimmedUrl);
+  const defaultName = meta?.name || item.name || '';
+  const name = await showPrompt('商品名', defaultName);
   if (!name || !String(name).trim()) return null;
+  if (meta?.appCategory && !normalizeCategory(item.category)) {
+    item.category = ensureCategory(meta.appCategory);
+    showUndoToast(`カテゴリを「${meta.appCategory}」に設定しました`);
+  }
   ensurePurchaseDest(dest, 'online');
   const product = createCatalogProduct({
     name: String(name).trim(),
