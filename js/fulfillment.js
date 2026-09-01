@@ -252,10 +252,12 @@ function queueItemFulfillment(item, dest, productId) {
   return mode;
 }
 
+function lohacoProductsForItem(item) {
+  return productsForItem(item.id).filter(productHasLohaco);
+}
+
 function lohacoProductIdForItem(item) {
-  const matches = productsForItem(item.id).filter(product =>
-    productPurchaseDestNames(product).includes(LOHACO_DEST_NAME)
-  );
+  const matches = lohacoProductsForItem(item);
   return matches.length === 1 ? String(matches[0].id) : '';
 }
 

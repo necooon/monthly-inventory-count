@@ -238,6 +238,24 @@ function toggleSelectItemExpanded(id, itemDiv, details, trigger) {
   if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
+let lohacoSelectedProductByItem = new Map();
+
+function getLohacoSelectedProductId(item) {
+  const key = String(item.id);
+  if (lohacoSelectedProductByItem.has(key)) {
+    return lohacoSelectedProductByItem.get(key) || '';
+  }
+  return lohacoProductIdForItem(item);
+}
+
+function setLohacoSelectedProductId(itemId, productId) {
+  lohacoSelectedProductByItem.set(String(itemId), productId ? String(productId) : '');
+}
+
+function clearLohacoSelectedProductIds(itemIds) {
+  (itemIds || []).forEach(id => lohacoSelectedProductByItem.delete(String(id)));
+}
+
 function appendSelectProductList(parent, item, options = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'order-select-products';
@@ -274,6 +292,72 @@ function appendSelectProductList(parent, item, options = {}) {
   parent.appendChild(wrap);
 }
 
+function appendLohacoProductPicker(parent, item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'order-select-products';
+  const heading = document.createElement('div');
+  heading.className = 'order-field-label';
+  heading.textContent = 'LOHACO商品';
+  wrap.appendChild(heading);
+
+  const products = lohacoProductsForItem(item);
+  const selectedId = getLohacoSelectedProductId(item);
+
+  if (!products.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-hint';
+    empty.textContent = 'LOHACO商品が未登録です。URLで登録するか、LOHACOで検索してください。';
+    wrap.appendChild(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'order-lohaco-product-picker';
+    products.forEach(product => {
+      const li = document.createElement('li');
+      const label = document.createElement('label');
+      label.className = 'order-lohaco-product-option';
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = `lohaco-product-${item.id}`;
+      radio.value = product.id;
+      radio.checked = String(product.id) === String(selectedId);
+      radio.onclick = event => event.stopPropagation();
+      radio.onchange = () => {
+        setLohacoSelectedProductId(item.id, product.id);
+        syncLohacoSelectButtons();
+      };
+      const name = document.createElement('span');
+      name.className = 'order-lohaco-product-name';
+      appendProductName(name, product);
+      label.appendChild(radio);
+      label.appendChild(name);
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+    wrap.appendChild(list);
+  }
+
+  mountItemProductAddActions(wrap, item, {
+    destHint: LOHACO_DEST_NAME,
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      setLohacoSelectedProductId(item.id, product.id);
+      showUndoToast(`「${product.name}」を登録しました`);
+      saveAndRender();
+    }
+  });
+
+  const selectedProduct = selectedId ? findProductById(selectedId) : null;
+  const cartActions = mountOnlineAccessActions(item, selectedProduct, LOHACO_DEST_NAME, {
+    className: 'order-online-actions order-lohaco-search-bar',
+    includeCartAdd: true
+  });
+  if (cartActions) wrap.appendChild(cartActions);
+
+  parent.appendChild(wrap);
+}
+
 function appendLohacoSelectRow(parent, item, dest) {
   const itemDiv = document.createElement('div');
   const expanded = isSelectItemExpanded(item.id);
@@ -305,13 +389,7 @@ function appendLohacoSelectRow(parent, item, dest) {
   const details = document.createElement('div');
   details.className = 'order-select-details';
   details.hidden = !expanded;
-  appendSelectProductList(details, item, { destHint: dest || LOHACO_DEST_NAME });
-  const productId = lohacoProductIdForItem(item);
-  const product = productId ? findProductById(productId) : null;
-  const actions = mountOnlineAccessActions(item, product, dest || LOHACO_DEST_NAME, {
-    className: 'order-online-actions order-lohaco-search-bar'
-  });
-  if (actions) details.appendChild(actions);
+  appendLohacoProductPicker(details, item);
   trigger.onclick = () => toggleSelectItemExpanded(item.id, itemDiv, details, trigger);
 
   row.appendChild(input);

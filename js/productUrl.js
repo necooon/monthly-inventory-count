@@ -1,3 +1,6 @@
+const LOHACO_CART_VIEW_URL = 'https://order.shopping.yahoo.co.jp/cgi-bin/cart-form';
+const LOHACO_CART_ADD_ORIGIN = 'https://lohaco.yahoo.co.jp';
+
 const ONLINE_STORES = [
   {
     dest: 'LOHACO',
@@ -135,5 +138,41 @@ function mountOnlineAccessActions(item, product, dest, options = {}) {
     dest,
     includeSearch: options.includeSearch !== false
   });
+  if (options.includeCartAdd !== false && normalizePurchaseDest(dest) === LOHACO_DEST_NAME) {
+    const cartUrl = lohacoCartAddUrl(product);
+    if (cartUrl) {
+      actions.appendChild(createOrderExternalLink(cartUrl, 'カートに入れる', 'order-online-link order-lohaco-cart-link'));
+    }
+  }
   return actions.childElementCount ? actions : null;
+}
+
+function parseLohacoProductUrl(url) {
+  const parsed = parseHttpUrl(url);
+  if (!parsed || !hostMatches(parsed.hostname, ['lohaco.yahoo.co.jp'])) return null;
+  const match = parsed.pathname.match(/\/store\/([^/]+)\/item\/([^/]+)/i);
+  if (!match) return null;
+  const sellerId = decodeURIComponent(match[1]).trim();
+  const srid = decodeURIComponent(match[2]).trim();
+  if (!sellerId || !srid) return null;
+  return { sellerId, srid };
+}
+
+function lohacoCartAddUrl(product) {
+  const ids = parseLohacoProductUrl(productPageUrl(product));
+  if (!ids) return '';
+  const params = new URLSearchParams({ stockAddress: '0' });
+  return `${LOHACO_CART_ADD_ORIGIN}/cartAdd/${encodeURIComponent(ids.sellerId)}/${encodeURIComponent(ids.srid)}/?${params}`;
+}
+
+function lohacoCartViewUrl() {
+  return LOHACO_CART_VIEW_URL;
+}
+
+function openLohacoCartAdds(urls) {
+  const list = (urls || []).filter(Boolean);
+  if (!list.length) return;
+  list.forEach((href, index) => {
+    window.open(href, index === 0 ? '_blank' : `lohaco-cart-${index}`, 'noopener,noreferrer');
+  });
 }
