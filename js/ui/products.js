@@ -59,7 +59,8 @@ function mountItemProductAddActions(container, item, options = {}) {
     onRegistered = null,
     stopPropagation = false,
     buttonClass = 'settings-add',
-    actionsClass = ''
+    actionsClass = '',
+    urlOnly = false
   } = options;
 
   const actions = document.createElement('div');
@@ -116,9 +117,13 @@ function mountItemProductAddActions(container, item, options = {}) {
     openProductModal(null, item.id);
   });
 
-  actions.appendChild(addBtn);
-  actions.appendChild(urlBtn);
-  actions.appendChild(detailBtn);
+  if (urlOnly) {
+    actions.appendChild(urlBtn);
+  } else {
+    actions.appendChild(addBtn);
+    actions.appendChild(urlBtn);
+    actions.appendChild(detailBtn);
+  }
   container.appendChild(actions);
   return actions;
 }
