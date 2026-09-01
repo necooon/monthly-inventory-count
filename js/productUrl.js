@@ -89,10 +89,33 @@ function createOrderExternalLink(href, label, className) {
   return link;
 }
 
-function createProductPageLink(product, label) {
+function createProductPageLink(product, label, options = {}) {
   const url = productPageUrl(product);
   if (!url) return null;
-  return createOrderExternalLink(url, label || '商品ページを開く', 'product-page-link');
+  const link = createOrderExternalLink(url, label || '商品ページを開く', 'product-page-link');
+  if (options.stopPropagation) {
+    link.addEventListener('click', event => event.stopPropagation());
+  }
+  return link;
+}
+
+function appendProductName(parent, product) {
+  const link = createProductPageLink(product, product.name, { stopPropagation: true });
+  if (link) {
+    parent.appendChild(link);
+    return;
+  }
+  parent.textContent = product.name;
+}
+
+function appendProductUrlMeta(parent, product, options = {}) {
+  const link = createProductPageLink(product, product.url, options);
+  if (!link) return;
+  const urlMeta = document.createElement('span');
+  urlMeta.className = 'item-meta';
+  urlMeta.appendChild(document.createTextNode('URL: '));
+  urlMeta.appendChild(link);
+  parent.appendChild(urlMeta);
 }
 
 function renderOnlineProductAccessLinks(container, context) {
@@ -102,22 +125,15 @@ function renderOnlineProductAccessLinks(container, context) {
   });
 }
 
-function lohacoSearchLink(item, product) {
-  const query = (product && product.name) || (item && item.name) || '';
-  const href = onlineStoreSearchUrl(LOHACO_DEST_NAME, query);
-  if (!href) return null;
-  return createOrderExternalLink(href, 'LOHACOで検索');
-}
-
-function mountOnlineAccessActions(item, product, dest, options) {
+function mountOnlineAccessActions(item, product, dest, options = {}) {
   if (destKind(dest) !== 'online') return null;
   const actions = document.createElement('div');
-  actions.className = 'order-online-actions';
+  actions.className = options.className || 'order-online-actions';
   renderOnlineProductAccessLinks(actions, {
     item,
     product,
     dest,
-    includeSearch: options && options.includeSearch === false ? false : true
+    includeSearch: options.includeSearch !== false
   });
   return actions.childElementCount ? actions : null;
 }
