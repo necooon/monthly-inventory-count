@@ -75,7 +75,7 @@ h1 {
   height: 22px;
 }
 
-.page { display: none; }
+.page { display: none; touch-action: pan-y; }
 .page.active { display: block; }
 
 /* 発注画面 */
