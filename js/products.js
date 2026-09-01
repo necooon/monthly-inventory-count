@@ -1,0 +1,72 @@
+function migrateProduct(product) {
+  const next = { ...(product || {}) };
+  if (!isItemUuid(next.id)) next.id = newItemId();
+  next.name = String(next.name || '').trim();
+  next.itemId = next.itemId ? String(next.itemId) : '';
+  next.purchaseDests = normalizePurchaseDests(next.purchaseDests);
+  next.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
+  next.url = String(next.url || '').trim();
+  next.barcode = String(next.barcode || '').trim();
+  return next;
+}
+
+function createCatalogProduct({ name, itemId, dests, url, barcode }) {
+  const product = migrateProduct({
+    id: newItemId(),
+    name,
+    itemId,
+    purchaseDests: dests,
+    url,
+    barcode
+  });
+  catalogProducts.push(product);
+  return product;
+}
+
+function defaultDestsForNewProduct(itemId, destHint) {
+  const hinted = normalizePurchaseDest(destHint);
+  if (hinted && hinted !== ADD_NEW_VALUE) return [hinted];
+  const item = findItemById(itemId);
+  return item ? itemPurchaseDests(item) : [];
+}
+
+function migrateHistory(row) {
+  const next = { ...(row || {}) };
+  if (!isItemUuid(next.id)) next.id = newItemId();
+  next.at = next.at || next.happened_at || new Date().toISOString();
+  next.itemId = next.itemId ? String(next.itemId) : '';
+  next.itemName = String(next.itemName || '');
+  next.productId = next.productId ? String(next.productId) : '';
+  next.productName = String(next.productName || '');
+  next.dest = normalizePurchaseDest(next.dest) || '';
+  const qty = Number(next.qty);
+  next.qty = Number.isFinite(qty) ? Math.max(0, Math.round(qty)) : 0;
+  next.mode = next.mode === 'receipt' ? 'receipt' : 'shopping';
+  return next;
+}
+
+function findProductById(id) {
+  const key = String(id || '');
+  if (!key) return null;
+  return catalogProducts.find(p => String(p.id) === key) || null;
+}
+
+function productsForItem(itemId) {
+  const key = String(itemId || '');
+  return catalogProducts.filter(p => String(p.itemId) === key);
+}
+
+function itemLabel(itemId) {
+  const item = findItemById(itemId);
+  return item ? item.name : '未所属';
+}
+
+function formatHistoryWhen(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${m}/${d} ${h}:${min}`;
+}
