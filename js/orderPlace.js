@@ -60,7 +60,6 @@ function fillProductSelectOptions(select, products) {
   products.forEach(product => {
     appendSelectOption(select, product.id, productOptionLabel(product));
   });
-  appendSelectOption(select, ADD_NEW_VALUE, '＋ この場で登録（名前だけ）');
   appendSelectOption(select, ADD_PRODUCT_URL_VALUE, '＋ 商品ページ URLで登録');
 }
 
@@ -108,12 +107,6 @@ async function handlePlaceOrderProductSelectChange(item, productSelect, destSele
       created,
       created ? `「${created.name}」を登録しました。確定で発注できます` : ''
     );
-    if (!done) syncFields();
-    return;
-  }
-  if (productSelect.value === ADD_NEW_VALUE) {
-    const created = await quickRegisterProductFromOrder(item, destSelect.value);
-    const done = await finishOrderProductRegistration(item, productSelect, created);
     if (!done) syncFields();
     return;
   }
@@ -200,6 +193,7 @@ function appendPlaceOrderRow(parent, item) {
   controls.appendChild(productField);
   controls.appendChild(destField);
   mountItemProductAddActions(controls, item, {
+    urlOnly: true,
     getDestHint: () => orderPlacementDestValue(destSelect),
     stopPropagation: true,
     buttonClass: 'order-select-add-btn',
@@ -280,6 +274,7 @@ function appendSelectProductList(parent, item, options = {}) {
     wrap.appendChild(list);
   }
   mountItemProductAddActions(wrap, item, {
+    urlOnly: true,
     destHint: options.destHint || '',
     stopPropagation: true,
     buttonClass: 'order-select-add-btn',
@@ -348,6 +343,7 @@ function appendLohacoProductPicker(parent, item) {
   }
 
   mountItemProductAddActions(wrap, item, {
+    urlOnly: true,
     destHint: LOHACO_DEST_NAME,
     stopPropagation: true,
     buttonClass: 'order-select-add-btn',

@@ -367,24 +367,6 @@ function showUndoToast(message) {
   }, 8000);
 }
 
-async function quickRegisterProductFromOrder(item, destHint) {
-  const name = await showPrompt('商品名', item.name || '');
-  if (!name || !String(name).trim()) return null;
-  const dests = defaultDestsForNewProduct(item.id, destHint);
-  if (!dests.length) {
-    alert('先に購入先を選ぶか、アイテムに購入先を付けてください。');
-    return null;
-  }
-  dests.forEach(dest => ensurePurchaseDest(dest));
-  const product = createCatalogProduct({
-    name: String(name).trim(),
-    itemId: item.id,
-    dests
-  });
-  showUndoToast(`「${product.name}」を登録しました。確定で発注できます`);
-  return product;
-}
-
 function confirmOrderPlacement(id, productId, destValue) {
   const item = findItemById(id);
   if (!item) return;
