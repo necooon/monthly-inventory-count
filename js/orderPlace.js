@@ -323,6 +323,8 @@ function appendLohacoProductPicker(parent, item) {
       radio.onclick = event => event.stopPropagation();
       radio.onchange = () => {
         setLohacoSelectedProductId(item.id, product.id);
+        const check = parent.closest('.order-lohaco-item')?.querySelector('.order-lohaco-check');
+        if (check) check.checked = true;
         syncLohacoSelectButtons();
       };
       const name = document.createElement('span');
