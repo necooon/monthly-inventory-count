@@ -199,6 +199,20 @@ function appendPlaceOrderRow(parent, item) {
   controls.className = 'order-place-fields';
   controls.appendChild(productField);
   controls.appendChild(destField);
+  mountItemProductAddActions(controls, item, {
+    getDestHint: () => orderPlacementDestValue(destSelect),
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      finishOrderProductRegistration(
+        item,
+        productSelect,
+        product,
+        `「${product.name}」を登録しました。確定で発注できます`
+      );
+    }
+  });
   controls.appendChild(onlineActions);
   controls.appendChild(btn);
 
@@ -242,7 +256,7 @@ function clearLohacoSelectedProductIds(itemIds) {
   (itemIds || []).forEach(id => lohacoSelectedProductByItem.delete(String(id)));
 }
 
-function appendSelectProductList(parent, item) {
+function appendSelectProductList(parent, item, options = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'order-select-products';
   const heading = document.createElement('div');
@@ -265,6 +279,16 @@ function appendSelectProductList(parent, item) {
     });
     wrap.appendChild(list);
   }
+  mountItemProductAddActions(wrap, item, {
+    destHint: options.destHint || '',
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      showUndoToast(`「${product.name}」を登録しました`);
+      saveAndRender();
+    }
+  });
   parent.appendChild(wrap);
 }
 
@@ -312,19 +336,17 @@ function appendLohacoProductPicker(parent, item) {
     wrap.appendChild(list);
   }
 
-  const addUrlBtn = document.createElement('button');
-  addUrlBtn.type = 'button';
-  addUrlBtn.className = 'order-lohaco-add-url-btn';
-  addUrlBtn.textContent = '＋ 商品ページ URLで登録';
-  addUrlBtn.onclick = async event => {
-    event.stopPropagation();
-    const created = await registerProductFromUrl(item, LOHACO_DEST_NAME);
-    if (!created) return;
-    setLohacoSelectedProductId(item.id, created.id);
-    showUndoToast(`「${created.name}」を登録しました`);
-    saveAndRender();
-  };
-  wrap.appendChild(addUrlBtn);
+  mountItemProductAddActions(wrap, item, {
+    destHint: LOHACO_DEST_NAME,
+    stopPropagation: true,
+    buttonClass: 'order-select-add-btn',
+    actionsClass: 'order-select-add-actions',
+    onRegistered: product => {
+      setLohacoSelectedProductId(item.id, product.id);
+      showUndoToast(`「${product.name}」を登録しました`);
+      saveAndRender();
+    }
+  });
 
   const selectedProduct = selectedId ? findProductById(selectedId) : null;
   const cartActions = mountOnlineAccessActions(item, selectedProduct, LOHACO_DEST_NAME, {

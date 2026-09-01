@@ -49,19 +49,92 @@ function renderHistoryList() {
   });
 }
 
+function resolveProductAddDestHint(options) {
+  if (typeof options.getDestHint === 'function') return options.getDestHint();
+  return options.destHint || '';
+}
+
+function mountItemProductAddActions(container, item, options = {}) {
+  const {
+    onRegistered = null,
+    stopPropagation = false,
+    buttonClass = 'settings-add',
+    actionsClass = ''
+  } = options;
+
+  const actions = document.createElement('div');
+  if (actionsClass) actions.className = actionsClass;
+
+  const bindClick = (btn, handler) => {
+    btn.onclick = async (e) => {
+      if (stopPropagation) e.stopPropagation();
+      e.preventDefault();
+      await handler();
+    };
+  };
+
+  const afterRegistered = (product) => {
+    if (!product) return;
+    if (onRegistered) onRegistered(product);
+    else saveAndRender();
+  };
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = buttonClass;
+  addBtn.textContent = '＋ 名前だけ追加';
+  bindClick(addBtn, async () => {
+    const dests = defaultDestsForNewProduct(item.id, resolveProductAddDestHint(options));
+    if (!dests.length) {
+      alert('先にこのアイテムの購入先を付けて保存してください。');
+      return;
+    }
+    const name = await showPrompt('商品名', item.name || '');
+    if (!name || !String(name).trim()) return;
+    dests.forEach(dest => ensurePurchaseDest(dest));
+    afterRegistered(createCatalogProduct({
+      name: String(name).trim(),
+      itemId: item.id,
+      dests
+    }));
+  });
+
+  const urlBtn = document.createElement('button');
+  urlBtn.type = 'button';
+  urlBtn.className = buttonClass;
+  urlBtn.textContent = '＋ URLで登録';
+  bindClick(urlBtn, async () => {
+    const product = await registerProductFromUrl(item, resolveProductAddDestHint(options));
+    afterRegistered(product);
+  });
+
+  const detailBtn = document.createElement('button');
+  detailBtn.type = 'button';
+  detailBtn.className = buttonClass;
+  detailBtn.textContent = '詳しく登録';
+  bindClick(detailBtn, () => {
+    openProductModal(null, item.id);
+  });
+
+  actions.appendChild(addBtn);
+  actions.appendChild(urlBtn);
+  actions.appendChild(detailBtn);
+  container.appendChild(actions);
+  return actions;
+}
+
 function renderLinkedProducts(containerId, itemId) {
   const box = document.getElementById(containerId);
   if (!box) return;
   box.innerHTML = '';
+  const item = findItemById(itemId);
+  if (!item) return;
   productsForItem(itemId).forEach(product => {
     const row = document.createElement('div');
     row.className = 'settings-row';
     const name = document.createElement('span');
     name.className = 'settings-row-name';
-    const dests = productPurchaseDestNames(product);
-    name.textContent = dests.length
-      ? `${product.name} — ${formatPurchaseDestList(dests)}`
-      : `${product.name}（購入先なし）`;
+    name.textContent = productOptionLabel(product);
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
     editBtn.className = 'settings-edit';
@@ -82,47 +155,12 @@ function renderLinkedProducts(containerId, itemId) {
     row.appendChild(unlinkBtn);
     box.appendChild(row);
   });
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'settings-add';
-  addBtn.textContent = '＋ 名前だけ追加';
-  addBtn.onclick = async (e) => {
-    e.preventDefault();
-    const item = findItemById(itemId);
-    if (!item) return;
-    const dests = itemPurchaseDests(item);
-    if (!dests.length) {
-      alert('先にこのアイテムの購入先を付けて保存してください。');
-      return;
+  mountItemProductAddActions(box, item, {
+    onRegistered: () => {
+      saveAndRender();
+      renderLinkedProducts(containerId, itemId);
     }
-    const name = await showPrompt('商品名', item.name || '');
-    if (!name || !String(name).trim()) return;
-    dests.forEach(dest => ensurePurchaseDest(dest));
-    createCatalogProduct({ name: String(name).trim(), itemId: item.id, dests });
-    saveAndRender();
-    renderLinkedProducts(containerId, itemId);
-  };
-  const urlBtn = document.createElement('button');
-  urlBtn.type = 'button';
-  urlBtn.className = 'settings-add';
-  urlBtn.textContent = '＋ URLで登録';
-  urlBtn.onclick = async (e) => {
-    e.preventDefault();
-    const item = findItemById(itemId);
-    if (!item) return;
-    const product = await registerProductFromUrl(item, '');
-    if (!product) return;
-    saveAndRender();
-    renderLinkedProducts(containerId, itemId);
-  };
-  const detailBtn = document.createElement('button');
-  detailBtn.type = 'button';
-  detailBtn.className = 'settings-add';
-  detailBtn.textContent = '詳しく登録';
-  detailBtn.onclick = (e) => { e.preventDefault(); openProductModal(null, itemId); };
-  box.appendChild(addBtn);
-  box.appendChild(urlBtn);
-  box.appendChild(detailBtn);
+  });
 }
 
 function mountProductForm() {
