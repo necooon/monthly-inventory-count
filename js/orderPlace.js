@@ -242,13 +242,7 @@ function appendSelectProductList(parent, item) {
     list.className = 'order-select-product-list';
     products.forEach(product => {
       const li = document.createElement('li');
-      const pageLink = createProductPageLink(product, product.name);
-      if (pageLink) {
-        pageLink.addEventListener('click', event => event.stopPropagation());
-        li.appendChild(pageLink);
-      } else {
-        li.textContent = product.name;
-      }
+      appendProductName(li, product);
       list.appendChild(li);
     });
     wrap.appendChild(list);
@@ -290,15 +284,10 @@ function appendLohacoSelectRow(parent, item, dest) {
   appendSelectProductList(details, item);
   const productId = lohacoProductIdForItem(item);
   const product = productId ? findProductById(productId) : null;
-  const actions = document.createElement('div');
-  actions.className = 'order-online-actions order-lohaco-search-bar';
-  renderOnlineProductAccessLinks(actions, {
-    item,
-    product,
-    dest: dest || LOHACO_DEST_NAME,
-    includeSearch: true
+  const actions = mountOnlineAccessActions(item, product, dest || LOHACO_DEST_NAME, {
+    className: 'order-online-actions order-lohaco-search-bar'
   });
-  if (actions.childElementCount) details.appendChild(actions);
+  if (actions) details.appendChild(actions);
   trigger.onclick = () => toggleSelectItemExpanded(item.id, itemDiv, details, trigger);
 
   row.appendChild(input);
