@@ -1,45 +1,48 @@
 function initSupabase() {
   if (typeof supabase === 'undefined' || !supabase.createClient) {
-    supabaseClient = null;
+    S().sync.supabaseClient = null;
     return false;
   }
   try {
-    supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    S().sync.supabaseClient = supabase.createClient(C.SUPABASE_CONFIG.url, C.SUPABASE_CONFIG.anonKey);
     return true;
   } catch (e) {
     console.error('Supabase init failed', e);
-    supabaseClient = null;
+    S().sync.supabaseClient = null;
     return false;
   }
 }
 
 function isCloudReady() {
-  return !!supabaseClient;
+  return !!S().sync.supabaseClient;
 }
 
 function scheduleCloudSave() {
-  if (applyingRemote || skipScheduledCloudSave || !isCloudReady()) return;
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(pushToCloud, 400);
+  const sync = S().sync;
+  if (sync.applyingRemote || sync.skipScheduledCloudSave || !isCloudReady()) return;
+  clearTimeout(sync.syncTimer);
+  sync.syncTimer = setTimeout(pushToCloud, 400);
 }
 
 async function flushCloudSave() {
   if (!isCloudReady()) return true;
-  clearTimeout(syncTimer);
-  syncTimer = null;
+  const sync = S().sync;
+  clearTimeout(sync.syncTimer);
+  sync.syncTimer = null;
   const ok = await pushToCloud();
   if (!ok) alert('クラウドへの保存に失敗しました。接続を確認してください。');
   return ok;
 }
 
 function scheduleCloudPull() {
-  if (applyingRemote || !isCloudReady()) return;
-  if (cloudPushInProgress) {
-    pullAfterPush = true;
+  const sync = S().sync;
+  if (sync.applyingRemote || !isCloudReady()) return;
+  if (sync.cloudPushInProgress) {
+    sync.pullAfterPush = true;
     return;
   }
-  clearTimeout(pullTimer);
-  pullTimer = setTimeout(pullFromCloud, 250);
+  clearTimeout(sync.pullTimer);
+  sync.pullTimer = setTimeout(pullFromCloud, 250);
 }
 
 function cloudStateSnapshot(state) {
@@ -52,67 +55,68 @@ function cloudStateSnapshot(state) {
     items: state.items.map(item => ({
       id: String(item.id),
       name: item.name,
-      category: normalizeCategory(item.category),
+      category: I.normalizeCategory(item.category),
       count: item.count,
-      checkUnits: itemCheckUnits(item),
+      checkUnits: I.itemCheckUnits(item),
       target: item.target,
       orderThreshold: item.orderThreshold,
       unit: item.unit,
       entered: !!item.entered,
-      lastOrderedOn: normalizeDate(item.lastOrderedOn)
+      lastOrderedOn: I.normalizeDate(item.lastOrderedOn)
     }))
   });
 }
 
 function localCloudSnapshot() {
+  const st = S();
   return cloudStateSnapshot({
-    cycles: customCycles,
-    places: customPlaces,
-    categories: customCategories,
-    units: customUnits,
-    checkUnits: customCheckUnits,
-    items: stockItems
+    cycles: st.masters.cycles,
+    places: st.masters.places,
+    categories: st.masters.categories,
+    units: st.masters.units,
+    checkUnits: st.masters.checkUnits,
+    items: st.stockItems
   });
 }
 
 function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, stockUnitRows, itemRows, memberships) {
   const cycleNames = (cycleRows || []).map(row => row.name).filter(Boolean);
-  const cycles = cycleNames.length ? cycleNames : [...DEFAULT_CYCLES];
+  const cycles = cycleNames.length ? cycleNames : [...C.DEFAULT_CYCLES];
   const cycleIdToName = Object.fromEntries((cycleRows || []).map(row => [row.id, row.name]));
-  const placeNames = (locRows || []).map(loc => loc.name).filter(name => name && name !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(name));
-  const places = placeNames.length ? placeNames : [...DEFAULT_PLACES];
+  const placeNames = (locRows || []).map(loc => loc.name).filter(name => name && name !== C.REMOVED_LOCATION && !C.CATEGORY_PLACE_NAMES.has(name));
+  const places = placeNames.length ? placeNames : [...C.DEFAULT_PLACES];
   const locIdToName = Object.fromEntries((locRows || []).map(loc => [loc.id, loc.name]));
   const categoryNames = (categoryRows || []).map(row => row.name).filter(Boolean);
-  const categories = categoryNames.length ? categoryNames : [...DEFAULT_CATEGORIES];
+  const categories = categoryNames.length ? categoryNames : [...C.DEFAULT_CATEGORIES];
   const unitNames = (stockUnitRows || []).map(row => row.name).filter(Boolean);
-  const units = unitNames.length ? unitNames : [...DEFAULT_UNITS];
+  const units = unitNames.length ? unitNames : [...C.DEFAULT_UNITS];
   const unitIdToUnit = {};
   const checkUnits = [];
   (checkUnitRows || []).forEach(row => {
     const cycle = cycleIdToName[row.cycle_id];
     if (!cycle) return;
     const place = row.location_id ? (locIdToName[row.location_id] || '') : '';
-    if (place === REMOVED_LOCATION || CATEGORY_PLACE_NAMES.has(place)) return;
+    if (place === C.REMOVED_LOCATION || C.CATEGORY_PLACE_NAMES.has(place)) return;
     const unit = { cycle, place };
     unitIdToUnit[row.id] = unit;
-    if (!checkUnits.some(u => unitsEqual(u, unit))) checkUnits.push(unit);
+    if (!checkUnits.some(u => I.unitsEqual(u, unit))) checkUnits.push(unit);
   });
   const resolvedUnits = checkUnits.length
     ? checkUnits
-    : places.map(place => ({ cycle: cycles[0] || DEFAULT_CYCLES[0], place }));
+    : places.map(place => ({ cycle: cycles[0] || C.DEFAULT_CYCLES[0], place }));
   const unitsByItem = {};
   (memberships || []).forEach(row => {
     const unit = unitIdToUnit[row.check_unit_id];
     if (!unit) return;
     const key = String(row.item_id);
     if (!unitsByItem[key]) unitsByItem[key] = [];
-    if (!unitsByItem[key].some(u => unitsEqual(u, unit))) unitsByItem[key].push(unit);
+    if (!unitsByItem[key].some(u => I.unitsEqual(u, unit))) unitsByItem[key].push(unit);
   });
   const items = (itemRows || []).map(row => {
     const key = String(row.id);
     const fromJoin = unitsByItem[key];
     const fallbackPlace = row.location_id ? locIdToName[row.location_id] : '';
-    return migrateItem({
+    return I.migrateItem({
       id: row.id,
       name: row.name,
       category: row.category,
@@ -130,43 +134,44 @@ function stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, sto
 }
 
 async function fetchCloudState() {
-  const { data: cycleRows, error: cycleError } = await supabaseClient
+  const client = S().sync.supabaseClient;
+  const { data: cycleRows, error: cycleError } = await client
     .from('cycles')
     .select('id,name,sort_order')
     .order('sort_order');
   if (cycleError) throw cycleError;
 
-  const { data: locs, error: locError } = await supabaseClient
+  const { data: locs, error: locError } = await client
     .from('locations')
     .select('id,name,sort_order')
     .order('sort_order');
   if (locError) throw locError;
 
-  const { data: categoryRows, error: categoryError } = await supabaseClient
+  const { data: categoryRows, error: categoryError } = await client
     .from('categories')
     .select('id,name,sort_order')
     .order('sort_order');
   if (categoryError) throw categoryError;
 
-  const { data: stockUnitRows, error: stockUnitError } = await supabaseClient
+  const { data: stockUnitRows, error: stockUnitError } = await client
     .from('units')
     .select('id,name,sort_order')
     .order('sort_order');
   if (stockUnitError) throw stockUnitError;
 
-  const { data: checkUnitRows, error: checkUnitError } = await supabaseClient
+  const { data: checkUnitRows, error: checkUnitError } = await client
     .from('check_units')
     .select('id,cycle_id,location_id,sort_order')
     .order('sort_order');
   if (checkUnitError) throw checkUnitError;
 
-  const { data: rows, error: itemError } = await supabaseClient
+  const { data: rows, error: itemError } = await client
     .from('items')
     .select('id,name,count,target_qty,order_threshold,unit,entered,location_id,last_ordered_on,category');
   if (itemError) throw itemError;
 
   let memberships = [];
-  const { data: membershipRows, error: membershipError } = await supabaseClient
+  const { data: membershipRows, error: membershipError } = await client
     .from('item_check_units')
     .select('item_id,check_unit_id');
   if (!membershipError) memberships = membershipRows || [];
@@ -177,135 +182,141 @@ async function fetchCloudState() {
 }
 
 function applyFetchedState(state) {
-  applyingRemote = true;
-  customCycles = state.cycles.length ? state.cycles : [...DEFAULT_CYCLES];
-  customPlaces = (state.places.length ? state.places : [...DEFAULT_PLACES]).filter(name => !CATEGORY_PLACE_NAMES.has(name));
-  customCheckUnits = (state.checkUnits.length ? state.checkUnits : customPlaces.map(place => ({
-    cycle: customCycles[0] || DEFAULT_CYCLES[0],
+  const st = S();
+  st.sync.applyingRemote = true;
+  st.masters.cycles = state.cycles.length ? state.cycles : [...C.DEFAULT_CYCLES];
+  st.masters.places = (state.places.length ? state.places : [...C.DEFAULT_PLACES]).filter(name => !C.CATEGORY_PLACE_NAMES.has(name));
+  st.masters.checkUnits = (state.checkUnits.length ? state.checkUnits : st.masters.places.map(place => ({
+    cycle: st.masters.cycles[0] || C.DEFAULT_CYCLES[0],
     place
-  }))).filter(u => !CATEGORY_PLACE_NAMES.has(u.place));
-  customCategories = (state.categories && state.categories.length ? state.categories : [...DEFAULT_CATEGORIES]);
-  customUnits = [...DEFAULT_UNITS];
-  stockItems = state.items.map(migrateItem);
-  stockItems.forEach(item => {
-    if (item.category) ensureCategory(item.category);
-    if (item.unit) ensureUnit(item.unit);
+  }))).filter(u => !C.CATEGORY_PLACE_NAMES.has(u.place));
+  st.masters.categories = (state.categories && state.categories.length ? state.categories : [...C.DEFAULT_CATEGORIES]);
+  st.masters.units = [...C.DEFAULT_UNITS];
+  st.stockItems = state.items.map(I.migrateItem);
+  st.stockItems.forEach(item => {
+    if (item.category) M.ensureCategory(item.category);
+    if (item.unit) M.ensureUnit(item.unit);
   });
-  persistMasters();
+  CheckStock.storage.persistMasters();
   renderFilters();
   saveAndRender();
-  applyingRemote = false;
+  st.sync.applyingRemote = false;
 }
 
 async function upsertNamedRows(table, rows, onConflict) {
+  const client = S().sync.supabaseClient;
   if (!rows.length) return;
-  const { error } = await supabaseClient.from(table).upsert(rows, { onConflict });
+  const { error } = await client.from(table).upsert(rows, { onConflict });
   if (!error) return;
   for (const row of rows) {
-    let finder = supabaseClient.from(table).select('id');
+    let finder = client.from(table).select('id');
     if (row.name != null) {
       finder = finder.eq('name', row.name);
     } else if (row.cycle_id != null) {
       finder = finder.eq('cycle_id', row.cycle_id);
       finder = row.location_id == null ? finder.is('location_id', null) : finder.eq('location_id', row.location_id);
     } else {
-      const { error: insertError } = await supabaseClient.from(table).insert(row);
+      const { error: insertError } = await client.from(table).insert(row);
       if (insertError && insertError.code !== '23505') throw insertError;
       continue;
     }
     const { data: existing, error: findError } = await finder.maybeSingle();
     if (findError) throw findError;
     if (existing) {
-      const { error: updateError } = await supabaseClient.from(table).update(row).eq('id', existing.id);
+      const { error: updateError } = await client.from(table).update(row).eq('id', existing.id);
       if (updateError) throw updateError;
     } else {
-      const { error: insertError } = await supabaseClient.from(table).insert(row);
+      const { error: insertError } = await client.from(table).insert(row);
       if (insertError && insertError.code !== '23505') throw insertError;
     }
   }
 }
 
 async function purgeRemovedCloudMasters(cycleRows, locs, cloudCategories, cloudStockUnits, cloudUnits) {
-  const localUnitKeys = new Set(customCheckUnits.map(unitKey));
+  const st = S();
+  const client = st.sync.supabaseClient;
+  const localUnitKeys = new Set(st.masters.checkUnits.map(I.unitKey));
 
   const extraUnitIds = (cloudUnits || []).filter(row => {
     const cycle = (cycleRows || []).find(c => c.id === row.cycle_id);
-    if (!cycle || !customCycles.includes(cycle.name)) return true;
+    if (!cycle || !st.masters.cycles.includes(cycle.name)) return true;
     const loc = row.location_id ? (locs || []).find(l => l.id === row.location_id) : null;
-    if (loc && !customPlaces.includes(loc.name)) return true;
+    if (loc && !st.masters.places.includes(loc.name)) return true;
     const place = loc ? loc.name : '';
-    return !localUnitKeys.has(unitKey({ cycle: cycle.name, place }));
+    return !localUnitKeys.has(I.unitKey({ cycle: cycle.name, place }));
   }).map(row => row.id);
   if (extraUnitIds.length) {
-    await supabaseClient.from('item_check_units').delete().in('check_unit_id', extraUnitIds);
-    const { error: unitDeleteError } = await supabaseClient.from('check_units').delete().in('id', extraUnitIds);
+    await client.from('item_check_units').delete().in('check_unit_id', extraUnitIds);
+    const { error: unitDeleteError } = await client.from('check_units').delete().in('id', extraUnitIds);
     if (unitDeleteError) throw unitDeleteError;
   }
 
   const extraCycleIds = (cycleRows || [])
-    .filter(row => !customCycles.includes(row.name))
+    .filter(row => !st.masters.cycles.includes(row.name))
     .map(row => row.id);
   if (extraCycleIds.length) {
-    const { data: dropUnits } = await supabaseClient
+    const { data: dropUnits } = await client
       .from('check_units')
       .select('id')
       .in('cycle_id', extraCycleIds);
     const dropUnitIds = (dropUnits || []).map(row => row.id);
     if (dropUnitIds.length) {
-      await supabaseClient.from('item_check_units').delete().in('check_unit_id', dropUnitIds);
-      await supabaseClient.from('check_units').delete().in('id', dropUnitIds);
+      await client.from('item_check_units').delete().in('check_unit_id', dropUnitIds);
+      await client.from('check_units').delete().in('id', dropUnitIds);
     }
-    const { error: cycleDeleteError } = await supabaseClient.from('cycles').delete().in('id', extraCycleIds);
+    const { error: cycleDeleteError } = await client.from('cycles').delete().in('id', extraCycleIds);
     if (cycleDeleteError) throw cycleDeleteError;
   }
 
   const extraLocIds = (locs || [])
-    .filter(loc => !customPlaces.includes(loc.name))
+    .filter(loc => !st.masters.places.includes(loc.name))
     .map(loc => loc.id);
   if (extraLocIds.length) {
-    const { error: itemLocClearError } = await supabaseClient
+    const { error: itemLocClearError } = await client
       .from('items')
       .update({ location_id: null })
       .in('location_id', extraLocIds);
     if (itemLocClearError) throw itemLocClearError;
-    const { data: locDropUnits } = await supabaseClient
+    const { data: locDropUnits } = await client
       .from('check_units')
       .select('id')
       .in('location_id', extraLocIds);
     const locDropUnitIds = (locDropUnits || []).map(row => row.id);
     if (locDropUnitIds.length) {
-      await supabaseClient.from('item_check_units').delete().in('check_unit_id', locDropUnitIds);
+      await client.from('item_check_units').delete().in('check_unit_id', locDropUnitIds);
     }
-    await supabaseClient.from('check_units').delete().in('location_id', extraLocIds);
-    const { error: locDeleteError } = await supabaseClient.from('locations').delete().in('id', extraLocIds);
+    await client.from('check_units').delete().in('location_id', extraLocIds);
+    const { error: locDeleteError } = await client.from('locations').delete().in('id', extraLocIds);
     if (locDeleteError) throw locDeleteError;
   }
 
   const extraCategoryIds = (cloudCategories || [])
-    .filter(row => !customCategories.includes(row.name))
+    .filter(row => !st.masters.categories.includes(row.name))
     .map(row => row.id);
   if (extraCategoryIds.length) {
-    const { error: categoryDeleteError } = await supabaseClient.from('categories').delete().in('id', extraCategoryIds);
+    const { error: categoryDeleteError } = await client.from('categories').delete().in('id', extraCategoryIds);
     if (categoryDeleteError) throw categoryDeleteError;
   }
 
   const extraStockUnitIds = (cloudStockUnits || [])
-    .filter(row => !customUnits.includes(row.name))
+    .filter(row => !st.masters.units.includes(row.name))
     .map(row => row.id);
   if (extraStockUnitIds.length) {
-    const { error: stockUnitDeleteError } = await supabaseClient.from('units').delete().in('id', extraStockUnitIds);
+    const { error: stockUnitDeleteError } = await client.from('units').delete().in('id', extraStockUnitIds);
     if (stockUnitDeleteError) throw stockUnitDeleteError;
   }
 }
 
 async function pushToCloud() {
   if (!isCloudReady()) return false;
-  cloudPushInProgress = true;
+  const st = S();
+  const client = st.sync.supabaseClient;
+  st.sync.cloudPushInProgress = true;
   try {
-    const { count: cloudItemCount, error: cloudCountError } = await supabaseClient
+    const { count: cloudItemCount, error: cloudCountError } = await client
       .from('items')
       .select('id', { count: 'exact', head: true });
-    if (!cloudCountError && cloudItemCount != null && stockItems.length < 20 && cloudItemCount > Math.max(stockItems.length * 2, 10)) {
+    if (!cloudCountError && cloudItemCount != null && st.stockItems.length < 20 && cloudItemCount > Math.max(st.stockItems.length * 2, 10)) {
       console.error('skip cloud save: local catalog is much smaller than cloud');
       return false;
     }
@@ -316,11 +327,11 @@ async function pushToCloud() {
       { data: preStockUnits, error: preStockUnitReadError },
       { data: preCheckUnits, error: preCheckUnitReadError }
     ] = await Promise.all([
-      supabaseClient.from('cycles').select('id,name'),
-      supabaseClient.from('locations').select('id,name'),
-      supabaseClient.from('categories').select('id,name'),
-      supabaseClient.from('units').select('id,name'),
-      supabaseClient.from('check_units').select('id,cycle_id,location_id')
+      client.from('cycles').select('id,name'),
+      client.from('locations').select('id,name'),
+      client.from('categories').select('id,name'),
+      client.from('units').select('id,name'),
+      client.from('check_units').select('id,cycle_id,location_id')
     ]);
     if (preCycleReadError) throw preCycleReadError;
     if (preLocReadError) throw preLocReadError;
@@ -330,56 +341,56 @@ async function pushToCloud() {
 
     await purgeRemovedCloudMasters(preCycleRows, preLocs, preCategories, preStockUnits, preCheckUnits);
 
-    await upsertNamedRows('cycles', customCycles.map((name, index) => ({
+    await upsertNamedRows('cycles', st.masters.cycles.map((name, index) => ({
       name,
       sort_order: index
     })), 'name');
 
-    await upsertNamedRows('locations', customPlaces.map((name, index) => ({
+    await upsertNamedRows('locations', st.masters.places.map((name, index) => ({
       name,
       sort_order: index
     })), 'name');
 
-    await upsertNamedRows('categories', customCategories.map((name, index) => ({
+    await upsertNamedRows('categories', st.masters.categories.map((name, index) => ({
       name,
       sort_order: index
     })), 'name');
 
-    await upsertNamedRows('units', customUnits.map((name, index) => ({
+    await upsertNamedRows('units', st.masters.units.map((name, index) => ({
       name,
       sort_order: index
     })), 'name');
 
-    const { data: cycleRows, error: cycleReadError } = await supabaseClient
+    const { data: cycleRows, error: cycleReadError } = await client
       .from('cycles')
       .select('id,name');
     if (cycleReadError) throw cycleReadError;
     const cycleNameToId = Object.fromEntries((cycleRows || []).map(row => [row.name, row.id]));
 
-    const { data: locs, error: locReadError } = await supabaseClient
+    const { data: locs, error: locReadError } = await client
       .from('locations')
       .select('id,name');
     if (locReadError) throw locReadError;
     const nameToId = Object.fromEntries((locs || []).map(loc => [loc.name, loc.id]));
 
-    const placedRows = customCheckUnits.map((unit, index) => ({
+    const placedRows = st.masters.checkUnits.map((unit, index) => ({
       cycle_id: cycleNameToId[unit.cycle],
       location_id: unit.place ? nameToId[unit.place] : null,
       sort_order: index
     })).filter(row => row.cycle_id && row.location_id);
     await upsertNamedRows('check_units', placedRows, 'cycle_id,location_id');
 
-    for (const unit of customCheckUnits.filter(u => u.cycle && !u.place)) {
+    for (const unit of st.masters.checkUnits.filter(u => u.cycle && !u.place)) {
       const cycleId = cycleNameToId[unit.cycle];
       if (!cycleId) continue;
-      const { data: existingNull } = await supabaseClient
+      const { data: existingNull } = await client
         .from('check_units')
         .select('id')
         .eq('cycle_id', cycleId)
         .is('location_id', null)
         .maybeSingle();
       if (!existingNull) {
-        const { error: nullInsertError } = await supabaseClient.from('check_units').insert({
+        const { error: nullInsertError } = await client.from('check_units').insert({
           cycle_id: cycleId,
           location_id: null,
           sort_order: 0
@@ -388,7 +399,7 @@ async function pushToCloud() {
       }
     }
 
-    const { data: cloudUnits, error: unitReadError } = await supabaseClient
+    const { data: cloudUnits, error: unitReadError } = await client
       .from('check_units')
       .select('id,cycle_id,location_id');
     if (unitReadError) throw unitReadError;
@@ -398,47 +409,47 @@ async function pushToCloud() {
       if (!cycle) return;
       const loc = row.location_id ? (locs || []).find(l => l.id === row.location_id) : null;
       const place = loc ? loc.name : '';
-      unitKeyToId[unitKey({ cycle: cycle.name, place })] = row.id;
+      unitKeyToId[I.unitKey({ cycle: cycle.name, place })] = row.id;
     });
 
-    stockItems.forEach(item => {
-      if (!isItemUuid(item.id)) item.id = newItemId();
+    st.stockItems.forEach(item => {
+      if (!I.isItemUuid(item.id)) item.id = I.newItemId();
     });
-    const itemRows = stockItems.map(item => {
-      const units = itemCheckUnits(item);
+    const itemRows = st.stockItems.map(item => {
+      const units = I.itemCheckUnits(item);
       const firstPlaced = units.find(u => u.place);
       return {
         id: String(item.id),
         location_id: (firstPlaced && nameToId[firstPlaced.place]) || null,
-        category: normalizeCategory(item.category),
+        category: I.normalizeCategory(item.category),
         name: item.name,
         count: item.count,
         target_qty: item.target,
         order_threshold: item.orderThreshold,
         unit: item.unit || '個',
         entered: !!item.entered,
-        last_ordered_on: normalizeDate(item.lastOrderedOn),
+        last_ordered_on: I.normalizeDate(item.lastOrderedOn),
         updated_at: new Date().toISOString()
       };
     });
     if (itemRows.length) {
-      const { error: itemUpsertError } = await supabaseClient
+      const { error: itemUpsertError } = await client
         .from('items')
         .upsert(itemRows, { onConflict: 'id' });
       if (itemUpsertError) throw itemUpsertError;
     }
 
-    const { data: cloudItems, error: itemReadError } = await supabaseClient
+    const { data: cloudItems, error: itemReadError } = await client
       .from('items')
       .select('id');
     if (itemReadError) throw itemReadError;
-    const localIds = new Set(stockItems.map(item => String(item.id)));
+    const localIds = new Set(st.stockItems.map(item => String(item.id)));
     const extraItemIds = (cloudItems || []).map(row => row.id).filter(id => !localIds.has(String(id)));
 
     const membershipRows = [];
-    stockItems.forEach(item => {
-      itemCheckUnits(item).forEach(unit => {
-        const checkUnitId = unitKeyToId[unitKey(unit)];
+    st.stockItems.forEach(item => {
+      I.itemCheckUnits(item).forEach(unit => {
+        const checkUnitId = unitKeyToId[I.unitKey(unit)];
         if (!checkUnitId) return;
         membershipRows.push({
           item_id: String(item.id),
@@ -446,7 +457,7 @@ async function pushToCloud() {
         });
       });
     });
-    const { error: membershipClearError } = await supabaseClient
+    const { error: membershipClearError } = await client
       .from('item_check_units')
       .delete()
       .not('item_id', 'is', null);
@@ -454,28 +465,28 @@ async function pushToCloud() {
       throw membershipClearError;
     }
     if (!membershipClearError && membershipRows.length) {
-      const { error: membershipInsertError } = await supabaseClient
+      const { error: membershipInsertError } = await client
         .from('item_check_units')
         .insert(membershipRows);
       if (membershipInsertError) throw membershipInsertError;
     }
     if (extraItemIds.length) {
-      const { error: itemDeleteError } = await supabaseClient.from('items').delete().in('id', extraItemIds);
+      const { error: itemDeleteError } = await client.from('items').delete().in('id', extraItemIds);
       if (itemDeleteError) throw itemDeleteError;
     }
 
-    const localUnitKeys = new Set(customCheckUnits.map(unitKey));
+    const localUnitKeys = new Set(st.masters.checkUnits.map(I.unitKey));
     const extraUnitIds = (cloudUnits || []).filter(row => {
       const cycle = (cycleRows || []).find(c => c.id === row.cycle_id);
-      if (!cycle || !customCycles.includes(cycle.name)) return true;
+      if (!cycle || !st.masters.cycles.includes(cycle.name)) return true;
       const loc = row.location_id ? (locs || []).find(l => l.id === row.location_id) : null;
-      if (loc && !customPlaces.includes(loc.name)) return true;
+      if (loc && !st.masters.places.includes(loc.name)) return true;
       const place = loc ? loc.name : '';
-      return !localUnitKeys.has(unitKey({ cycle: cycle.name, place }));
+      return !localUnitKeys.has(I.unitKey({ cycle: cycle.name, place }));
     }).map(row => row.id);
     if (extraUnitIds.length) {
-      await supabaseClient.from('item_check_units').delete().in('check_unit_id', extraUnitIds);
-      const { error: unitDeleteError } = await supabaseClient.from('check_units').delete().in('id', extraUnitIds);
+      await client.from('item_check_units').delete().in('check_unit_id', extraUnitIds);
+      const { error: unitDeleteError } = await client.from('check_units').delete().in('id', extraUnitIds);
       if (unitDeleteError) throw unitDeleteError;
     }
 
@@ -484,9 +495,10 @@ async function pushToCloud() {
     console.error('cloud save failed', e);
     return false;
   } finally {
-    cloudPushInProgress = false;
-    if (pullAfterPush) {
-      pullAfterPush = false;
+    const sync = S().sync;
+    sync.cloudPushInProgress = false;
+    if (sync.pullAfterPush) {
+      sync.pullAfterPush = false;
       scheduleCloudPull();
     }
   }
@@ -494,10 +506,11 @@ async function pushToCloud() {
 
 async function pullFromCloud() {
   if (!isCloudReady()) return;
-  const epoch = localSyncEpoch;
+  const sync = S().sync;
+  const epoch = sync.localSyncEpoch;
   try {
     const state = await fetchCloudState();
-    if (epoch !== localSyncEpoch) return;
+    if (epoch !== sync.localSyncEpoch) return;
     if (!state) {
       await pushToCloud();
       return;
@@ -505,7 +518,7 @@ async function pullFromCloud() {
     if (cloudStateSnapshot(state) === localCloudSnapshot()) {
       return;
     }
-    if (epoch !== localSyncEpoch) return;
+    if (epoch !== sync.localSyncEpoch) return;
     applyFetchedState(state);
   } catch (e) {
     console.error('cloud load failed', e);
@@ -513,19 +526,21 @@ async function pullFromCloud() {
 }
 
 async function startCloudListener() {
-  if (syncUnsub) {
-    syncUnsub();
-    syncUnsub = null;
+  const sync = S().sync;
+  if (sync.syncUnsub) {
+    sync.syncUnsub();
+    sync.syncUnsub = null;
   }
   if (!isCloudReady()) {
-    cloudHydrated = true;
+    sync.cloudHydrated = true;
     return;
   }
 
   await pullFromCloud();
-  cloudHydrated = true;
+  sync.cloudHydrated = true;
 
-  const channel = supabaseClient
+  const client = sync.supabaseClient;
+  const channel = client
     .channel('app-sync')
     .on(
       'postgres_changes',
@@ -564,7 +579,7 @@ async function startCloudListener() {
     )
     .subscribe();
 
-  syncUnsub = () => {
-    supabaseClient.removeChannel(channel);
+  sync.syncUnsub = () => {
+    client.removeChannel(channel);
   };
 }
