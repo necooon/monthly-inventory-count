@@ -11,7 +11,7 @@ const ORDER_HINT = {
 const SELECT_NET_ORDER_LABEL = 'ネットで注文';
 const SELECT_LIST_ADD_LABEL = 'リストに追加';
 let pendingProductSelect = null;
-let selectExpandedItemIds = new Set();
+let selectCollapsedItemIds = new Set();
 
 function orderPlacementDestValue(destSelect) {
   const dest = normalizePurchaseDest(destSelect.value) || '';
