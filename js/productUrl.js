@@ -65,10 +65,10 @@ function productPageUrl(product) {
   return normalizeProductPageUrl(product.url);
 }
 
-function onlineProductAccessLinks({ item, product, dest, includeSearch = true }) {
+function onlineProductAccessLinks({ item, product, dest, includeSearch = true, preferSearch = false }) {
   const destName = normalizePurchaseDest(dest);
   const url = productPageUrl(product);
-  if (url && destName && destKind(destName) === 'online') {
+  if (url && destName && destKind(destName) === 'online' && !preferSearch) {
     return [{ href: url, label: `${destName}で開く` }];
   }
   if (url && !destName) {
@@ -136,7 +136,8 @@ function mountOnlineAccessActions(item, product, dest, options = {}) {
     item,
     product,
     dest,
-    includeSearch: options.includeSearch !== false
+    includeSearch: options.includeSearch !== false,
+    preferSearch: options.preferSearch === true
   });
   if (options.includeCartAdd !== false && normalizePurchaseDest(dest) === LOHACO_DEST_NAME) {
     const cartUrl = lohacoCartAddUrl(product);
