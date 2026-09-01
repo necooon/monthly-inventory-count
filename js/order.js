@@ -49,7 +49,7 @@ function pendingProductNote(item) {
 function appendFulfillItemRow(parent, item, dest, view) {
   const orderAmount = itemOrderQty(item);
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'item order-place-item order-item';
+  itemDiv.className = 'item order-place-item order-item order-fulfill-card';
   const lastOrder = formatLastOrder(item.lastOrderedOn);
   const destLabel = dest && dest !== UNSET_PURCHASE_DEST_LABEL ? dest : '';
   const destNote = destLabel ? `<span class="item-last-order">購入先: ${destLabel}（${destKindLabel(destLabel)}）</span>` : '';
@@ -84,6 +84,10 @@ function appendFulfillItemRow(parent, item, dest, view) {
   if (onlineActions) controls.appendChild(onlineActions);
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);
+  itemDiv.addEventListener('click', event => {
+    if (event.target.closest('.controls, a, button, input, label')) return;
+    handleFulfillmentItemTap(item.id);
+  });
   parent.appendChild(itemDiv);
 }
 
@@ -427,6 +431,33 @@ function completeFulfillment(id) {
   lastOrderUndo.historyId = completeItemFulfillment(item);
   saveAndRender();
   showUndoToast(wasReceipt ? `「${item.name}」を受け取り済みにしました` : `「${item.name}」を購入済みにしました`);
+}
+
+async function handleFulfillmentItemTap(id) {
+  const item = findItemById(id);
+  if (!item || !itemPendingMode(item)) return;
+
+  const action = await showActionChoice(
+    item.name,
+    'このアイテムをどうしますか？',
+    [
+      { label: 'Selectに戻す', value: 'return-select' },
+      { label: '削除する', value: 'remove', danger: true }
+    ]
+  );
+  if (!action) return;
+
+  lastOrderUndo = captureFulfillment(item);
+  clearItemPending(item);
+  saveAndRender();
+
+  if (action === 'return-select') {
+    showUndoToast(`「${item.name}」をSelectに戻しました`);
+    showPage('order');
+    return;
+  }
+
+  showUndoToast(`「${item.name}」をリストから削除しました`);
 }
 
 function undoLastOrder() {

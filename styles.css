@@ -594,6 +594,16 @@ h1 {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+.order-fulfill-card {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.order-fulfill-card .controls {
+  cursor: default;
+}
+.order-fulfill-card .item-info:active {
+  background: #f5f9ff;
+}
 .item.inventory-item {
   padding: 8px 10px;
   margin-bottom: 6px;
