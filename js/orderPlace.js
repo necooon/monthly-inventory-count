@@ -328,6 +328,15 @@ function appendLohacoProductPicker(parent, item) {
       const name = document.createElement('span');
       name.className = 'order-lohaco-product-name';
       appendProductName(name, product);
+      const link = name.querySelector('.product-page-link');
+      if (link) {
+        link.addEventListener('click', () => {
+          if (!radio.checked) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      }
       label.appendChild(radio);
       label.appendChild(name);
       li.appendChild(label);
