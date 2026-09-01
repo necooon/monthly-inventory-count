@@ -21,4 +21,4 @@
 
 静的 HTML / CSS / JS と Supabase 用 SQL です。`index.html` を開けば動きます。
 
-現行の実装は、発注と買い物・受け取りを分け、商品と購入履歴を設定で扱います。クラウドに `products` / `purchase_history` テーブルがない場合は端末内に保存します。スキーマ追加は [`supabase/products.sql`](supabase/products.sql) を SQL Editor で実行してください（全文の `setup.sql` は再実行しない）。
+現行の実装は、発注と買い物・受け取りを分け、商品と購入履歴を設定で扱います。クラウドに `products` / `purchase_history` テーブルがない場合は端末内に保存します。既存プロジェクトへのスキーマ追加は [`supabase/products.sql`](supabase/products.sql) と [`supabase/fulfillment.sql`](supabase/fulfillment.sql) を SQL Editor で実行してください（全文の `setup.sql` は再実行しない）。

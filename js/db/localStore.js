@@ -98,3 +98,23 @@ function loadOrderFulfillmentView() {
   if (value === 'shopping' || value === 'receipt') return value;
   return 'shopping';
 }
+
+window.CheckStock = window.CheckStock || {};
+CheckStock.db = CheckStock.db || {};
+CheckStock.db.local = {
+  StorageKeys,
+  loadJson,
+  saveJson,
+  loadNameList,
+  persistMasters,
+  persistItems,
+  loadItems,
+  loadInventoryCollapsedPlaces,
+  loadOrderCollapsedDests,
+  loadSettingsOpenSections,
+  persistInventoryCollapsedPlaces,
+  persistOrderCollapsedDests,
+  persistSettingsOpenSections,
+  persistOrderFulfillmentView,
+  loadOrderFulfillmentView
+};

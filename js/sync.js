@@ -1,3 +1,5 @@
+const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units', 'products', 'purchase_history'];
+
 function scheduleCloudSave() {
   if (applyingRemote || skipScheduledCloudSave || !isCloudReady()) return;
   clearTimeout(syncTimer);
@@ -43,11 +45,9 @@ function applyFetchedState(state) {
     purchaseDestKinds = nextKinds;
   }
   customUnits = (state.units && state.units.length ? state.units : [...DEFAULT_UNITS]);
-  if (state.productsFromDb) catalogProducts = (state.products || []).map(migrateProduct);
-  if (state.historyFromDb) {
-    purchaseHistory = (state.history || []).map(migrateHistory);
-    purchaseHistory.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-  }
+  catalogProducts = (state.products || []).map(migrateProduct);
+  purchaseHistory = (state.history || []).map(migrateHistory);
+  purchaseHistory.sort((a, b) => String(b.at).localeCompare(String(a.at)));
   stockItems = state.items.map(migrateItem);
   migrateLegacyCycleNames();
   stockItems = stockItems.map(migrateItem);
@@ -60,6 +60,11 @@ function applyFetchedState(state) {
   renderFilters();
   saveAndRender();
   applyingRemote = false;
+}
+
+function seedEmptyCloudCollections(state) {
+  if (!(state.products || []).length && catalogProducts.length) state.products = catalogProducts;
+  if (!(state.history || []).length && purchaseHistory.length) state.history = purchaseHistory;
 }
 
 async function pushToCloud() {
@@ -89,49 +94,14 @@ async function pullFromCloud() {
       await pushToCloud();
       return;
     }
-    if (!state.purchaseDestKindsFromDb) {
-      const merged = { ...purchaseDestKinds };
-      (state.purchaseDests || []).forEach(name => {
-        if (!merged[name]) merged[name] = defaultKindForDest(name);
-      });
-      state.purchaseDestKinds = merged;
-    }
-    if (!state.itemPendingFromDb) {
-      const localById = Object.fromEntries(stockItems.map(item => [String(item.id), item]));
-      state.items = (state.items || []).map(item => {
-        const local = localById[String(item.id)];
-        if (!local) return item;
-        return {
-          ...item,
-          pendingMode: local.pendingMode,
-          pendingDest: local.pendingDest,
-          pendingQty: local.pendingQty,
-          pendingProductId: local.pendingProductId
-        };
-      });
-    } else if (!state.itemProductPendingFromDb) {
-      const localById = Object.fromEntries(stockItems.map(item => [String(item.id), item]));
-      state.items = (state.items || []).map(item => {
-        const local = localById[String(item.id)];
-        if (!local) return item;
-        return { ...item, pendingProductId: local.pendingProductId };
-      });
-    }
-    if (!state.productsFromDb) state.products = catalogProducts;
-    else if (!(state.products || []).length && catalogProducts.length) state.products = catalogProducts;
-    if (!state.historyFromDb) state.history = purchaseHistory;
-    else if (!(state.history || []).length && purchaseHistory.length) state.history = purchaseHistory;
-    if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) {
-      return;
-    }
+    seedEmptyCloudCollections(state);
+    if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) return;
     if (epoch !== localSyncEpoch) return;
     applyFetchedState(state);
   } catch (e) {
     console.error('cloud load failed', e);
   }
 }
-
-const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units', 'products', 'purchase_history'];
 
 async function startCloudListener() {
   if (syncUnsub) {
@@ -161,3 +131,13 @@ async function startCloudListener() {
     client.removeChannel(channel);
   };
 }
+
+CheckStock.db = CheckStock.db || {};
+CheckStock.db.sync = {
+  scheduleSave: scheduleCloudSave,
+  flushSave: flushCloudSave,
+  schedulePull: scheduleCloudPull,
+  push: pushToCloud,
+  pull: pullFromCloud,
+  startListener: startCloudListener
+};
