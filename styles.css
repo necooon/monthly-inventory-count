@@ -151,14 +151,13 @@ h1 {
   cursor: not-allowed;
 }
 .order-lohaco-item {
-  cursor: pointer;
+  cursor: default;
 }
 .order-lohaco-row {
   display: flex;
   align-items: flex-start;
   gap: 12px;
   padding: 12px 14px;
-  cursor: pointer;
 }
 .order-lohaco-check {
   width: 24px;
@@ -169,13 +168,51 @@ h1 {
   cursor: pointer;
   flex-shrink: 0;
 }
+.order-lohaco-main {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.order-lohaco-main:focus-visible {
+  outline: 2px solid #1565c0;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
 .order-lohaco-row .item-info {
   padding: 0;
   flex: 1;
   min-width: 0;
 }
-.order-lohaco-search-bar {
+.order-select-details {
   padding: 0 14px 12px;
+  border-top: 1px solid #e8eef4;
+  background: #f5f8fb;
+}
+.order-select-details[hidden] {
+  display: none;
+}
+.order-select-products {
+  padding: 10px 0 8px;
+}
+.order-select-product-list {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  color: #333;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.order-select-product-list li + li {
+  margin-top: 4px;
+}
+.order-lohaco-search-bar {
+  padding: 0 0 2px;
 }
 .order-lohaco-search-bar .order-online-link {
   min-height: 36px;
