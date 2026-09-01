@@ -229,5 +229,13 @@ function appendLohacoSelectRow(parent, item, dest) {
   label.appendChild(input);
   label.appendChild(info);
   itemDiv.appendChild(label);
+  const productId = lohacoProductIdForItem(item);
+  const searchLink = lohacoSearchLink(item, productId ? findProductById(productId) : null);
+  if (searchLink) {
+    const actions = document.createElement('div');
+    actions.className = 'order-online-actions order-lohaco-search-bar';
+    actions.appendChild(searchLink);
+    itemDiv.appendChild(actions);
+  }
   parent.appendChild(itemDiv);
 }

@@ -74,7 +74,12 @@ function appendFulfillItemRow(parent, item, dest, view) {
   label.appendChild(input);
   label.appendChild(text);
   controls.appendChild(label);
-  const onlineActions = mountOnlineAccessActions(item, findProductById(item.pendingProductId), dest);
+  const onlineActions = mountOnlineAccessActions(
+    item,
+    findProductById(item.pendingProductId),
+    dest,
+    { includeSearch: false }
+  );
   if (onlineActions) controls.appendChild(onlineActions);
   itemDiv.appendChild(info);
   itemDiv.appendChild(controls);
