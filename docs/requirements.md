@@ -99,4 +99,4 @@ Check の対象スコープがすべて入力済みになると、Check から�
 
 ## 8. 現行アプリとの関係
 
-Check / Select / 買い物（受け取り切替）/ 設定。商品と履歴は設定。購入完了では在庫数を増やさない。クラウド用の `products` と `purchase_history` は [`supabase/setup.sql`](../supabase/setup.sql) 末尾。テーブル未作成時は端末の localStorage に持つ。
+Check / Select / 買い物（受け取り切替）/ 設定。商品と履歴は設定。購入完了では在庫数を増やさない。クラウド用の `products` と `purchase_history` は [`supabase/products.sql`](../supabase/products.sql)。発注中の pending 列と購入先 `kind` は [`supabase/fulfillment.sql`](../supabase/fulfillment.sql)。テーブル未作成時は端末の localStorage に持つ。
