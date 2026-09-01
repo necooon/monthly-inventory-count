@@ -46,7 +46,7 @@ function pendingProductNote(item) {
   return product ? `<span class="item-last-order">商品: ${product.name}</span>` : '';
 }
 
-function appendFulfillItemRow(parent, item, dest, view) {
+function appendFulfillItemRow(parent, item, dest) {
   const orderAmount = itemOrderQty(item);
   const itemDiv = document.createElement('div');
   itemDiv.className = 'item order-place-item order-item order-fulfill-card';
@@ -64,17 +64,6 @@ function appendFulfillItemRow(parent, item, dest, view) {
   `;
   const controls = document.createElement('div');
   controls.className = 'controls order-place-form';
-  const label = document.createElement('label');
-  label.className = 'order-check-label';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.className = 'order-check';
-  input.onchange = () => completeFulfillment(item.id);
-  const text = document.createElement('span');
-  text.textContent = view === 'receipt' ? '受け取り済み' : '買った';
-  label.appendChild(input);
-  label.appendChild(text);
-  controls.appendChild(label);
   const onlineActions = mountOnlineAccessActions(
     item,
     findProductById(item.pendingProductId),
@@ -83,9 +72,9 @@ function appendFulfillItemRow(parent, item, dest, view) {
   );
   if (onlineActions) controls.appendChild(onlineActions);
   itemDiv.appendChild(info);
-  itemDiv.appendChild(controls);
+  if (onlineActions) itemDiv.appendChild(controls);
   itemDiv.addEventListener('click', event => {
-    if (event.target.closest('.controls, a, button, input, label')) return;
+    if (event.target.closest('.controls, a, button')) return;
     handleFulfillmentItemTap(item.id);
   });
   parent.appendChild(itemDiv);
@@ -184,7 +173,7 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
     const cats = destGroups.get(dest);
     appendOrderDestGroup(orderDiv, dest, destCategoryGroupCount(cats), body => {
       appendCategoryItemRows(body, cats, (rowParent, item) => {
-        appendFulfillItemRow(rowParent, item, dest, view);
+        appendFulfillItemRow(rowParent, item, dest);
       });
     });
   });
@@ -421,16 +410,6 @@ function skipLohacoSelection() {
     item => ({ dest: destById.get(String(item.id)) || shoppingListDestForItem(item), productId: '' }),
     `${rows.length}件を買い物リストへ移しました`
   );
-}
-
-function completeFulfillment(id) {
-  const item = findItemById(id);
-  if (!item) return;
-  lastOrderUndo = captureFulfillment(item);
-  const wasReceipt = itemPendingMode(item) === 'receipt';
-  lastOrderUndo.historyId = completeItemFulfillment(item);
-  saveAndRender();
-  showUndoToast(wasReceipt ? `「${item.name}」を受け取り済みにしました` : `「${item.name}」を購入済みにしました`);
 }
 
 async function handleFulfillmentItemTap(id) {
