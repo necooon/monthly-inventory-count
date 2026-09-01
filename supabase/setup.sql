@@ -595,6 +595,7 @@ exception
 end $$;
 
 -- 商品（アイテム一対多）と購入履歴
+-- 既存プロジェクトへ足すだけなら supabase/products.sql を使う（このファイル全文は再実行しない）
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   item_id uuid references public.items(id) on delete set null,
