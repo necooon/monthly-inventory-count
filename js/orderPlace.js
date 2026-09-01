@@ -210,11 +210,57 @@ function appendPlaceOrderRow(parent, item) {
   parent.appendChild(itemDiv);
 }
 
+function isSelectItemExpanded(id) {
+  return selectExpandedItemIds.has(String(id));
+}
+
+function toggleSelectItemExpanded(id, itemDiv, details, trigger) {
+  const key = String(id);
+  if (selectExpandedItemIds.has(key)) selectExpandedItemIds.delete(key);
+  else selectExpandedItemIds.add(key);
+  const open = selectExpandedItemIds.has(key);
+  itemDiv.classList.toggle('expanded', open);
+  details.hidden = !open;
+  if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function appendSelectProductList(parent, item) {
+  const wrap = document.createElement('div');
+  wrap.className = 'order-select-products';
+  const heading = document.createElement('div');
+  heading.className = 'order-field-label';
+  heading.textContent = '商品';
+  wrap.appendChild(heading);
+  const products = productsForItem(item.id);
+  if (!products.length) {
+    const empty = document.createElement('p');
+    empty.className = 'settings-hint';
+    empty.textContent = '登録商品はありません';
+    wrap.appendChild(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'order-select-product-list';
+    products.forEach(product => {
+      const li = document.createElement('li');
+      const dests = productPurchaseDestNames(product);
+      li.textContent = dests.length
+        ? `${product.name} — ${formatPurchaseDestList(dests)}`
+        : product.name;
+      list.appendChild(li);
+    });
+    wrap.appendChild(list);
+  }
+  parent.appendChild(wrap);
+}
+
 function appendLohacoSelectRow(parent, item, dest) {
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'item order-place-item order-lohaco-item';
-  const label = document.createElement('label');
-  label.className = 'order-lohaco-row';
+  const expanded = isSelectItemExpanded(item.id);
+  itemDiv.className = `item order-place-item order-lohaco-item${expanded ? ' expanded' : ''}`;
+  itemDiv.dataset.itemId = item.id;
+
+  const row = document.createElement('div');
+  row.className = 'order-lohaco-row';
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.className = 'order-lohaco-check';
@@ -222,20 +268,36 @@ function appendLohacoSelectRow(parent, item, dest) {
   input.dataset.dest = dest || '';
   input.setAttribute('aria-label', `${item.name}を選ぶ`);
   input.checked = false;
+  input.onclick = event => event.stopPropagation();
   input.onchange = syncLohacoSelectButtons;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'order-lohaco-main';
+  trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  trigger.setAttribute('aria-label', `${item.name}の商品と検索を表示`);
   const info = document.createElement('div');
   info.className = 'item-info';
   info.innerHTML = orderPlaceInfoHtml(item, { selectLayout: true });
-  label.appendChild(input);
-  label.appendChild(info);
-  itemDiv.appendChild(label);
+  trigger.appendChild(info);
+
+  const details = document.createElement('div');
+  details.className = 'order-select-details';
+  details.hidden = !expanded;
+  appendSelectProductList(details, item);
   const productId = lohacoProductIdForItem(item);
   const searchLink = lohacoSearchLink(item, productId ? findProductById(productId) : null);
   if (searchLink) {
     const actions = document.createElement('div');
     actions.className = 'order-online-actions order-lohaco-search-bar';
     actions.appendChild(searchLink);
-    itemDiv.appendChild(actions);
+    details.appendChild(actions);
   }
+  trigger.onclick = () => toggleSelectItemExpanded(item.id, itemDiv, details, trigger);
+
+  row.appendChild(input);
+  row.appendChild(trigger);
+  itemDiv.appendChild(row);
+  itemDiv.appendChild(details);
   parent.appendChild(itemDiv);
 }
