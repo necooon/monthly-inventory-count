@@ -211,14 +211,14 @@ function appendPlaceOrderRow(parent, item) {
 }
 
 function isSelectItemExpanded(id) {
-  return selectExpandedItemIds.has(String(id));
+  return !selectCollapsedItemIds.has(String(id));
 }
 
 function toggleSelectItemExpanded(id, itemDiv, details, trigger) {
   const key = String(id);
-  if (selectExpandedItemIds.has(key)) selectExpandedItemIds.delete(key);
-  else selectExpandedItemIds.add(key);
-  const open = selectExpandedItemIds.has(key);
+  if (selectCollapsedItemIds.has(key)) selectCollapsedItemIds.delete(key);
+  else selectCollapsedItemIds.add(key);
+  const open = !selectCollapsedItemIds.has(key);
   itemDiv.classList.toggle('expanded', open);
   details.hidden = !open;
   if (trigger) trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
