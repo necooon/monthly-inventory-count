@@ -542,3 +542,118 @@ where name not in ('個', '本', '袋', '箱', 'パック');
 insert into public.units (name, sort_order)
 values ('個', 0), ('本', 1), ('袋', 2), ('箱', 3), ('パック', 4)
 on conflict (name) do update set sort_order = excluded.sort_order;
+
+-- 購入先マスター
+create table if not exists public.purchase_destinations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.purchase_destinations drop constraint if exists purchase_destinations_name_key;
+alter table public.purchase_destinations add constraint purchase_destinations_name_key unique (name);
+create index if not exists purchase_destinations_sort_order_idx on public.purchase_destinations (sort_order);
+
+alter table public.items add column if not exists purchase_destinations text[] not null default '{}';
+
+insert into public.purchase_destinations (name, sort_order)
+values ('LOHACO', 0), ('ドラッグストア', 1), ('スーパー', 2)
+on conflict (name) do nothing;
+
+alter table public.purchase_destinations add column if not exists kind text not null default 'store';
+update public.purchase_destinations set kind = 'store' where kind is null or kind not in ('online', 'store');
+alter table public.purchase_destinations drop constraint if exists purchase_destinations_kind_check;
+alter table public.purchase_destinations
+  add constraint purchase_destinations_kind_check check (kind in ('online', 'store'));
+
+update public.purchase_destinations set kind = 'online' where name = 'LOHACO';
+update public.purchase_destinations set kind = 'store' where name in ('ドラッグストア', 'スーパー');
+
+alter table public.items add column if not exists pending_mode text;
+alter table public.items add column if not exists pending_dest text;
+alter table public.items add column if not exists pending_qty integer;
+alter table public.items drop constraint if exists items_pending_mode_check;
+alter table public.items
+  add constraint items_pending_mode_check
+  check (pending_mode is null or pending_mode in ('shopping', 'receipt'));
+
+alter table public.purchase_destinations enable row level security;
+drop policy if exists "purchase_destinations_select" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_insert" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_update" on public.purchase_destinations;
+drop policy if exists "purchase_destinations_delete" on public.purchase_destinations;
+create policy "purchase_destinations_select" on public.purchase_destinations for select using (true);
+create policy "purchase_destinations_insert" on public.purchase_destinations for insert with check (true);
+create policy "purchase_destinations_update" on public.purchase_destinations for update using (true);
+create policy "purchase_destinations_delete" on public.purchase_destinations for delete using (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.purchase_destinations;
+exception
+  when duplicate_object then null;
+end $$;
+
+-- 商品（アイテム一対多）と購入履歴
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  item_id uuid references public.items(id) on delete set null,
+  name text not null,
+  purchase_destinations text[] not null default '{}',
+  url text not null default '',
+  barcode text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists products_item_id_idx on public.products (item_id);
+
+create table if not exists public.purchase_history (
+  id uuid primary key default gen_random_uuid(),
+  happened_at timestamptz not null default now(),
+  item_id uuid,
+  item_name text not null default '',
+  product_id uuid,
+  product_name text not null default '',
+  dest text not null default '',
+  qty integer not null default 0,
+  mode text not null default 'shopping',
+  created_at timestamptz not null default now()
+);
+create index if not exists purchase_history_happened_at_idx on public.purchase_history (happened_at desc);
+
+alter table public.items add column if not exists pending_product_id uuid;
+
+alter table public.products enable row level security;
+alter table public.purchase_history enable row level security;
+
+drop policy if exists "products_select" on public.products;
+drop policy if exists "products_insert" on public.products;
+drop policy if exists "products_update" on public.products;
+drop policy if exists "products_delete" on public.products;
+create policy "products_select" on public.products for select using (true);
+create policy "products_insert" on public.products for insert with check (true);
+create policy "products_update" on public.products for update using (true);
+create policy "products_delete" on public.products for delete using (true);
+
+drop policy if exists "purchase_history_select" on public.purchase_history;
+drop policy if exists "purchase_history_insert" on public.purchase_history;
+drop policy if exists "purchase_history_update" on public.purchase_history;
+drop policy if exists "purchase_history_delete" on public.purchase_history;
+create policy "purchase_history_select" on public.purchase_history for select using (true);
+create policy "purchase_history_insert" on public.purchase_history for insert with check (true);
+create policy "purchase_history_update" on public.purchase_history for update using (true);
+create policy "purchase_history_delete" on public.purchase_history for delete using (true);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.products;
+exception
+  when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table public.purchase_history;
+exception
+  when duplicate_object then null;
+end $$;
+

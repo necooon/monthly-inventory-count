@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=73">
 </head>
 <body>
   <header class="app-header">
@@ -13,7 +13,8 @@
 
   <nav class="tab-bar" aria-label="画面切替">
     <button type="button" id="nav-inventory" onclick="showPage('inventory')">Check</button>
-    <button type="button" id="nav-order" onclick="showPage('order')">Order</button>
+    <button type="button" id="nav-order" onclick="showPage('order')">Select</button>
+    <button type="button" id="nav-fulfillment" onclick="showPage('fulfillment')">Stock</button>
     <button type="button" id="nav-settings" onclick="showPage('settings')" aria-label="設定">
       <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54A.49.49 0 0 0 13.9 2h-3.8a.49.49 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64L4.86 10.7c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.71 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.23 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
@@ -29,6 +30,7 @@
     <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" id="inventory-progress-fill"></div></div>
   </div>
   <div class="inventory-action-row" id="inventory-action-row" hidden>
+    <button type="button" class="lohaco-select-cta" id="go-lohaco-select-btn" onclick="goToLohacoSelect()" hidden>まず LOHACO で買うものを選ぶ</button>
     <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
   </div>
 
@@ -38,17 +40,23 @@
 
   <!-- 発注画面 -->
   <div class="page" id="page-order">
+  <p class="settings-hint" id="order-hint">商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。</p>
   <div class="filter-bar" id="order-filters"></div>
   <div id="order-list"></div>
-  <details class="ai-advisor-container">
-    <summary>AI 購入アドバイザー</summary>
-    <p style="font-size: 0.8em; color: #555; margin: 10px 0;">発注が必要なアイテムについて、AIがお得な買い方やアドバイスを提案します。</p>
-    <button class="ai-btn" onclick="getAIAdvice()">
-      <span>アドバイスをもらう</span>
-      <div class="loading-spinner" id="ai-loading"></div>
-    </button>
-    <div class="ai-result" id="ai-result"></div>
-  </details>
+  <div class="order-lohaco-actions" id="order-lohaco-actions" hidden>
+    <button type="button" class="order-action-btn" id="confirm-lohaco-select-btn" onclick="confirmLohacoSelection()" disabled>ネットで注文</button>
+    <button type="button" class="order-skip-btn" id="skip-lohaco-select-btn" onclick="skipLohacoSelection()">リストに追加</button>
+  </div>
+  </div>
+
+  <!-- 買い物・受け取り -->
+  <div class="page" id="page-fulfillment">
+  <div class="order-subnav" role="tablist" aria-label="買い物と受け取り">
+    <button type="button" id="order-view-shopping" class="active" role="tab" aria-selected="true" onclick="setOrderFulfillmentView('shopping')">買い物</button>
+    <button type="button" id="order-view-receipt" role="tab" aria-selected="false" onclick="setOrderFulfillmentView('receipt')">受け取り</button>
+  </div>
+  <div class="filter-bar" id="fulfill-filters"></div>
+  <div id="fulfill-list"></div>
   </div>
 
   <!-- 設定 -->
@@ -60,12 +68,32 @@
       <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
       <div id="item-catalog-list"></div>
     </details>
+    <details class="settings-section" data-settings-section="products" aria-labelledby="settings-products-heading">
+      <summary id="settings-products-heading">商品</summary>
+      <p class="settings-hint">店やネットで買う商品です。名前を入れて、アイテムの購入先を引き継げます。商品ページ URL は発注画面やアイテム編集からも登録できます。</p>
+      <button class="open-modal-btn" onclick="openProductModal()">＋ 商品を追加</button>
+      <div id="product-catalog-list"></div>
+    </details>
+    <details class="settings-section" data-settings-section="history" aria-labelledby="settings-history-heading">
+      <summary id="settings-history-heading">履歴</summary>
+      <p class="settings-hint">買った・受け取り済みの記録です。在庫数は変わりません。</p>
+      <div id="history-list"></div>
+    </details>
     <div id="settings-list"></div>
   </div>
 
   <div class="undo-toast" id="undo-toast" role="status">
-    <span id="undo-toast-text">発注済みにしました</span>
+    <span id="undo-toast-text">リストへ移しました</span>
     <button type="button" onclick="undoLastOrder()">元に戻す</button>
+  </div>
+
+  <!-- 汎用選択モーダル -->
+  <div class="modal-overlay" id="choice-modal" role="presentation" onclick="if (event.target === this) resolveChoice(null)">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="choice-title">
+      <h3 id="choice-title">購入先の種別</h3>
+      <p class="settings-hint" id="choice-hint">ネットショップは注文後に受け取り待ちへ、店舗は買い物リストへ入ります。</p>
+      <div class="modal-actions" id="choice-actions"></div>
+    </div>
   </div>
 
   <!-- 汎用入力モーダル（日本語入力対応のため prompt() の代わりに使用） -->
@@ -84,6 +112,10 @@
   <div class="modal-overlay" id="edit-modal" role="presentation" onclick="if (event.target === this) closeEditModal()">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
       <h3 id="edit-modal-title">アイテムを編集</h3>
+      <div class="item-name-field">
+        <label for="edit-item-name">アイテム名</label>
+        <input type="text" id="edit-item-name" placeholder="アイテム名" autocomplete="off" enterkeyhint="next">
+      </div>
       <div class="modal-body" id="edit-item-form"></div>
       <div class="modal-actions">
         <button type="button" class="btn-delete" onclick="deleteEditingItem()">削除</button>
@@ -97,6 +129,10 @@
   <div class="modal-overlay" id="add-modal" role="presentation" onclick="if (event.target === this) closeModal()">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
       <h3 id="add-modal-title">新しいアイテムを追加</h3>
+      <div class="item-name-field">
+        <label for="new-item-name">アイテム名</label>
+        <input type="text" id="new-item-name" placeholder="アイテム名（例：シャンプー）" autocomplete="off" enterkeyhint="next">
+      </div>
       <div class="modal-body" id="new-item-form"></div>
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
@@ -105,20 +141,34 @@
     </div>
   </div>
 
+  <!-- 商品 -->
+  <div class="modal-overlay" id="product-modal" role="presentation" onclick="if (event.target === this) closeProductModal()">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+      <h3 id="product-modal-title">商品</h3>
+      <div class="item-name-field">
+        <label for="product-name">商品名</label>
+        <input type="text" id="product-name" placeholder="例：エリエール 5箱" autocomplete="off">
+      </div>
+      <div class="modal-body" id="product-form"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeProductModal()">キャンセル</button>
+        <button class="btn-save" onclick="saveProduct()">保存する</button>
+      </div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/constants.js"></script>
-<script src="js/state.js"></script>
-<script src="js/items.js"></script>
-<script src="js/masters.js"></script>
-<script src="js/storage.js"></script>
-<script src="js/sync.js"></script>
-<script src="js/ui/common.js"></script>
-<script src="js/ui/forms.js"></script>
-<script src="js/ui/modals.js"></script>
-<script src="js/ui/inventory.js"></script>
-<script src="js/ui/order.js"></script>
-<script src="js/ui/catalog.js"></script>
-<script src="js/ui/settings.js"></script>
-<script src="js/boot.js"></script>
+<script src="js/db/localStore.js?v=70"></script>
+<script src="js/core.js?v=70"></script>
+<script src="js/productUrl.js?v=70"></script>
+<script src="js/db/client.js?v=70"></script>
+<script src="js/db/mapper.js?v=70"></script>
+<script src="js/db/repository.js?v=70"></script>
+<script src="js/sync.js?v=70"></script>
+<script src="js/ui.js?v=72"></script>
+<script src="js/order.js?v=73"></script>
+<script src="js/orderPlace.js?v=70"></script>
+<script src="js/gestures.js?v=71"></script>
+<script src="js/boot.js?v=71"></script>
 </body>
 </html>
