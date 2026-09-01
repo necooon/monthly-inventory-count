@@ -45,19 +45,24 @@ const DbMapper = {
     });
   },
 
+  localSnapshot() {
+    const s = CheckStock.state;
+    return {
+      cycles: s.masters.cycles,
+      places: s.masters.places,
+      categories: s.masters.categories,
+      purchaseDests: s.masters.purchaseDests,
+      purchaseDestKinds: s.masters.purchaseDestKinds,
+      units: s.masters.units,
+      checkUnits: s.masters.checkUnits,
+      products: s.catalogProducts,
+      history: s.purchaseHistory,
+      items: s.stockItems
+    };
+  },
+
   localCloudSnapshot() {
-    return DbMapper.cloudStateSnapshot({
-      cycles: customCycles,
-      places: customPlaces,
-      categories: customCategories,
-      purchaseDests: customPurchaseDests,
-      purchaseDestKinds,
-      units: customUnits,
-      checkUnits: customCheckUnits,
-      products: catalogProducts,
-      history: purchaseHistory,
-      items: stockItems
-    });
+    return DbMapper.cloudStateSnapshot(DbMapper.localSnapshot());
   },
 
   stateFromCloudRows(cycleRows, locRows, checkUnitRows, categoryRows, stockUnitRows, itemRows, memberships, destRows) {
@@ -282,19 +287,23 @@ const DbMapper = {
     return names.map((name, index) => ({ name, sort_order: index }));
   },
 
-  purchaseDestMasterRows() {
-    return customPurchaseDests.map((name, index) => ({
+  purchaseDestMasterRows(snapshot) {
+    const dests = (snapshot || DbMapper.localSnapshot()).purchaseDests;
+    return dests.map((name, index) => ({
       name,
       sort_order: index,
       kind: destKind(name)
     }));
   },
 
-  checkUnitRows(customCheckUnits, cycleNameToId, nameToId) {
-    return customCheckUnits.map((unit, index) => ({
+  checkUnitRows(checkUnits, cycleNameToId, nameToId) {
+    return checkUnits.map((unit, index) => ({
       cycle_id: cycleNameToId[unit.cycle],
       location_id: unit.place ? nameToId[unit.place] : null,
       sort_order: index
     })).filter(row => row.cycle_id && row.location_id);
   }
 };
+
+CheckStock.db = CheckStock.db || {};
+CheckStock.db.mapper = DbMapper;

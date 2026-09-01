@@ -339,16 +339,6 @@ async function addMasterName(kind) {
   return trimmed;
 }
 
-async function persistAndFlushCloud() {
-  skipScheduledCloudSave = true;
-  try {
-    saveAndRender();
-  } finally {
-    skipScheduledCloudSave = false;
-  }
-  await flushCloudSave();
-}
-
 async function renameMasterName(kind, oldName) {
   const spec = MASTER_KINDS[kind];
   const raw = await showPrompt(spec.renameTitle, oldName);
