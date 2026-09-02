@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=76">
+<link rel="stylesheet" href="styles.css?v=77">
 </head>
 <body>
   <header class="app-header">
@@ -46,6 +46,7 @@
   <div class="order-lohaco-actions" id="order-lohaco-actions" hidden>
     <button type="button" class="order-action-btn" id="confirm-lohaco-select-btn" onclick="confirmLohacoSelection()" disabled>カートに入れる</button>
     <button type="button" class="order-skip-btn" id="skip-lohaco-select-btn" onclick="skipLohacoSelection()">リストに追加</button>
+    <button type="button" class="order-skip-btn order-advance-btn" id="advance-place-order-btn" onclick="advanceToPlaceOrderStep()">残りの発注へ進む</button>
   </div>
   </div>
 
@@ -180,7 +181,7 @@
 <script src="js/ui/catalog.js?v=75"></script>
 <script src="js/ui/inventory.js?v=75"></script>
 <script src="js/ui/products.js?v=76"></script>
-<script src="js/order.js?v=75"></script>
+<script src="js/order.js?v=76"></script>
 <script src="js/orderPlace.js?v=76"></script>
 <script src="js/gestures.js?v=75"></script>
 <script src="js/boot.js?v=75"></script>
