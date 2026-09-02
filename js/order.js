@@ -65,20 +65,23 @@ function appendFulfillItemRow(parent, item, dest) {
   const controls = document.createElement('div');
   controls.className = 'controls order-place-form';
   const isLohaco = normalizePurchaseDest(dest) === LOHACO_DEST_NAME;
-  const onlineActions = mountOnlineAccessActions(
-    item,
-    findProductById(item.pendingProductId),
-    dest,
-    { includeSearch: false, includeCartAdd: isLohaco }
-  );
-  if (onlineActions) controls.appendChild(onlineActions);
-  if (isLohaco) {
-    const actionBar = onlineActions || document.createElement('div');
-    if (!onlineActions) {
-      actionBar.className = 'order-online-actions';
-      controls.appendChild(actionBar);
+  const hideLohacoReceiptActions = orderFulfillmentView === 'receipt' && isLohaco;
+  if (!hideLohacoReceiptActions) {
+    const onlineActions = mountOnlineAccessActions(
+      item,
+      findProductById(item.pendingProductId),
+      dest,
+      { includeSearch: false, includeCartAdd: isLohaco }
+    );
+    if (onlineActions) controls.appendChild(onlineActions);
+    if (isLohaco) {
+      const actionBar = onlineActions || document.createElement('div');
+      if (!onlineActions) {
+        actionBar.className = 'order-online-actions';
+        controls.appendChild(actionBar);
+      }
+      actionBar.appendChild(createOrderExternalLink(lohacoCartViewUrl(), 'LOHACOカートを見る', 'order-online-link'));
     }
-    actionBar.appendChild(createOrderExternalLink(lohacoCartViewUrl(), 'LOHACOカートを見る', 'order-online-link'));
   }
   itemDiv.appendChild(info);
   if (controls.childElementCount) itemDiv.appendChild(controls);
