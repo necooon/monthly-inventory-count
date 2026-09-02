@@ -5,7 +5,7 @@ const ORDER_EMPTY_MESSAGE = {
   receipt: '受け取り待ちはありません'
 };
 const ORDER_HINT = {
-  lohaco: 'LOHACO商品を選んでチェックし、「カートに入れる」でLOHACOのカートへ追加できます。残りはリストに追加できます。',
+  lohaco: 'LOHACO商品を選んでチェックし、何度でもカートに追加できます。店舗向けの残りは「残りの発注へ進む」から個別に確定できます。',
   place: '商品か購入先を決めて確定します。ネットは注文、店舗は買いものリストへ進みます。'
 };
 const SELECT_LOHACO_CART_LABEL = 'カートに入れる';
@@ -255,12 +255,19 @@ function finishLohacoSelectStep(processedItems) {
   clearLohacoSelectedProductIds(processedItems.map(item => item.id));
 }
 
+function advanceToPlaceOrderStep() {
+  if (!itemsForLohacoSelect().length) return;
+  finishLohacoSelectStep([]);
+  saveAndRender();
+}
+
 function syncLohacoSelectButtons() {
   const rows = lohacoSelectCheckedRows();
   const n = rows.length;
   const cartReady = lohacoCartReadyCount(rows);
   const confirmBtn = document.getElementById('confirm-lohaco-select-btn');
   const shopBtn = document.getElementById('skip-lohaco-select-btn');
+  const advanceBtn = document.getElementById('advance-place-order-btn');
   if (confirmBtn) {
     confirmBtn.disabled = n === 0;
     if (!n) confirmBtn.textContent = SELECT_LOHACO_CART_LABEL;
@@ -271,6 +278,9 @@ function syncLohacoSelectButtons() {
   if (shopBtn) {
     shopBtn.disabled = n === 0;
     shopBtn.textContent = labeledCount(SELECT_LIST_ADD_LABEL, n);
+  }
+  if (advanceBtn) {
+    advanceBtn.disabled = !itemsForLohacoSelect().length;
   }
 }
 
@@ -429,7 +439,7 @@ function confirmLohacoSelection() {
       ? `${items.length}件を受け取り待ちにし、LOHACOカートへ追加します`
       : `${items.length}件を受け取り待ちにしました`
   );
-  finishLohacoSelectStep(items);
+  clearLohacoSelectedProductIds(items.map(item => item.id));
   if (cartUrls.length) openLohacoCartAdds(cartUrls);
 }
 
@@ -443,7 +453,7 @@ function skipLohacoSelection() {
     item => ({ dest: destById.get(String(item.id)) || shoppingListDestForItem(item), productId: '' }),
     `${rows.length}件を買い物リストへ移しました`
   );
-  finishLohacoSelectStep(items);
+  clearLohacoSelectedProductIds(items.map(item => item.id));
 }
 
 async function handleFulfillmentItemTap(id) {
