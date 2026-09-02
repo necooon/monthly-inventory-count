@@ -104,7 +104,11 @@ function mountItemProductAddActions(container, item, options = {}) {
   urlBtn.className = buttonClass;
   urlBtn.textContent = '＋ URLで登録';
   bindClick(urlBtn, async () => {
-    const product = await registerProductFromUrl(item, resolveProductAddDestHint(options));
+    const product = await registerProductFromUrl(
+      item,
+      resolveProductAddDestHint(options),
+      options.urlRegisterOptions || {}
+    );
     afterRegistered(product);
   });
 

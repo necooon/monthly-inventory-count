@@ -124,7 +124,23 @@ async function resolveOnlineDestForProductUrl(item, url, destHint) {
   return ensurePurchaseDest(String(name).trim(), 'online');
 }
 
-async function registerProductFromUrl(item, destHint) {
+function applyLohacoMetaToItem(item, meta) {
+  if (!meta?.appCategory || normalizeCategory(item.category)) return false;
+  item.category = ensureCategory(meta.appCategory);
+  return true;
+}
+
+function formatProductRegistrationToast(name, categoryApplied, meta, suffix = '') {
+  let message = `「${name}」を登録しました`;
+  if (categoryApplied && meta?.appCategory) {
+    message += `（カテゴリ: ${meta.appCategory}）`;
+  }
+  if (suffix) message += suffix;
+  return message;
+}
+
+async function registerProductFromUrl(item, destHint, options = {}) {
+  const toastSuffix = options.toastSuffix || '';
   const url = await showPrompt('商品ページ URL', '', 'url');
   if (!url || !String(url).trim()) return null;
   const trimmedUrl = String(url).trim();
@@ -134,21 +150,31 @@ async function registerProductFromUrl(item, destHint) {
   }
   const dest = await resolveOnlineDestForProductUrl(item, trimmedUrl, destHint);
   if (!dest) return null;
-  const meta = await fetchLohacoProductMeta(trimmedUrl);
-  const defaultName = meta?.name || item.name || '';
-  const name = await showPrompt('商品名', defaultName);
-  if (!name || !String(name).trim()) return null;
-  if (meta?.appCategory && !normalizeCategory(item.category)) {
-    item.category = ensureCategory(meta.appCategory);
-    showUndoToast(`カテゴリを「${meta.appCategory}」に設定しました`);
+
+  const isLohaco = !!parseLohacoProductUrl(trimmedUrl);
+  let meta = null;
+  if (isLohaco) {
+    showUndoToast('商品情報を取得中...');
+    meta = await fetchLohacoProductMeta(trimmedUrl);
   }
+
+  let name = meta?.name || '';
+  if (!name) {
+    const defaultName = item.name || '';
+    const prompted = await showPrompt('商品名', defaultName);
+    if (!prompted || !String(prompted).trim()) return null;
+    name = String(prompted).trim();
+  }
+
+  const categoryApplied = applyLohacoMetaToItem(item, meta);
   ensurePurchaseDest(dest, 'online');
   const product = createCatalogProduct({
-    name: String(name).trim(),
+    name,
     itemId: item.id,
     dests: [dest],
     url: normalizeProductPageUrl(trimmedUrl)
   });
+  showUndoToast(formatProductRegistrationToast(name, categoryApplied, meta, toastSuffix));
   return product;
 }
 

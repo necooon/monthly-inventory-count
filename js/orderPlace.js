@@ -101,13 +101,10 @@ function syncPlaceOrderAccessLinks(onlineActions, item, productSelect, destSelec
 
 async function handlePlaceOrderProductSelectChange(item, productSelect, destSelect, syncFields) {
   if (productSelect.value === ADD_PRODUCT_URL_VALUE) {
-    const created = await registerProductFromUrl(item, destSelect.value);
-    const done = await finishOrderProductRegistration(
-      item,
-      productSelect,
-      created,
-      created ? `「${created.name}」を登録しました。確定で発注できます` : ''
-    );
+    const created = await registerProductFromUrl(item, destSelect.value, {
+      toastSuffix: '。確定で発注できます'
+    });
+    const done = await finishOrderProductRegistration(item, productSelect, created);
     if (!done) syncFields();
     return;
   }
@@ -204,13 +201,9 @@ function appendPlaceOrderRow(parent, item) {
     stopPropagation: true,
     buttonClass: 'order-select-add-btn',
     actionsClass: 'order-select-add-actions',
+    urlRegisterOptions: { toastSuffix: '。確定で発注できます' },
     onRegistered: product => {
-      finishOrderProductRegistration(
-        item,
-        productSelect,
-        product,
-        `「${product.name}」を登録しました。確定で発注できます`
-      );
+      finishOrderProductRegistration(item, productSelect, product);
     }
   });
   controls.appendChild(onlineActions);
@@ -285,8 +278,7 @@ function appendSelectProductList(parent, item, options = {}) {
     buttonClass: 'order-select-add-btn',
     actionsClass: 'order-select-add-actions',
     onRegistered: product => {
-      showUndoToast(`「${product.name}」を登録しました`);
-      saveAndRender();
+      if (product) saveAndRender();
     }
   });
   parent.appendChild(wrap);
@@ -353,8 +345,8 @@ function appendLohacoProductPicker(parent, item) {
     buttonClass: 'order-select-add-btn',
     actionsClass: 'order-select-add-actions',
     onRegistered: product => {
+      if (!product) return;
       setLohacoSelectedProductId(item.id, product.id);
-      showUndoToast(`「${product.name}」を登録しました`);
       saveAndRender();
     }
   });
