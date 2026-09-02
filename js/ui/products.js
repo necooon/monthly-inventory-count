@@ -260,22 +260,8 @@ function closeProductModal() {
   syncBodyScrollLock();
 }
 
-async function saveProduct() {
-  const nameInput = document.getElementById('product-name');
-  let name = nameInput.value.trim();
-  const urlInput = document.getElementById('product-url');
-  const rawUrl = urlInput ? urlInput.value.trim() : '';
-  const itemId = document.getElementById('product-item').value;
-  const item = findItemById(itemId);
-
-  if (rawUrl && isHttpProductUrl(rawUrl)) {
-    const meta = await enrichProductFromUrl(rawUrl, item);
-    if (meta?.name && !name) {
-      name = meta.name;
-      nameInput.value = name;
-    }
-  }
-
+function saveProduct() {
+  const name = document.getElementById('product-name').value.trim();
   if (!name) {
     alert('商品名を入力してください');
     return;
@@ -286,6 +272,7 @@ async function saveProduct() {
     return;
   }
   dests.forEach(dest => ensurePurchaseDest(dest));
+  const itemId = document.getElementById('product-item').value;
   let product = findProductById(editingProductId);
   if (!product) {
     product = { id: newItemId() };
@@ -294,7 +281,7 @@ async function saveProduct() {
   product.name = name;
   product.itemId = itemId;
   product.purchaseDests = dests;
-  product.url = rawUrl;
+  product.url = document.getElementById('product-url').value.trim();
   product.barcode = document.getElementById('product-barcode').value.trim();
   closeProductModal();
   saveAndRender();

@@ -38,6 +38,10 @@ function formatLastOrder(value) {
 function itemCheckUnits(item) {
   let units = [];
   if (Array.isArray(item.checkUnits)) units = item.checkUnits.map(normalizeUnit).filter(Boolean);
+  else if (item.location && !CATEGORY_PLACE_NAMES.has(item.location)) {
+    const one = normalizeUnit(item.location);
+    if (one) units = [one];
+  }
   if (!units.length && item.location && !CATEGORY_PLACE_NAMES.has(item.location)) {
     const one = normalizeUnit(item.location);
     if (one) units = [one];
