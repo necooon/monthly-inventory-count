@@ -1,10 +1,3 @@
-const PRODUCT_CATEGORY_RULES = [
-  { category: '医薬品', keywords: ['医薬品', 'ヘルスケア', 'おくすり', '漢方', 'サプリ', 'ビタミン', '医療', 'ドラッグストア'] },
-  { category: '水・コーヒー・お茶・飲料', keywords: ['飲料', '水・', 'コーヒー', 'お茶', 'ジュース', 'ビール', 'ワイン', 'お酒', 'ドリンク'] },
-  { category: '食品・調味料', keywords: ['食品', '調味料', 'お取り寄せ', 'スナック', 'お菓子', '米', '麺', '缶詰', '冷凍', '離乳食', 'ベビーフード', '食品・飲料'] },
-  { category: '日用品', keywords: ['洗剤', 'ティッシュ', '日用品', '掃除', 'ペット', 'ベビー', 'ホーム＆キッチン', 'ホーム&キッチン'] },
-];
-
 function mapCategoryToApp(categoryPath) {
   const text = (categoryPath || []).join(' ');
   for (const rule of PRODUCT_CATEGORY_RULES) {
@@ -12,7 +5,7 @@ function mapCategoryToApp(categoryPath) {
       return rule.category;
     }
   }
-  return '日用品';
+  return DEFAULT_PRODUCT_CATEGORY;
 }
 
 function normalizeFetchedProductName(title) {
@@ -23,27 +16,55 @@ function normalizeFetchedProductName(title) {
   return name.trim();
 }
 
+function parseProductMetaResponse(data) {
+  if (!data) return null;
+  const name = normalizeFetchedProductName(data.name);
+  if (!name) return null;
+  const categoryPath = Array.isArray(data.categoryPath)
+    ? data.categoryPath.map(entry => String(entry || '').trim()).filter(Boolean)
+    : [];
+  const appCategory = String(data.appCategory || '').trim() || mapCategoryToApp(categoryPath);
+  return { name, categoryPath, appCategory };
+}
+
 async function fetchProductMeta(url) {
   if (!isProductMetaFetchableUrl(url)) return null;
   if (!isCloudReady()) return null;
   try {
     const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke('lohaco-product', {
+    const { data, error } = await client.functions.invoke(PRODUCT_META_FUNCTION, {
       body: { url: normalizeProductPageUrl(url) },
     });
     if (error || !data) return null;
-    const name = normalizeFetchedProductName(data.name);
-    if (!name) return null;
-    const categoryPath = Array.isArray(data.categoryPath)
-      ? data.categoryPath.map(entry => String(entry || '').trim()).filter(Boolean)
-      : [];
-    const appCategory = String(data.appCategory || '').trim() || mapCategoryToApp(categoryPath);
-    return { name, categoryPath, appCategory };
+    return parseProductMetaResponse(data);
   } catch {
     return null;
   }
 }
 
-function fetchLohacoProductMeta(url) {
+async function fetchProductMetaForRegistration(url) {
+  if (!isProductMetaFetchableUrl(url)) return null;
+  showUndoToast('商品情報を取得中…');
   return fetchProductMeta(url);
+}
+
+async function applyFetchedCategory(item, appCategory) {
+  const nextCategory = String(appCategory || '').trim();
+  if (!nextCategory) return;
+  const current = normalizeCategory(item.category);
+  if (!current) {
+    item.category = ensureCategory(nextCategory);
+    showUndoToast(`カテゴリを「${nextCategory}」に設定しました`);
+    return;
+  }
+  if (current === nextCategory) return;
+  const choice = await showActionChoice(
+    'カテゴリを更新しますか？',
+    `現在: ${current}\n取得: ${nextCategory}`,
+    [{ label: '更新する', value: 'update' }]
+  );
+  if (choice === 'update') {
+    item.category = ensureCategory(nextCategory);
+    showUndoToast(`カテゴリを「${nextCategory}」に更新しました`);
+  }
 }
