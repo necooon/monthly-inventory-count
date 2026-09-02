@@ -1,3 +1,5 @@
+import { normalizeFetchedProductName } from '../../../shared/productMetaCore.js';
+
 export type ProductMeta = {
   name: string;
   categoryPath: string[];
@@ -9,16 +11,10 @@ export const FETCH_HEADERS = {
   'Accept-Language': 'ja,ja-JP;q=0.9,en;q=0.8',
 };
 
-export function normalizeFetchedProductName(title: string): string {
-  let name = String(title || '').trim();
-  if (name.startsWith('LOHACO - ')) name = name.slice('LOHACO - '.length);
-  name = name.replace(/\s*[:：]\s*Amazon\.co\.jp.*$/i, '');
-  name = name.replace(/\s*[-|｜]\s*Amazon.*$/i, '');
-  return name.trim();
-}
+export { normalizeFetchedProductName };
 
 export function buildProductMeta(name: string, categoryPath: string[], appCategory: string): ProductMeta | null {
-  const trimmed = String(name || '').trim();
+  const trimmed = normalizeFetchedProductName(name);
   if (!trimmed) return null;
   return { name: trimmed, categoryPath, appCategory };
 }

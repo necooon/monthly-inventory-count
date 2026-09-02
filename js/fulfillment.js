@@ -222,27 +222,6 @@ function clearItemPending(item) {
   item.pendingProductId = '';
 }
 
-function completeItemFulfillment(item) {
-  const mode = itemPendingMode(item);
-  const qty = itemOrderQty(item);
-  const product = findProductById(item.pendingProductId);
-  const row = migrateHistory({
-    id: newItemId(),
-    at: new Date().toISOString(),
-    itemId: item.id,
-    itemName: item.name,
-    productId: product ? product.id : '',
-    productName: product ? product.name : '',
-    dest: normalizePurchaseDest(item.pendingDest) || '',
-    qty,
-    mode: mode || 'shopping'
-  });
-  purchaseHistory.unshift(row);
-  item.lastOrderedOn = todayIsoDate();
-  clearItemPending(item);
-  return row.id;
-}
-
 function queueItemFulfillment(item, dest, productId) {
   const mode = destKind(dest) === 'online' ? 'receipt' : 'shopping';
   item.pendingMode = mode;
@@ -351,22 +330,9 @@ function groupOrderItemsByCategory(items) {
   return cats;
 }
 
-function groupOrderItemsByDest(items, view) {
+function groupOrderItemsByDest(items) {
   const destGroups = new Map();
   items.forEach(item => {
-    if (view === 'order') {
-      const dests = itemPurchaseDests(item);
-      if (!dests.length) {
-        addItemToDestCategoryGroup(destGroups, UNSET_PURCHASE_DEST_LABEL, item);
-        return;
-      }
-      dests.forEach(dest => {
-        if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
-          addItemToDestCategoryGroup(destGroups, dest, item);
-        }
-      });
-      return;
-    }
     addItemToDestCategoryGroup(
       destGroups,
       normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL,

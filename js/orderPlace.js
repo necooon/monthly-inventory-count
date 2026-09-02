@@ -250,43 +250,6 @@ function clearLohacoSelectedProductIds(itemIds) {
   (itemIds || []).forEach(id => lohacoSelectedProductByItem.delete(String(id)));
 }
 
-function appendSelectProductList(parent, item, options = {}) {
-  const wrap = document.createElement('div');
-  wrap.className = 'order-select-products';
-  const heading = document.createElement('div');
-  heading.className = 'order-field-label';
-  heading.textContent = '商品';
-  wrap.appendChild(heading);
-  const products = productsForItem(item.id);
-  if (!products.length) {
-    const empty = document.createElement('p');
-    empty.className = 'settings-hint';
-    empty.textContent = '登録商品はありません';
-    wrap.appendChild(empty);
-  } else {
-    const list = document.createElement('ul');
-    list.className = 'order-select-product-list';
-    products.forEach(product => {
-      const li = document.createElement('li');
-      appendProductName(li, product);
-      list.appendChild(li);
-    });
-    wrap.appendChild(list);
-  }
-  mountItemProductAddActions(wrap, item, {
-    urlOnly: true,
-    destHint: options.destHint || '',
-    stopPropagation: true,
-    buttonClass: 'order-select-add-btn',
-    actionsClass: 'order-select-add-actions',
-    onRegistered: product => {
-      showUndoToast(`「${product.name}」を登録しました`);
-      saveAndRender();
-    }
-  });
-  parent.appendChild(wrap);
-}
-
 function appendLohacoProductPicker(parent, item) {
   const wrap = document.createElement('div');
   wrap.className = 'order-select-products';

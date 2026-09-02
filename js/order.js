@@ -171,7 +171,7 @@ function updateOrderSubnav() {
 }
 
 function renderGroupedFulfillItems(orderDiv, items, view) {
-  const destGroups = groupOrderItemsByDest(items, view);
+  const destGroups = groupOrderItemsByDest(items);
   if (!destGroups.size) {
     orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE[view] || ORDER_EMPTY_MESSAGE.shopping}</div>`;
     return;
