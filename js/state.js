@@ -174,5 +174,3 @@ function bootstrapAppData() {
 initCheckStockState();
 bindGlobalState();
 bootstrapAppData();
-
-var S = function () { return CheckStock.state; };

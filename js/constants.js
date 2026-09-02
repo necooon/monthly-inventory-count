@@ -1,5 +1,7 @@
 window.CheckStock = window.CheckStock || {};
 
+const sharedProductMeta = globalThis.ProductMetaShared || {};
+
 CheckStock.constants = {
   SUPABASE_CONFIG: {
     url: 'https://dmvznvxczrpbqrzfcqcc.supabase.co',
@@ -9,13 +11,8 @@ CheckStock.constants = {
   LEGACY_CYCLE_NAMES: { MONTHLY: '月単位', WEEKLY: '週単位' },
   DEFAULT_PLACES: ['洗面所', 'キッチン', 'トイレ'],
   DEFAULT_CATEGORIES: ['医薬品', '日用品', '食品・調味料', '水・コーヒー・お茶・飲料'],
-  DEFAULT_PRODUCT_CATEGORY: '日用品',
-  PRODUCT_CATEGORY_RULES: [
-    { category: '医薬品', keywords: ['医薬品', 'ヘルスケア', 'おくすり', '漢方', 'サプリ', 'ビタミン', '医療', 'ドラッグストア'] },
-    { category: '水・コーヒー・お茶・飲料', keywords: ['飲料', '水・', 'コーヒー', 'お茶', 'ジュース', 'ビール', 'ワイン', 'お酒', 'ドリンク'] },
-    { category: '食品・調味料', keywords: ['食品', '調味料', 'お取り寄せ', 'スナック', 'お菓子', '米', '麺', '缶詰', '冷凍', '離乳食', 'ベビーフード', '食品・飲料'] },
-    { category: '日用品', keywords: ['洗剤', 'ティッシュ', '日用品', '掃除', 'ペット', 'ベビー', 'ホーム＆キッチン', 'ホーム&キッチン'] },
-  ],
+  DEFAULT_PRODUCT_CATEGORY: sharedProductMeta.DEFAULT_PRODUCT_CATEGORY || '日用品',
+  PRODUCT_CATEGORY_RULES: sharedProductMeta.PRODUCT_CATEGORY_RULES || [],
   PRODUCT_META_FUNCTION: 'lohaco-product',
   DEFAULT_PURCHASE_DESTS: ['LOHACO', 'ドラッグストア', 'スーパー'],
   LOHACO_DEST_NAME: 'LOHACO',

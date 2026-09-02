@@ -1,3 +1,19 @@
+function parseHttpUrl(url) {
+  return ProductMetaShared.parseHttpUrl(url);
+}
+
+function parseLohacoProductUrl(url) {
+  return ProductMetaShared.parseLohacoProductUrl(url);
+}
+
+function parseAmazonProductUrl(url) {
+  return ProductMetaShared.parseAmazonProductUrl(url);
+}
+
+function isProductMetaFetchableUrl(url) {
+  return ProductMetaShared.isProductMetaFetchableUrl(url);
+}
+
 const LOHACO_CART_VIEW_URL = 'https://order.shopping.yahoo.co.jp/cgi-bin/cart-form';
 const LOHACO_CART_ADD_ORIGIN = 'https://lohaco.yahoo.co.jp';
 
@@ -19,16 +35,6 @@ const ONLINE_STORES = [
 function hostMatches(hostname, hosts) {
   const host = String(hostname || '').toLowerCase();
   return hosts.some(entry => host === entry || host.endsWith(`.${entry}`));
-}
-
-function parseHttpUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return null;
-  try {
-    return new URL(raw.startsWith('http') ? raw : `https://${raw}`);
-  } catch {
-    return null;
-  }
 }
 
 function isHttpProductUrl(url) {
@@ -146,41 +152,6 @@ function mountOnlineAccessActions(item, product, dest, options = {}) {
     }
   }
   return actions.childElementCount ? actions : null;
-}
-
-function parseLohacoProductUrl(url) {
-  const parsed = parseHttpUrl(url);
-  if (!parsed || !hostMatches(parsed.hostname, ['lohaco.yahoo.co.jp'])) return null;
-  const match = parsed.pathname.match(/\/store\/([^/]+)\/item\/([^/]+)/i);
-  if (!match) return null;
-  const sellerId = decodeURIComponent(match[1]).trim();
-  const srid = decodeURIComponent(match[2]).trim();
-  if (!sellerId || !srid) return null;
-  return { sellerId, srid };
-}
-
-function parseAmazonProductUrl(url) {
-  const parsed = parseHttpUrl(url);
-  if (!parsed) return null;
-  const host = parsed.hostname.toLowerCase();
-  if (!host.endsWith('amazon.co.jp') && !host.endsWith('amazon.com')) return null;
-  const patterns = [
-    /\/(?:dp|gp\/product|exec\/obidos\/ASIN|product)\/([A-Z0-9]{10})/i,
-    /\/gp\/aw\/d\/([A-Z0-9]{10})/i,
-  ];
-  for (const pattern of patterns) {
-    const match = parsed.pathname.match(pattern);
-    if (match) {
-      const asin = match[1].toUpperCase();
-      const tld = host.endsWith('amazon.co.jp') ? 'co.jp' : 'com';
-      return { asin, canonicalUrl: `https://www.amazon.${tld}/dp/${asin}` };
-    }
-  }
-  return null;
-}
-
-function isProductMetaFetchableUrl(url) {
-  return !!(parseLohacoProductUrl(url) || parseAmazonProductUrl(url));
 }
 
 function lohacoCartAddUrl(product) {
