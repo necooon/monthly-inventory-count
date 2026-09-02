@@ -188,19 +188,11 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
   });
 }
 
-function isLohacoReceiptPendingItem(item) {
-  return itemCanBuyOnLohaco(item)
-    && itemPendingMode(item) === 'receipt'
-    && normalizePurchaseDest(item.pendingDest) === LOHACO_DEST_NAME;
-}
-
 function itemsForLohacoSelect() {
-  return stockItems.filter(item => {
-    if (!itemMatchesCategory(item, orderCategoryFilter)) return false;
-    if (needsOrderAction(item)) return true;
-    if (orderLohacoStepDone) return false;
-    return isLohacoReceiptPendingItem(item);
-  });
+  return stockItems.filter(item =>
+    needsOrderAction(item) &&
+    itemMatchesCategory(item, orderCategoryFilter)
+  );
 }
 
 function setOrderHint(mode) {
@@ -264,6 +256,7 @@ function finishLohacoSelectStep(processedItems) {
 }
 
 function advanceToPlaceOrderStep() {
+  if (!itemsForLohacoSelect().length) return;
   finishLohacoSelectStep([]);
   saveAndRender();
 }
@@ -287,7 +280,7 @@ function syncLohacoSelectButtons() {
     shopBtn.textContent = labeledCount(SELECT_LIST_ADD_LABEL, n);
   }
   if (advanceBtn) {
-    advanceBtn.disabled = false;
+    advanceBtn.disabled = !itemsForLohacoSelect().length;
   }
 }
 
@@ -314,23 +307,10 @@ function renderPlaceOrderList() {
   const filterDiv = document.getElementById('order-filters');
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
-  const hasPendingFulfillment = stockItems.some(item => itemPendingMode(item));
-  if (!stockItems.some(needsOrderAction) && !hasPendingFulfillment) {
-    orderLohacoStepDone = false;
-  }
-  let showLohacoStep = !orderLohacoStepDone;
+  if (!stockItems.some(needsOrderAction)) orderLohacoStepDone = false;
+  const showLohacoStep = !orderLohacoStepDone;
   orderCategoryFilter = bindOrderViewFilters(filterDiv, { includeDestFilters: !showLohacoStep });
-  let items;
-  if (showLohacoStep) {
-    items = itemsForLohacoSelect();
-    if (!items.length && itemsForOrderView('order').length) {
-      orderLohacoStepDone = true;
-      showLohacoStep = false;
-      items = itemsForOrderView('order');
-    }
-  } else {
-    items = itemsForOrderView('order');
-  }
+  const items = showLohacoStep ? itemsForLohacoSelect() : itemsForOrderView('order');
   if (!items.length) {
     setOrderHint('place');
     setOrderLohacoActionsVisible(false);
@@ -348,19 +328,6 @@ function renderPlaceOrderList() {
   renderOrderItemsByCategory(orderDiv, items, appendPlaceOrderRow);
 }
 
-function reconcileFulfillmentDestFilter() {
-  if (orderFulfillmentView !== 'shopping') return false;
-  if (!orderPurchaseDestFilter.size) return false;
-  const shoppingItems = stockItems.filter(item =>
-    itemPendingMode(item) === 'shopping' &&
-    itemMatchesCategory(item, orderCategoryFilter)
-  );
-  if (!shoppingItems.length) return false;
-  if (shoppingItems.some(item => itemMatchesPendingDest(item, orderPurchaseDestFilter))) return false;
-  orderPurchaseDestFilter.clear();
-  return true;
-}
-
 function renderFulfillmentList() {
   const orderDiv = document.getElementById('fulfill-list');
   const filterDiv = document.getElementById('fulfill-filters');
@@ -370,13 +337,7 @@ function renderFulfillmentList() {
   orderCategoryFilter = bindOrderViewFilters(filterDiv, {
     includeDestFilters: orderFulfillmentView !== 'receipt'
   });
-  if (reconcileFulfillmentDestFilter()) {
-    bindOrderViewFilters(filterDiv, {
-      includeDestFilters: orderFulfillmentView !== 'receipt'
-    });
-  }
-  const items = itemsForOrderView(orderFulfillmentView);
-  renderGroupedFulfillItems(orderDiv, items, orderFulfillmentView);
+  renderGroupedFulfillItems(orderDiv, itemsForOrderView(orderFulfillmentView), orderFulfillmentView);
 }
 
 function renderOrderList() {
@@ -479,8 +440,6 @@ function confirmLohacoSelection() {
       : `${items.length}件を受け取り待ちにしました`
   );
   clearLohacoSelectedProductIds(items.map(item => item.id));
-  orderFulfillmentView = 'receipt';
-  persistOrderFulfillmentView();
   if (cartUrls.length) openLohacoCartAdds(cartUrls);
 }
 
@@ -495,8 +454,6 @@ function skipLohacoSelection() {
     `${rows.length}件を買い物リストへ移しました`
   );
   clearLohacoSelectedProductIds(items.map(item => item.id));
-  orderFulfillmentView = 'shopping';
-  persistOrderFulfillmentView();
 }
 
 async function handleFulfillmentItemTap(id) {

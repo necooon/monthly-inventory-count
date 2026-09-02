@@ -239,7 +239,6 @@ function getLohacoSelectedProductId(item) {
   if (lohacoSelectedProductByItem.has(key)) {
     return lohacoSelectedProductByItem.get(key) || '';
   }
-  if (item.pendingProductId) return String(item.pendingProductId);
   return lohacoProductIdForItem(item);
 }
 
