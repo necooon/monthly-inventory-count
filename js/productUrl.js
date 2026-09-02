@@ -159,6 +159,30 @@ function parseLohacoProductUrl(url) {
   return { sellerId, srid };
 }
 
+function parseAmazonProductUrl(url) {
+  const parsed = parseHttpUrl(url);
+  if (!parsed) return null;
+  const host = parsed.hostname.toLowerCase();
+  if (!host.endsWith('amazon.co.jp') && !host.endsWith('amazon.com')) return null;
+  const patterns = [
+    /\/(?:dp|gp\/product|exec\/obidos\/ASIN|product)\/([A-Z0-9]{10})/i,
+    /\/gp\/aw\/d\/([A-Z0-9]{10})/i,
+  ];
+  for (const pattern of patterns) {
+    const match = parsed.pathname.match(pattern);
+    if (match) {
+      const asin = match[1].toUpperCase();
+      const tld = host.endsWith('amazon.co.jp') ? 'co.jp' : 'com';
+      return { asin, canonicalUrl: `https://www.amazon.${tld}/dp/${asin}` };
+    }
+  }
+  return null;
+}
+
+function isProductMetaFetchableUrl(url) {
+  return !!(parseLohacoProductUrl(url) || parseAmazonProductUrl(url));
+}
+
 function lohacoCartAddUrl(product) {
   const ids = parseLohacoProductUrl(productPageUrl(product));
   if (!ids) return '';

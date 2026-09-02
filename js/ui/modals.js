@@ -124,6 +124,27 @@ async function resolveOnlineDestForProductUrl(item, url, destHint) {
   return ensurePurchaseDest(String(name).trim(), 'online');
 }
 
+async function applyFetchedCategory(item, appCategory) {
+  const nextCategory = String(appCategory || '').trim();
+  if (!nextCategory) return;
+  const current = normalizeCategory(item.category);
+  if (!current) {
+    item.category = ensureCategory(nextCategory);
+    showUndoToast(`カテゴリを「${nextCategory}」に設定しました`);
+    return;
+  }
+  if (current === nextCategory) return;
+  const choice = await showActionChoice(
+    'カテゴリを更新しますか？',
+    `現在: ${current}\n取得: ${nextCategory}`,
+    [{ label: '更新する', value: 'update' }]
+  );
+  if (choice === 'update') {
+    item.category = ensureCategory(nextCategory);
+    showUndoToast(`カテゴリを「${nextCategory}」に更新しました`);
+  }
+}
+
 async function registerProductFromUrl(item, destHint) {
   const url = await showPrompt('商品ページ URL', '', 'url');
   if (!url || !String(url).trim()) return null;
@@ -134,14 +155,15 @@ async function registerProductFromUrl(item, destHint) {
   }
   const dest = await resolveOnlineDestForProductUrl(item, trimmedUrl, destHint);
   if (!dest) return null;
-  const meta = await fetchLohacoProductMeta(trimmedUrl);
+  let meta = null;
+  if (isProductMetaFetchableUrl(trimmedUrl)) {
+    showUndoToast('商品情報を取得中…');
+    meta = await fetchProductMeta(trimmedUrl);
+  }
   const defaultName = meta?.name || item.name || '';
   const name = await showPrompt('商品名', defaultName);
   if (!name || !String(name).trim()) return null;
-  if (meta?.appCategory && !normalizeCategory(item.category)) {
-    item.category = ensureCategory(meta.appCategory);
-    showUndoToast(`カテゴリを「${meta.appCategory}」に設定しました`);
-  }
+  if (meta?.appCategory) await applyFetchedCategory(item, meta.appCategory);
   ensurePurchaseDest(dest, 'online');
   const product = createCatalogProduct({
     name: String(name).trim(),
