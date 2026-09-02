@@ -1,3 +1,32 @@
+function mapCategoryToApp(categoryPath) {
+  const text = (categoryPath || []).join(' ');
+  for (const rule of PRODUCT_CATEGORY_RULES) {
+    if (rule.keywords.some(keyword => text.includes(keyword))) {
+      return rule.category;
+    }
+  }
+  return DEFAULT_PRODUCT_CATEGORY;
+}
+
+function normalizeFetchedProductName(title) {
+  let name = String(title || '').trim();
+  if (name.startsWith('LOHACO - ')) name = name.slice('LOHACO - '.length);
+  name = name.replace(/\s*[:：]\s*Amazon\.co\.jp.*$/i, '');
+  name = name.replace(/\s*[-|｜]\s*Amazon.*$/i, '');
+  return name.trim();
+}
+
+function parseProductMetaResponse(data) {
+  if (!data) return null;
+  const name = normalizeFetchedProductName(data.name);
+  if (!name) return null;
+  const categoryPath = Array.isArray(data.categoryPath)
+    ? data.categoryPath.map(entry => String(entry || '').trim()).filter(Boolean)
+    : [];
+  const appCategory = String(data.appCategory || '').trim() || mapCategoryToApp(categoryPath);
+  return { name, categoryPath, appCategory };
+}
+
 async function fetchProductMeta(url) {
   if (!isProductMetaFetchableUrl(url)) return null;
   if (!isCloudReady()) return null;
@@ -7,7 +36,7 @@ async function fetchProductMeta(url) {
       body: { url: normalizeProductPageUrl(url) },
     });
     if (error || !data) return null;
-    return ProductMetaShared.parseProductMetaResponse(data);
+    return parseProductMetaResponse(data);
   } catch {
     return null;
   }
@@ -38,15 +67,4 @@ async function applyFetchedCategory(item, appCategory) {
     item.category = ensureCategory(nextCategory);
     showUndoToast(`カテゴリを「${nextCategory}」に更新しました`);
   }
-}
-
-async function enrichProductFromUrl(url, item) {
-  const trimmedUrl = String(url || '').trim();
-  if (!trimmedUrl || !isProductMetaFetchableUrl(trimmedUrl)) return null;
-  const meta = await fetchProductMeta(trimmedUrl);
-  if (!meta) return null;
-  const inferredDest = inferPurchaseDestFromUrl(trimmedUrl);
-  if (inferredDest) ensurePurchaseDest(inferredDest, 'online');
-  if (item && meta.appCategory) await applyFetchedCategory(item, meta.appCategory);
-  return meta;
 }
