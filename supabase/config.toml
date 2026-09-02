@@ -1,0 +1,4 @@
+project_id = "dmvznvxczrpbqrzfcqcc"
+
+[functions.lohaco-product]
+verify_jwt = false
