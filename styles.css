@@ -128,9 +128,6 @@ h1 {
   min-width: 0;
   white-space: normal;
 }
-.order-lohaco-actions .order-advance-btn {
-  flex: 1 1 100%;
-}
 .order-skip-btn {
   min-height: 44px;
   padding: 8px 12px;
@@ -237,10 +234,6 @@ h1 {
 .order-select-add-btn:focus-visible {
   outline: 2px solid #1565c0;
   outline-offset: 2px;
-}
-.order-place-fields .order-select-add-actions {
-  margin-top: 4px;
-  margin-bottom: 4px;
 }
 .order-lohaco-product-picker {
   margin: 8px 0 0;
@@ -377,44 +370,11 @@ h1 {
   background: #f5f8fb;
   border-top: 1px solid #e8eef4;
 }
-.order-place-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  min-width: 0;
-}
-.order-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
 .order-field-label {
   font-size: 11px;
   font-weight: bold;
   color: #666;
   letter-spacing: 0.02em;
-}
-.order-product-select,
-.order-dest-select {
-  width: 100%;
-  min-height: 44px;
-  font-size: 14px;
-  border: 1px solid #cfd8dc;
-  border-radius: 8px;
-  padding: 0 10px;
-  background: #fff;
-  color: #333;
-}
-.order-product-select:focus-visible,
-.order-dest-select:focus-visible {
-  outline: 2px solid #1565c0;
-  outline-offset: 1px;
-  border-color: #1565c0;
-}
-.order-place-fields .order-online-actions,
-.order-place-fields .order-action-btn {
-  grid-column: 1 / -1;
 }
 .order-action-btn:not(:disabled) {
   box-shadow: 0 2px 4px rgba(21, 101, 192, 0.2);
@@ -1593,9 +1553,6 @@ button.order-group-title:active {
 @media (max-width: 360px) {
   .filter-select {
     flex: 1 1 100%;
-  }
-  .order-place-fields {
-    grid-template-columns: 1fr;
   }
   .inventory-action-row {
     flex-direction: column;
