@@ -189,10 +189,14 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
 }
 
 function itemsForLohacoSelect() {
-  return stockItems.filter(item =>
-    needsOrderAction(item) &&
-    itemMatchesCategory(item, orderCategoryFilter)
-  );
+  return stockItems.filter(item => {
+    if (!itemMatchesCategory(item, orderCategoryFilter)) return false;
+    if (needsOrderAction(item)) return true;
+    if (orderLohacoStepDone) return false;
+    return itemCanBuyOnLohaco(item)
+      && itemPendingMode(item) === 'receipt'
+      && normalizePurchaseDest(item.pendingDest) === LOHACO_DEST_NAME;
+  });
 }
 
 function setOrderHint(mode) {
