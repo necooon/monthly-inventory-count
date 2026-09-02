@@ -48,7 +48,6 @@ function updateResetLocationButton() {
 }
 
 function goToLohacoSelect() {
-  orderLohacoStepDone = false;
   showPage('order');
 }
 

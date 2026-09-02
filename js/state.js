@@ -63,8 +63,7 @@ function initCheckStockState() {
       order: {
         category: ALL_FILTER,
         purchaseDestFilter: new Set(),
-        collapsedDests: loadOrderCollapsedDests(),
-        lohacoStepDone: false
+        collapsedDests: loadOrderCollapsedDests()
       },
       fulfillment: { view: orderFulfillmentView }
     },
@@ -125,7 +124,6 @@ function bindGlobalState() {
     orderCategoryFilter: 'filters.order.category',
     orderPurchaseDestFilter: 'filters.order.purchaseDestFilter',
     orderCollapsedDests: 'filters.order.collapsedDests',
-    orderLohacoStepDone: 'filters.order.lohacoStepDone',
     orderFulfillmentView: 'filters.fulfillment.view',
     currentPage: 'ui.currentPage',
     selectedItemId: 'ui.selectedItemId',
