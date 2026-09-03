@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=83">
+<link rel="stylesheet" href="styles.css?v=84">
 </head>
 <body>
   <header class="app-header">
@@ -50,19 +50,19 @@
   </div>
 
   <!-- 買い物 -->
-  <div class="page" id="page-shopping">
+  <div class="page page-fulfill" id="page-shopping">
   <div class="filter-bar" id="shopping-filters"></div>
-  <div id="shopping-list"></div>
-  <div class="order-lohaco-actions" id="shopping-complete-actions" hidden>
+  <div class="fulfill-list" id="shopping-list"></div>
+  <div class="order-lohaco-actions fulfill-complete-actions" id="shopping-complete-actions" hidden>
     <button type="button" class="order-action-btn" id="confirm-shopping-complete-btn" onclick="completeCheckedFulfillmentItems('shopping')" disabled>買った</button>
   </div>
   </div>
 
   <!-- 受け取り -->
-  <div class="page" id="page-pickup">
+  <div class="page page-fulfill" id="page-pickup">
   <div class="filter-bar" id="pickup-filters"></div>
-  <div id="pickup-list"></div>
-  <div class="order-lohaco-actions" id="pickup-complete-actions" hidden>
+  <div class="fulfill-list" id="pickup-list"></div>
+  <div class="order-lohaco-actions fulfill-complete-actions" id="pickup-complete-actions" hidden>
     <button type="button" class="order-action-btn" id="confirm-pickup-complete-btn" onclick="completeCheckedFulfillmentItems('pickup')" disabled>受け取り済み</button>
   </div>
   </div>
@@ -188,8 +188,9 @@
 <script src="js/ui/catalog.js?v=75"></script>
 <script src="js/ui/inventory.js?v=76"></script>
 <script src="js/ui/products.js?v=76"></script>
-<script src="js/order.js?v=82"></script>
-<script src="js/orderPlace.js?v=79"></script>
+<script src="js/order.js?v=83"></script>
+<script src="js/orderPlace.js?v=80"></script>
+<script src="js/ui/fulfill.js?v=83"></script>
 <script src="js/gestures.js?v=75"></script>
 <script src="js/boot.js?v=75"></script>
 </body>

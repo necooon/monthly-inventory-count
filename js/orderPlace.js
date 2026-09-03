@@ -1,3 +1,8 @@
+function pendingProductName(item) {
+  const product = findProductById(item.pendingProductId);
+  return product && product.name ? product.name : '';
+}
+
 function orderPlaceInfoHtml(item, options) {
   const lastOrder = formatLastOrder(item.lastOrderedOn) || 'なし';
   const qty = formatQty(itemOrderQty(item), item.unit);

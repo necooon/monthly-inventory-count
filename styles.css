@@ -105,22 +105,18 @@ h1 {
   margin-top: 8px;
 }
 #page-order.lohaco-select-step,
-#page-shopping.fulfill-complete-step,
-#page-pickup.fulfill-complete-step {
+.page-fulfill.fulfill-complete-step {
   padding-bottom: 8px;
 }
-#page-shopping #shopping-list,
-#page-pickup #pickup-list {
+.page-fulfill .fulfill-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-#page-shopping .empty-message,
-#page-pickup .empty-message {
+.page-fulfill .empty-message {
   margin-top: 8px;
 }
-#page-shopping .order-place-item,
-#page-pickup .order-place-item {
+.page-fulfill .order-place-item {
   margin-bottom: 8px;
 }
 .order-lohaco-actions {
@@ -146,8 +142,7 @@ h1 {
   min-width: 0;
   white-space: normal;
 }
-#shopping-complete-actions .order-action-btn,
-#pickup-complete-actions .order-action-btn {
+.fulfill-complete-actions .order-action-btn {
   flex: 1 1 100%;
 }
 .order-skip-btn {

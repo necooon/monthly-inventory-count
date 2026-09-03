@@ -1,81 +1,10 @@
-const ORDER_EMPTY_MESSAGE = {
-  order: '発注が必要なアイテムはありません',
-  shopping: '買い物リストは空です',
-  receipt: '受け取り待ちはありません'
-};
+const ORDER_EMPTY_MESSAGE = '発注が必要なアイテムはありません';
 const ORDER_HINT = {
   lohaco: 'LOHACO商品を選んでチェックし、何度でもカートに追加できます。店舗向けは「リストに追加」で買い物リストへ進めます。'
 };
 const SELECT_LOHACO_CART_LABEL = 'カートに入れる';
 const SELECT_LIST_ADD_LABEL = 'リストに追加';
-const FULFILL_COMPLETE_LABELS = { shopping: '買った', receipt: '受け取り済み' };
-const FULFILL_PAGES = {
-  shopping: {
-    page: 'shopping',
-    mode: 'shopping',
-    navId: 'nav-shopping',
-    navLabel: 'Shopping List',
-    listId: 'shopping-list',
-    filterId: 'shopping-filters',
-    actionsId: 'shopping-complete-actions',
-    buttonId: 'confirm-shopping-complete-btn'
-  },
-  pickup: {
-    page: 'pickup',
-    mode: 'receipt',
-    navId: 'nav-pickup',
-    navLabel: 'Pick Up',
-    listId: 'pickup-list',
-    filterId: 'pickup-filters',
-    actionsId: 'pickup-complete-actions',
-    buttonId: 'confirm-pickup-complete-btn'
-  }
-};
 let selectCollapsedItemIds = new Set();
-
-function pendingProductName(item) {
-  const product = findProductById(item.pendingProductId);
-  return product && product.name ? product.name : '';
-}
-
-function fulfillRowLabel(item, view) {
-  if (view !== 'receipt') return item.name;
-  const productName = pendingProductName(item);
-  return productName && productName !== item.name ? `${item.name}、${productName}` : item.name;
-}
-
-function appendFulfillChecklistRow(parent, item, view) {
-  const itemDiv = document.createElement('div');
-  itemDiv.className = 'item order-place-item order-lohaco-item order-fulfill-card';
-  itemDiv.dataset.itemId = item.id;
-  const label = fulfillRowLabel(item, view);
-
-  const row = document.createElement('div');
-  row.className = 'order-lohaco-row';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.className = 'order-lohaco-check';
-  input.dataset.itemId = item.id;
-  input.setAttribute('aria-label', `${label}を選ぶ`);
-  input.checked = false;
-  input.onclick = event => event.stopPropagation();
-  input.onchange = () => syncFulfillCompleteButton(view);
-
-  const trigger = document.createElement('button');
-  trigger.type = 'button';
-  trigger.className = 'order-lohaco-main';
-  trigger.setAttribute('aria-label', `${label}の操作`);
-  const info = document.createElement('div');
-  info.className = 'item-info';
-  info.innerHTML = orderPlaceInfoHtml(item, view === 'receipt' ? { receiptLayout: true } : { shoppingLayout: true });
-  trigger.appendChild(info);
-  trigger.onclick = () => handleFulfillmentItemTap(item.id);
-
-  row.appendChild(input);
-  row.appendChild(trigger);
-  itemDiv.appendChild(row);
-  parent.appendChild(itemDiv);
-}
 
 function bindOrderViewFilters(filterDiv) {
   if (!filterDiv) return orderCategoryFilter;
@@ -146,24 +75,6 @@ function appendOrderDestGroup(parent, dest, destCount, fillBody) {
   parent.appendChild(group);
 }
 
-function fulfillPage(pageKey) {
-  return FULFILL_PAGES[pageKey] || FULFILL_PAGES.shopping;
-}
-
-function renderGroupedFulfillItems(orderDiv, items, view) {
-  const destGroups = groupItemsByDest(items, pendingDestLabel);
-  if (!destGroups.size) {
-    orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE[view] || ORDER_EMPTY_MESSAGE.shopping}</div>`;
-    return;
-  }
-  renderDestCategoryGroups(
-    orderDiv,
-    destGroups,
-    [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL],
-    (parent, item) => appendFulfillChecklistRow(parent, item, view)
-  );
-}
-
 function setOrderHint(mode) {
   const hint = document.getElementById('order-hint');
   if (hint) hint.textContent = ORDER_HINT[mode] || ORDER_HINT.lohaco;
@@ -179,56 +90,6 @@ function setOrderLohacoActionsVisible(visible) {
   if (bar) bar.hidden = !visible;
   if (page) page.classList.toggle('lohaco-select-step', !!visible);
   if (visible) syncLohacoSelectButtons();
-}
-
-function setFulfillCompleteActionsVisible(pageKey, visible) {
-  const page = fulfillPage(pageKey);
-  const bar = document.getElementById(page.actionsId);
-  const pageEl = document.getElementById(`page-${page.page}`);
-  if (bar) bar.hidden = !visible;
-  if (pageEl) pageEl.classList.toggle('fulfill-complete-step', !!visible);
-  if (visible) syncFulfillCompleteButton(page.mode);
-}
-
-function fulfillCheckedItems(mode) {
-  const page = Object.values(FULFILL_PAGES).find(entry => entry.mode === mode) || FULFILL_PAGES.shopping;
-  const items = [];
-  const seen = new Set();
-  document.querySelectorAll(`#${page.listId} .order-lohaco-check:checked`).forEach(input => {
-    const item = findItemById(input.dataset.itemId);
-    if (!item || itemPendingMode(item) !== mode) return;
-    const id = String(item.id);
-    if (seen.has(id)) return;
-    seen.add(id);
-    items.push(item);
-  });
-  return items;
-}
-
-function syncFulfillCompleteButton(mode) {
-  const page = Object.values(FULFILL_PAGES).find(entry => entry.mode === mode) || FULFILL_PAGES.shopping;
-  const n = fulfillCheckedItems(page.mode).length;
-  const btn = document.getElementById(page.buttonId);
-  if (!btn) return;
-  const label = FULFILL_COMPLETE_LABELS[page.mode] || FULFILL_COMPLETE_LABELS.shopping;
-  btn.disabled = n === 0;
-  btn.textContent = labeledCount(label, n);
-}
-
-function completeCheckedFulfillmentItems(pageKey) {
-  const page = fulfillPage(pageKey);
-  const mode = page.mode;
-  const items = fulfillCheckedItems(mode);
-  if (!items.length) return;
-  lastOrderUndo = items.map(item => {
-    const snap = captureFulfillment(item);
-    snap.historyId = completeItemFulfillment(item);
-    return snap;
-  });
-  saveAndRender();
-  const done = mode === 'receipt' ? '受け取り済みにしました' : '買いました';
-  const name = fulfillRowLabel(items[0], mode);
-  showUndoToast(items.length === 1 ? `「${name}」を${done}` : `${items.length}件を${done}`);
 }
 
 function lohacoSelectCheckedRows() {
@@ -307,7 +168,7 @@ function renderPlaceOrderList() {
   if (!items.length) {
     setOrderHint('lohaco');
     setOrderLohacoActionsVisible(false);
-    orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE.order}</div>`;
+    orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE}</div>`;
     return;
   }
   setOrderHint('lohaco');
@@ -315,36 +176,13 @@ function renderPlaceOrderList() {
   setOrderLohacoActionsVisible(true);
 }
 
-function renderFulfillmentPage(pageKey) {
-  const page = fulfillPage(pageKey);
-  const orderDiv = document.getElementById(page.listId);
-  const filterDiv = document.getElementById(page.filterId);
-  if (!orderDiv) return;
-  orderDiv.innerHTML = '';
-  orderCategoryFilter = bindOrderViewFilters(filterDiv);
-  renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(page.mode), page.mode);
-  const hasRows = !!orderDiv.querySelector('.order-lohaco-check');
-  setFulfillCompleteActionsVisible(page.page, hasRows);
-}
-
-function updateFulfillNavCounts(counts) {
-  Object.values(FULFILL_PAGES).forEach(page => {
-    const nav = document.getElementById(page.navId);
-    if (!nav) return;
-    const n = counts[page.mode];
-    nav.textContent = n ? `${page.navLabel}（${n}）` : page.navLabel;
-  });
-}
-
 function renderOrderList() {
   renderPlaceOrderList();
-  Object.keys(FULFILL_PAGES).forEach(renderFulfillmentPage);
+  renderFulfillmentPages();
   const counts = fulfillmentCounts();
   updateFulfillNavCounts(counts);
   const orderNav = document.getElementById('nav-order');
-  if (orderNav) {
-    orderNav.textContent = counts.order ? `Select（${counts.order}）` : 'Select';
-  }
+  if (orderNav) orderNav.textContent = labeledCount('Select', counts.order);
 }
 
 function hideUndoToast() {
@@ -415,33 +253,6 @@ function skipLohacoSelection() {
     `${rows.length}件を買い物リストへ移しました`
   );
   clearLohacoSelectedProductIds(items.map(item => item.id));
-}
-
-async function handleFulfillmentItemTap(id) {
-  const item = findItemById(id);
-  if (!item || !itemPendingMode(item)) return;
-
-  const action = await showActionChoice(
-    item.name,
-    'このアイテムをどうしますか？',
-    [
-      { label: 'Selectに戻す', value: 'return-select' },
-      { label: '削除する', value: 'remove', danger: true }
-    ]
-  );
-  if (!action) return;
-
-  lastOrderUndo = captureFulfillment(item);
-  clearItemPending(item);
-  saveAndRender();
-
-  if (action === 'return-select') {
-    showUndoToast(`「${item.name}」をSelectに戻しました`);
-    showPage('order');
-    return;
-  }
-
-  showUndoToast(`「${item.name}」をリストから削除しました`);
 }
 
 function undoLastOrder() {
