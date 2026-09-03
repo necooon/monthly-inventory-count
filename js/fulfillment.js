@@ -292,6 +292,10 @@ function selectDestForItem(item) {
   })[0];
 }
 
+function pendingDestLabel(item) {
+  return normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL;
+}
+
 function selectDestSortOrder() {
   const rest = allPurchaseDests().filter(name => name !== LOHACO_DEST_NAME);
   return [LOHACO_DEST_NAME, ...rest, UNSET_PURCHASE_DEST_LABEL];
@@ -310,17 +314,16 @@ function fulfillmentCounts() {
   };
 }
 
-function itemsForOrderView(view) {
-  if (view === 'shopping' || view === 'receipt') {
-    return stockItems.filter(item =>
-      itemPendingMode(item) === view &&
-      itemMatchesCategory(item, orderCategoryFilter)
-    );
-  }
-  return stockItems.filter(item =>
-    needsOrderAction(item) &&
-    itemMatchesCategory(item, orderCategoryFilter)
-  );
+function itemsMatchingOrderCategory() {
+  return stockItems.filter(item => itemMatchesCategory(item, orderCategoryFilter));
+}
+
+function itemsForLohacoSelect() {
+  return itemsMatchingOrderCategory().filter(needsOrderAction);
+}
+
+function itemsForFulfillmentView(view) {
+  return itemsMatchingOrderCategory().filter(item => itemPendingMode(item) === view);
 }
 
 function addItemToDestCategoryGroup(destGroups, dest, item) {
@@ -339,42 +342,9 @@ function sortItemsByNameJa(items) {
   return items.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
 }
 
-function groupOrderItemsByCategory(items) {
-  const cats = new Map();
-  items.forEach(item => {
-    const cat = normalizeCategory(item.category) || UNSET_CATEGORY_LABEL;
-    if (!cats.has(cat)) cats.set(cat, []);
-    cats.get(cat).push(item);
-  });
-  return cats;
-}
-
-function groupOrderItemsByDest(items, view) {
+function groupItemsByDest(items, destForItem) {
   const destGroups = new Map();
-  items.forEach(item => {
-    if (view === 'order') {
-      const dests = itemPurchaseDests(item);
-      if (!dests.length) {
-        addItemToDestCategoryGroup(destGroups, UNSET_PURCHASE_DEST_LABEL, item);
-        return;
-      }
-      dests.forEach(dest => {
-        addItemToDestCategoryGroup(destGroups, dest, item);
-      });
-      return;
-    }
-    addItemToDestCategoryGroup(
-      destGroups,
-      normalizePurchaseDest(item.pendingDest) || UNSET_PURCHASE_DEST_LABEL,
-      item
-    );
-  });
-  return destGroups;
-}
-
-function groupSelectItemsByDest(items) {
-  const destGroups = new Map();
-  items.forEach(item => addItemToDestCategoryGroup(destGroups, selectDestForItem(item), item));
+  items.forEach(item => addItemToDestCategoryGroup(destGroups, destForItem(item), item));
   return destGroups;
 }
 
