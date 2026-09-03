@@ -3,15 +3,18 @@ function orderPlaceInfoHtml(item, options) {
   const qty = formatQty(itemOrderQty(item), item.unit);
   const stock = formatQty(item.count, item.unit);
   const target = formatQty(item.target, item.unit);
-  if (options && options.selectLayout) {
+  if (options && (options.selectLayout || options.shoppingLayout)) {
+    const qtyLabel = options.shoppingLayout ? '購入数' : '注文';
+    const stockLabel = options.shoppingLayout ? '棚卸結果' : '在庫';
+    const stockValue = options.shoppingLayout ? stock : `${stock}/${target}`;
     return `
       <div class="order-place-head">
         <span class="item-name"><span class="item-name-text">${item.name}</span></span>
       </div>
       <div class="order-place-qty-line">
-        <span class="order-place-qty-part"><span class="order-place-meta-label">注文</span>${qty}</span>
+        <span class="order-place-qty-part"><span class="order-place-meta-label">${qtyLabel}</span>${qty}</span>
         <span class="order-place-qty-sep">|</span>
-        <span class="order-place-qty-part"><span class="order-place-meta-label">在庫</span>${stock}/${target}</span>
+        <span class="order-place-qty-part"><span class="order-place-meta-label">${stockLabel}</span>${stockValue}</span>
       </div>
     `;
   }
