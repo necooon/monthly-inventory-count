@@ -1176,31 +1176,9 @@ button.order-group-title:active {
   gap: 10px;
   margin-bottom: 20px;
 }
-.inventory-action-row .reset-btn,
-.inventory-action-row .lohaco-select-cta {
+.inventory-action-row .reset-btn {
   flex: 1 1 160px;
   margin-bottom: 0;
-}
-.lohaco-select-cta {
-  min-width: 0;
-  padding: 12px 14px;
-  background: #1565c0;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: bold;
-  cursor: pointer;
-  white-space: normal;
-  line-height: 1.35;
-  text-align: center;
-  min-height: 48px;
-  touch-action: manipulation;
-  box-shadow: 0 2px 4px rgba(21, 101, 192, 0.2);
-}
-.lohaco-select-cta:focus-visible {
-  outline: 2px solid #1565c0;
-  outline-offset: 2px;
 }
 .reset-btn {
   flex: 1 1 120px;
@@ -1558,8 +1536,7 @@ button.order-group-title:active {
   .inventory-action-row {
     flex-direction: column;
   }
-  .inventory-action-row .reset-btn,
-  .inventory-action-row .lohaco-select-cta {
+  .inventory-action-row .reset-btn {
     flex: 1 1 100%;
     width: 100%;
   }
