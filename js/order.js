@@ -102,6 +102,15 @@ function appendCategoryItemRows(body, cats, appendItem) {
   });
 }
 
+function renderDestCategoryGroups(parent, destGroups, destOrder, appendItem) {
+  sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
+    const cats = destGroups.get(dest);
+    appendOrderDestGroup(parent, dest, destCategoryGroupCount(cats), body => {
+      appendCategoryItemRows(body, cats, (rowParent, item) => appendItem(rowParent, item, dest));
+    });
+  });
+}
+
 function appendOrderDestGroup(parent, dest, destCount, fillBody) {
   const collapsed = orderCollapsedDests.has(dest);
   const group = document.createElement('div');
@@ -143,27 +152,16 @@ function updateOrderSubnav() {
 }
 
 function renderGroupedFulfillItems(orderDiv, items, view) {
-  const destGroups = groupOrderItemsByDest(items, view);
+  const destGroups = groupItemsByDest(items, pendingDestLabel);
   if (!destGroups.size) {
     orderDiv.innerHTML = `<div class="empty-message">${ORDER_EMPTY_MESSAGE[view] || ORDER_EMPTY_MESSAGE.shopping}</div>`;
     return;
   }
-
-  const destOrder = [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL];
-  sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
-    const cats = destGroups.get(dest);
-    appendOrderDestGroup(orderDiv, dest, destCategoryGroupCount(cats), body => {
-      appendCategoryItemRows(body, cats, (rowParent, item) => {
-        appendFulfillItemRow(rowParent, item, dest);
-      });
-    });
-  });
-}
-
-function itemsForLohacoSelect() {
-  return stockItems.filter(item =>
-    needsOrderAction(item) &&
-    itemMatchesCategory(item, orderCategoryFilter)
+  renderDestCategoryGroups(
+    orderDiv,
+    destGroups,
+    [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL],
+    appendFulfillItemRow
   );
 }
 
@@ -242,15 +240,12 @@ function syncLohacoSelectButtons() {
 }
 
 function renderLohacoSelectList(orderDiv, items) {
-  const destGroups = groupSelectItemsByDest(items);
-  sortNamesByMaster(destGroups.keys(), selectDestSortOrder()).forEach(dest => {
-    const cats = destGroups.get(dest);
-    appendOrderDestGroup(orderDiv, dest, destCategoryGroupCount(cats), body => {
-      appendCategoryItemRows(body, cats, (rowParent, item) => {
-        appendLohacoSelectRow(rowParent, item, dest);
-      });
-    });
-  });
+  renderDestCategoryGroups(
+    orderDiv,
+    groupItemsByDest(items, selectDestForItem),
+    selectDestSortOrder(),
+    appendLohacoSelectRow
+  );
 }
 
 function renderPlaceOrderList() {
@@ -278,21 +273,21 @@ function renderFulfillmentList() {
   orderDiv.innerHTML = '';
   updateOrderSubnav();
   orderCategoryFilter = bindOrderViewFilters(filterDiv);
-  renderGroupedFulfillItems(orderDiv, itemsForOrderView(orderFulfillmentView), orderFulfillmentView);
+  renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(orderFulfillmentView), orderFulfillmentView);
 }
 
 function renderOrderList() {
   renderPlaceOrderList();
   renderFulfillmentList();
+  const counts = fulfillmentCounts();
   const fulfillNav = document.getElementById('nav-fulfillment');
   if (fulfillNav) {
-    const n = fulfillmentCounts().shopping + fulfillmentCounts().receipt;
+    const n = counts.shopping + counts.receipt;
     fulfillNav.textContent = n ? `Stock（${n}）` : 'Stock';
   }
   const orderNav = document.getElementById('nav-order');
   if (orderNav) {
-    const n = fulfillmentCounts().order;
-    orderNav.textContent = n ? `Select（${n}）` : 'Select';
+    orderNav.textContent = counts.order ? `Select（${counts.order}）` : 'Select';
   }
 }
 
