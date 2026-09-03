@@ -491,30 +491,6 @@ h1 {
   color: #333;
   min-height: 44px;
 }
-.filter-dest-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  flex: 1 1 100%;
-}
-.filter-dest-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #333;
-  min-height: 40px;
-  cursor: pointer;
-}
-.filter-dest-check:has(input:checked) {
-  border-color: #1565c0;
-  background: #e3f2fd;
-  color: #1565c0;
-}
 .progress-bar {
   display: flex;
   align-items: center;

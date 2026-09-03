@@ -62,7 +62,6 @@ function initCheckStockState() {
       },
       order: {
         category: ALL_FILTER,
-        purchaseDestFilter: new Set(),
         collapsedDests: loadOrderCollapsedDests()
       },
       fulfillment: { view: orderFulfillmentView }
@@ -122,7 +121,6 @@ function bindGlobalState() {
     catalogPlaceFilter: 'filters.catalog.place',
     catalogCategoryFilter: 'filters.catalog.category',
     orderCategoryFilter: 'filters.order.category',
-    orderPurchaseDestFilter: 'filters.order.purchaseDestFilter',
     orderCollapsedDests: 'filters.order.collapsedDests',
     orderFulfillmentView: 'filters.fulfillment.view',
     currentPage: 'ui.currentPage',

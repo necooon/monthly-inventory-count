@@ -62,10 +62,9 @@ function appendFulfillItemRow(parent, item, dest) {
   parent.appendChild(itemDiv);
 }
 
-function bindOrderViewFilters(filterDiv, { includeDestFilters = true } = {}) {
+function bindOrderViewFilters(filterDiv) {
   if (!filterDiv) return orderCategoryFilter;
   filterDiv.innerHTML = '';
-  if (includeDestFilters) bindPurchaseDestFilters(filterDiv);
   return bindFilterSelect(filterDiv, 'カテゴリ', allCategories(), orderCategoryFilter, value => {
     orderCategoryFilter = value;
   });
@@ -259,7 +258,7 @@ function renderPlaceOrderList() {
   const filterDiv = document.getElementById('order-filters');
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
-  orderCategoryFilter = bindOrderViewFilters(filterDiv, { includeDestFilters: false });
+  orderCategoryFilter = bindOrderViewFilters(filterDiv);
   const items = itemsForLohacoSelect();
   if (!items.length) {
     setOrderHint('lohaco');
@@ -278,9 +277,7 @@ function renderFulfillmentList() {
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
   updateOrderSubnav();
-  orderCategoryFilter = bindOrderViewFilters(filterDiv, {
-    includeDestFilters: orderFulfillmentView !== 'receipt'
-  });
+  orderCategoryFilter = bindOrderViewFilters(filterDiv);
   renderGroupedFulfillItems(orderDiv, itemsForOrderView(orderFulfillmentView), orderFulfillmentView);
 }
 

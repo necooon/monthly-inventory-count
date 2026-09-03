@@ -314,14 +314,12 @@ function itemsForOrderView(view) {
   if (view === 'shopping' || view === 'receipt') {
     return stockItems.filter(item =>
       itemPendingMode(item) === view &&
-      itemMatchesCategory(item, orderCategoryFilter) &&
-      (view === 'receipt' || itemMatchesPendingDest(item, orderPurchaseDestFilter))
+      itemMatchesCategory(item, orderCategoryFilter)
     );
   }
   return stockItems.filter(item =>
     needsOrderAction(item) &&
-    itemMatchesCategory(item, orderCategoryFilter) &&
-    itemMatchesPurchaseDests(item, orderPurchaseDestFilter)
+    itemMatchesCategory(item, orderCategoryFilter)
   );
 }
 
@@ -361,9 +359,7 @@ function groupOrderItemsByDest(items, view) {
         return;
       }
       dests.forEach(dest => {
-        if (orderPurchaseDestFilter.size === 0 || orderPurchaseDestFilter.has(dest)) {
-          addItemToDestCategoryGroup(destGroups, dest, item);
-        }
+        addItemToDestCategoryGroup(destGroups, dest, item);
       });
       return;
     }
@@ -384,12 +380,5 @@ function groupSelectItemsByDest(items) {
 
 function itemPurchaseDests(item) {
   return normalizePurchaseDests(item && item.purchaseDests);
-}
-
-function remapSelectedSet(set, oldName, nextName) {
-  if (!set.has(oldName)) return set;
-  set.delete(oldName);
-  if (nextName) set.add(nextName);
-  return set;
 }
 
