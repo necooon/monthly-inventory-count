@@ -79,7 +79,7 @@ function appendLohacoProductPicker(parent, item) {
   wrap.className = 'order-select-products';
   const heading = document.createElement('div');
   heading.className = 'order-field-label';
-  heading.textContent = 'LOHACO商品';
+  heading.textContent = '商品';
   wrap.appendChild(heading);
 
   const products = lohacoProductsForItem(item);
@@ -88,7 +88,7 @@ function appendLohacoProductPicker(parent, item) {
   if (!products.length) {
     const empty = document.createElement('p');
     empty.className = 'settings-hint';
-    empty.textContent = 'LOHACO商品が未登録です。URLで登録してください。';
+    empty.textContent = '商品が未登録です。URLで登録してください。';
     wrap.appendChild(empty);
   } else {
     const list = document.createElement('ul');
