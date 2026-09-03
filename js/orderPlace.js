@@ -3,6 +3,13 @@ function orderPlaceInfoHtml(item, options) {
   const qty = formatQty(itemOrderQty(item), item.unit);
   const stock = formatQty(item.count, item.unit);
   const target = formatQty(item.target, item.unit);
+  if (options && options.receiptLayout) {
+    return `
+      <div class="order-place-head">
+        <span class="item-name"><span class="item-name-text">${pendingProductDisplayName(item)}</span></span>
+      </div>
+    `;
+  }
   if (options && (options.selectLayout || options.shoppingLayout)) {
     const qtyLabel = options.shoppingLayout ? '購入数' : '注文';
     const stockLabel = options.shoppingLayout ? '棚卸結果' : '在庫';
