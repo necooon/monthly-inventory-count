@@ -55,7 +55,3 @@ function closeEditModal() {
   editingItemId = null;
   syncBodyScrollLock();
 }
-
-window.showPage = showPage;
-window.selectAndEditItem = selectAndEditItem;
-window.closeEditModal = closeEditModal;

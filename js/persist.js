@@ -22,6 +22,3 @@ async function persistAndFlushCloud() {
   }
   await flushCloudSave();
 }
-
-window.saveAndRender = saveAndRender;
-CheckStock.persist = { persistLocalState, saveAndRender, persistAndFlushCloud };

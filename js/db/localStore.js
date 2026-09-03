@@ -88,21 +88,3 @@ function loadSettingsOpenSections() {
   if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
   return new Set(['items']);
 }
-
-window.CheckStock = window.CheckStock || {};
-CheckStock.db = CheckStock.db || {};
-CheckStock.db.local = {
-  StorageKeys,
-  loadJson,
-  saveJson,
-  loadNameList,
-  persistMasters,
-  persistItems,
-  loadItems,
-  loadInventoryCollapsedPlaces,
-  loadOrderCollapsedDests,
-  loadSettingsOpenSections,
-  persistInventoryCollapsedPlaces,
-  persistOrderCollapsedDests,
-  persistSettingsOpenSections
-};

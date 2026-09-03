@@ -39,10 +39,11 @@ Check の1行。目標数、発注閾値、場所、チェック頻度、単位�
 |------|------|
 | Check | 棚卸。場所・頻度で数量を入れる。在庫の正を更新する。スコープ内がすべて入力済みになると、LOHACO で買うものの選択へ進める。 |
 | Select | まず LOHACO で買うアイテムを選んで一括確定する。残った要発注アイテムは、商品の選択または購入先の入力で確定する。 |
-| 買い物・受け取り | 発注確定後の実行。店舗は買い物、ネットは受け取り。発注とは分ける。 |
+| Shopping List | 発注確定後の店舗向け実行。買ったら完了する。 |
+| Pick Up | 発注確定後のネット向け実行。受け取ったら完了する。 |
 | 設定 | アイテム、商品、履歴、既存マスタ（頻度・場所・カテゴリ・購入先）。 |
 
-発注と買い物・受け取りは、同じ Order サブナビに横並びしない。買い物と受け取りは、分けたあとの側で切り替えてよい。
+発注（Select）と Shopping List / Pick Up は同じナビに横並びの同一フローとしては扱わない。買い物と受け取りは別タブにする。
 
 履歴は設定に置く。記録するのは「買った」「受け取り済み」のみ。項目は日時、アイテム、商品名、購入先、数量。棚卸では履歴を増やさない。履歴は在庫の再計算に使わない。
 
@@ -99,4 +100,4 @@ Check の対象スコープがすべて入力済みになると、Check から�
 
 ## 8. 現行アプリとの関係
 
-Check / Select / 買い物（受け取り切替）/ 設定。商品と履歴は設定。購入完了では在庫数を増やさない。クラウド用の `products` と `purchase_history` は [`supabase/products.sql`](../supabase/products.sql)。発注中の pending 列と購入先 `kind` は [`supabase/fulfillment.sql`](../supabase/fulfillment.sql)。テーブル未作成時は端末の localStorage に持つ。
+Check / Select / Shopping List / Pick Up / 設定。商品と履歴は設定。購入完了では在庫数を増やさない。クラウド用の `products` と `purchase_history` は [`supabase/products.sql`](../supabase/products.sql)。発注中の pending 列と購入先 `kind` は [`supabase/fulfillment.sql`](../supabase/fulfillment.sql)。クラウド同期にはこれらのテーブルが必要。

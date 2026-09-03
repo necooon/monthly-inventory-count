@@ -131,13 +131,3 @@ async function startCloudListener() {
     client.removeChannel(channel);
   };
 }
-
-CheckStock.db = CheckStock.db || {};
-CheckStock.db.sync = {
-  scheduleSave: scheduleCloudSave,
-  flushSave: flushCloudSave,
-  schedulePull: scheduleCloudPull,
-  push: pushToCloud,
-  pull: pullFromCloud,
-  startListener: startCloudListener
-};
