@@ -4,10 +4,15 @@ function orderPlaceInfoHtml(item, options) {
   const stock = formatQty(item.count, item.unit);
   const target = formatQty(item.target, item.unit);
   if (options && options.receiptLayout) {
+    const productName = pendingProductName(item);
+    const productLine = productName
+      ? `<div class="order-fulfill-product-name">${productName}</div>`
+      : '';
     return `
       <div class="order-place-head">
-        <span class="item-name"><span class="item-name-text">${pendingProductDisplayName(item)}</span></span>
+        <span class="item-name"><span class="item-name-text">${item.name}</span></span>
       </div>
+      ${productLine}
     `;
   }
   if (options && (options.selectLayout || options.shoppingLayout)) {
