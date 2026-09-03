@@ -277,7 +277,6 @@ const MASTER_KINDS = {
       delete purchaseDestKinds[oldName];
     },
     afterRename: (oldName, next) => {
-      remapSelectedSet(orderPurchaseDestFilter, oldName, next);
       if (orderCollapsedDests.has(oldName)) {
         orderCollapsedDests.delete(oldName);
         orderCollapsedDests.add(next);
@@ -285,7 +284,6 @@ const MASTER_KINDS = {
       }
     },
     afterDelete: name => {
-      remapSelectedSet(orderPurchaseDestFilter, name, null);
       if (orderCollapsedDests.has(name)) {
         orderCollapsedDests.delete(name);
         persistOrderCollapsedDests();

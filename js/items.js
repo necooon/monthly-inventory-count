@@ -84,21 +84,6 @@ function itemMatchesCategory(item, categoryFilter) {
   return category === categoryFilter;
 }
 
-function itemMatchesPurchaseDests(item, selectedSet) {
-  if (!selectedSet || selectedSet.size === 0) return true;
-  const dests = itemPurchaseDests(item);
-  if (!dests.length) return selectedSet.has(UNSET_PURCHASE_DEST_LABEL);
-  return dests.some(dest => selectedSet.has(dest));
-}
-
-function itemMatchesPendingDest(item, selectedSet) {
-  if (!selectedSet || selectedSet.size === 0) return true;
-  const dest = normalizePurchaseDest(item.pendingDest);
-  if (dest) return selectedSet.has(dest);
-  if (!itemPurchaseDests(item).length) return selectedSet.has(UNSET_PURCHASE_DEST_LABEL);
-  return itemMatchesPurchaseDests(item, selectedSet);
-}
-
 function needsOrder(item) {
   return item.entered && item.count <= item.orderThreshold;
 }
