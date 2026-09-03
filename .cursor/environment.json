@@ -1,0 +1,17 @@
+{
+  "name": "Check＆Stock",
+  "install": "echo 'No dependencies to install: static HTML/CSS/JS served directly.'",
+  "terminals": [
+    {
+      "name": "web",
+      "command": "python3 -m http.server 8000",
+      "description": "Static web server for the Check＆Stock app. Open http://localhost:8000 to use the app."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 8000
+    }
+  ]
+}
