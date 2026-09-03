@@ -88,7 +88,7 @@ function appendLohacoProductPicker(parent, item) {
   if (!products.length) {
     const empty = document.createElement('p');
     empty.className = 'settings-hint';
-    empty.textContent = 'LOHACO商品が未登録です。URLで登録するか、LOHACOで検索してください。';
+    empty.textContent = 'LOHACO商品が未登録です。URLで登録してください。';
     wrap.appendChild(empty);
   } else {
     const list = document.createElement('ul');
@@ -142,14 +142,6 @@ function appendLohacoProductPicker(parent, item) {
     }
   });
 
-  const selectedProduct = selectedId ? findProductById(selectedId) : null;
-  const cartActions = mountOnlineAccessActions(item, selectedProduct, LOHACO_DEST_NAME, {
-    className: 'order-online-actions order-lohaco-search-bar',
-    includeCartAdd: false,
-    preferSearch: true
-  });
-  if (cartActions) wrap.appendChild(cartActions);
-
   parent.appendChild(wrap);
 }
 
@@ -175,7 +167,7 @@ function appendLohacoSelectRow(parent, item, dest) {
   trigger.type = 'button';
   trigger.className = 'order-lohaco-main';
   trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-  trigger.setAttribute('aria-label', `${item.name}の商品と検索を表示`);
+  trigger.setAttribute('aria-label', `${item.name}の商品を表示`);
   const info = document.createElement('div');
   info.className = 'item-info';
   info.innerHTML = orderPlaceInfoHtml(item, { selectLayout: true });

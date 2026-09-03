@@ -2,15 +2,7 @@ const LOHACO_CART_VIEW_URL = 'https://order.shopping.yahoo.co.jp/cgi-bin/cart-fo
 const LOHACO_CART_ADD_ORIGIN = 'https://lohaco.yahoo.co.jp';
 
 const ONLINE_STORES = [
-  {
-    dest: 'LOHACO',
-    hosts: ['lohaco.yahoo.co.jp'],
-    searchUrl(query) {
-      const q = String(query || '').trim();
-      if (!q) return '';
-      return `https://lohaco.yahoo.co.jp/search/?p=${encodeURIComponent(q)}`;
-    }
-  },
+  { dest: 'LOHACO', hosts: ['lohaco.yahoo.co.jp'] },
   { dest: 'Amazon', hosts: ['amazon.co.jp', 'amazon.com', 'www.amazon.co.jp'] },
   { dest: '楽天', hosts: ['rakuten.co.jp', 'item.rakuten.co.jp'] },
   { dest: 'ヨドバシ', hosts: ['yodobashi.com', 'www.yodobashi.com'] }
@@ -54,32 +46,9 @@ function onlinePurchaseDests() {
   return allPurchaseDests().filter(name => destKind(name) === 'online');
 }
 
-function onlineStoreSearchUrl(dest, query) {
-  const destName = normalizePurchaseDest(dest);
-  const store = ONLINE_STORES.find(entry => entry.dest === destName);
-  return store?.searchUrl ? store.searchUrl(query) : '';
-}
-
 function productPageUrl(product) {
   if (!product?.url || !isHttpProductUrl(product.url)) return '';
   return normalizeProductPageUrl(product.url);
-}
-
-function onlineProductAccessLinks({ item, product, dest, includeSearch = true, preferSearch = false }) {
-  const destName = normalizePurchaseDest(dest);
-  const url = productPageUrl(product);
-  if (url && destName && destKind(destName) === 'online' && !preferSearch) {
-    return [{ href: url, label: `${destName}で開く` }];
-  }
-  if (url && !destName) {
-    return [{ href: url, label: '商品ページを開く' }];
-  }
-  if (!includeSearch) return [];
-  const searchUrl = onlineStoreSearchUrl(destName, product?.name || item.name);
-  if (searchUrl) {
-    return [{ href: searchUrl, label: `${destName}で検索` }];
-  }
-  return [];
 }
 
 function createOrderExternalLink(href, label, className) {
@@ -87,7 +56,7 @@ function createOrderExternalLink(href, label, className) {
   link.href = href;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
-  link.className = className || 'order-online-link';
+  link.className = className || 'product-page-link';
   link.textContent = label;
   return link;
 }
@@ -119,33 +88,6 @@ function appendProductUrlMeta(parent, product, options = {}) {
   urlMeta.appendChild(document.createTextNode('URL: '));
   urlMeta.appendChild(link);
   parent.appendChild(urlMeta);
-}
-
-function renderOnlineProductAccessLinks(container, context) {
-  container.innerHTML = '';
-  onlineProductAccessLinks(context).forEach(({ href, label }) => {
-    container.appendChild(createOrderExternalLink(href, label));
-  });
-}
-
-function mountOnlineAccessActions(item, product, dest, options = {}) {
-  if (destKind(dest) !== 'online') return null;
-  const actions = document.createElement('div');
-  actions.className = options.className || 'order-online-actions';
-  renderOnlineProductAccessLinks(actions, {
-    item,
-    product,
-    dest,
-    includeSearch: options.includeSearch !== false,
-    preferSearch: options.preferSearch === true
-  });
-  if (options.includeCartAdd !== false && normalizePurchaseDest(dest) === LOHACO_DEST_NAME) {
-    const cartUrl = lohacoCartAddUrl(product);
-    if (cartUrl) {
-      actions.appendChild(createOrderExternalLink(cartUrl, 'カートに入れる', 'order-online-link order-lohaco-cart-link'));
-    }
-  }
-  return actions.childElementCount ? actions : null;
 }
 
 function parseLohacoProductUrl(url) {

@@ -288,9 +288,6 @@ h1 {
   outline: 2px solid #1565c0;
   outline-offset: 2px;
 }
-.order-lohaco-cart-link {
-  font-weight: bold;
-}
 .product-page-link {
   color: #1565c0;
   font-weight: normal;
@@ -300,13 +297,6 @@ h1 {
 .product-page-link:focus-visible {
   outline: 2px solid #1565c0;
   outline-offset: 2px;
-}
-.order-lohaco-search-bar {
-  padding: 0 0 2px;
-}
-.order-lohaco-search-bar .order-online-link {
-  min-height: 36px;
-  font-size: 12px;
 }
 .order-subnav {
   display: grid;
@@ -353,32 +343,6 @@ h1 {
   background: #b0bec5;
   color: #eceff1;
   cursor: not-allowed;
-}
-.order-online-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.order-online-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid #1565c0;
-  border-radius: 8px;
-  background: white;
-  color: #1565c0;
-  font-weight: bold;
-  font-size: 13px;
-  text-decoration: none;
-  touch-action: manipulation;
-  width: 100%;
-  box-sizing: border-box;
-}
-.order-online-link:focus-visible {
-  outline: 2px solid #1565c0;
-  outline-offset: 2px;
 }
 .order-place-form {
   padding: 12px 14px 14px;
