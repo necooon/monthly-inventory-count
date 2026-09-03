@@ -33,22 +33,13 @@ function inventoryFilterLabel() {
 
 function updateResetLocationButton() {
   const resetBtn = document.getElementById('reset-location-btn');
-  const ctaBtn = document.getElementById('go-lohaco-select-btn');
   const row = document.getElementById('inventory-action-row');
   if (!resetBtn || !row) return;
   const label = inventoryFilterLabel();
   const showReset = !!label;
   resetBtn.hidden = !showReset;
   resetBtn.textContent = showReset ? `「${label}」をリセット` : 'リセット';
-  const items = getScopeItems();
-  const allEntered = items.length > 0 && items.every(item => item.entered);
-  const showCta = allEntered && items.some(needsOrderAction);
-  if (ctaBtn) ctaBtn.hidden = !showCta;
-  row.hidden = !showReset && !showCta;
-}
-
-function goToLohacoSelect() {
-  showPage('order');
+  row.hidden = !showReset;
 }
 
 function resetEnteredItems(cycleFilter, placeFilter) {
