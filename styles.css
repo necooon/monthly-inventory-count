@@ -175,12 +175,6 @@ h1 {
   gap: 12px;
   padding: 12px 14px;
 }
-.order-fulfill-name-row {
-  align-items: center;
-}
-.order-fulfill-name-row .order-lohaco-check {
-  margin-top: 0;
-}
 .order-lohaco-check {
   width: 24px;
   height: 24px;
@@ -604,6 +598,16 @@ h1 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+.order-fulfill-product-name {
+  font-weight: normal;
+  font-size: 0.88em;
+  color: #555;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .order-fulfill-card {
   cursor: pointer;

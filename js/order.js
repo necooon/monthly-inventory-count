@@ -12,13 +12,15 @@ const SELECT_LIST_ADD_LABEL = 'リストに追加';
 const FULFILL_COMPLETE_LABELS = { shopping: '買った', receipt: '受け取り済み' };
 let selectCollapsedItemIds = new Set();
 
-function pendingProductDisplayName(item) {
+function pendingProductName(item) {
   const product = findProductById(item.pendingProductId);
-  return product && product.name ? product.name : item.name;
+  return product && product.name ? product.name : '';
 }
 
 function fulfillRowLabel(item, view) {
-  return view === 'receipt' ? pendingProductDisplayName(item) : item.name;
+  if (view !== 'receipt') return item.name;
+  const productName = pendingProductName(item);
+  return productName && productName !== item.name ? `${item.name}、${productName}` : item.name;
 }
 
 function appendFulfillChecklistRow(parent, item, view) {
@@ -28,7 +30,7 @@ function appendFulfillChecklistRow(parent, item, view) {
   const label = fulfillRowLabel(item, view);
 
   const row = document.createElement('div');
-  row.className = view === 'receipt' ? 'order-lohaco-row order-fulfill-name-row' : 'order-lohaco-row';
+  row.className = 'order-lohaco-row';
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.className = 'order-lohaco-check';
