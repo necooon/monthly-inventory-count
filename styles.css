@@ -102,8 +102,20 @@ h1 {
 #page-order .empty-message {
   margin-top: 8px;
 }
-#page-order.lohaco-select-step {
+#page-order.lohaco-select-step,
+#page-fulfillment.shopping-complete-step {
   padding-bottom: 8px;
+}
+#page-fulfillment #fulfill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#page-fulfillment .empty-message {
+  margin-top: 8px;
+}
+#page-fulfillment .order-place-item {
+  margin-bottom: 8px;
 }
 .order-lohaco-actions {
   position: sticky;
@@ -127,6 +139,9 @@ h1 {
   width: auto;
   min-width: 0;
   white-space: normal;
+}
+#fulfill-shopping-actions .order-action-btn {
+  flex: 1 1 100%;
 }
 .order-skip-btn {
   min-height: 44px;
