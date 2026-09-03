@@ -1,4 +1,3 @@
-const LOHACO_CART_VIEW_URL = 'https://order.shopping.yahoo.co.jp/cgi-bin/cart-form';
 const LOHACO_CART_ADD_ORIGIN = 'https://lohaco.yahoo.co.jp';
 
 const ONLINE_STORES = [
@@ -130,10 +129,6 @@ function lohacoCartAddUrl(product) {
   if (!ids) return '';
   const params = new URLSearchParams({ stockAddress: '0' });
   return `${LOHACO_CART_ADD_ORIGIN}/cartAdd/${encodeURIComponent(ids.sellerId)}/${encodeURIComponent(ids.srid)}/?${params}`;
-}
-
-function lohacoCartViewUrl() {
-  return LOHACO_CART_VIEW_URL;
 }
 
 function openLohacoCartAdds(urls) {

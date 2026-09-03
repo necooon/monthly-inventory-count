@@ -79,14 +79,6 @@ function unitsFromCyclePlacePickers(prefix) {
   return { cycles, places, units };
 }
 
-function refreshCyclePlacePickers(extraSelected) {
-  ['new-item', 'edit-item'].forEach(prefix => {
-    const selected = unitsFromCyclePlacePickers(prefix).units;
-    if (extraSelected && !selected.some(u => unitsEqual(u, extraSelected))) selected.push(extraSelected);
-    fillCyclePlacePickers(prefix, selected);
-  });
-}
-
 function itemFieldsHtml(item, options) {
   const cycles = [...new Set(itemCheckUnits(item).map(u => u.cycle))];
   const places = [...new Set(itemCheckUnits(item).map(u => placeLabel(u.place)))];
@@ -177,19 +169,6 @@ async function handleUnitSelectChange(select) {
     select.dataset.currentUnit = select.value;
   }
   syncUnitReadouts();
-}
-
-function refreshUnitSelects(preferredValue) {
-  const addSelect = document.getElementById('new-item-unit');
-  const editSelect = document.getElementById('edit-item-unit');
-  const pick = (select) => {
-    if (preferredValue) return preferredValue;
-    const cur = select.dataset.currentUnit;
-    if (cur && !isUnitActionValue(cur)) return cur;
-    return !isUnitActionValue(select.value) ? select.value : null;
-  };
-  fillUnitSelect(addSelect, pick(addSelect));
-  fillUnitSelect(editSelect, pick(editSelect));
 }
 
 function fillUnitSelect(select, selectedValue) {
@@ -546,5 +525,3 @@ async function deleteItem(id) {
   closeEditModal();
   await persistAndFlushCloud();
 }
-
-window.mountItemForms = mountItemForms;

@@ -224,16 +224,6 @@ h1 {
 .order-select-products {
   padding: 10px 0 8px;
 }
-.order-select-product-list {
-  margin: 6px 0 0;
-  padding-left: 1.2em;
-  color: #333;
-  font-size: 13px;
-  line-height: 1.45;
-}
-.order-select-product-list li + li {
-  margin-top: 4px;
-}
 .order-select-add-actions {
   display: flex;
   flex-direction: column;
@@ -280,21 +270,6 @@ h1 {
   min-width: 0;
   color: #333;
 }
-.order-lohaco-add-url-btn {
-  margin-top: 8px;
-  padding: 6px 10px;
-  border: 1px dashed #90a4ae;
-  border-radius: 8px;
-  background: white;
-  color: #1565c0;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.order-lohaco-add-url-btn:focus-visible {
-  outline: 2px solid #1565c0;
-  outline-offset: 2px;
-}
 .product-page-link {
   color: #1565c0;
   font-weight: normal;
@@ -323,11 +298,6 @@ h1 {
   background: #b0bec5;
   color: #eceff1;
   cursor: not-allowed;
-}
-.order-place-form {
-  padding: 12px 14px 14px;
-  background: #f5f8fb;
-  border-top: 1px solid #e8eef4;
 }
 .order-field-label {
   font-size: 11px;
@@ -504,11 +474,6 @@ h1 {
   border-color: #2196F3;
   box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
 }
-.item .controls {
-  cursor: default;
-  flex-shrink: 0;
-}
-.item.order-item,
 .item.order-place-item,
 .item.inventory-item {
   cursor: default;
@@ -556,9 +521,6 @@ h1 {
 .order-fulfill-card {
   cursor: pointer;
   touch-action: manipulation;
-}
-.order-fulfill-card .controls {
-  cursor: default;
 }
 .order-fulfill-card .item-info:active {
   background: #f5f9ff;
@@ -632,12 +594,6 @@ h1 {
   background: none;
   color: #555;
   border-color: #bbb;
-}
-.item-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
 }
 .item-edit-btn {
   flex-shrink: 0;
@@ -877,80 +833,6 @@ button.order-group-title:active {
   margin: 0;
   flex-shrink: 0;
 }
-.link-add-unit {
-  background: none;
-  border: none;
-  color: #1565c0;
-  font-weight: bold;
-  font-size: 14px;
-  text-align: left;
-  padding: 4px 0 0;
-  cursor: pointer;
-}
-.item-threshold {
-  font-size: 0.8em;
-  color: #666;
-}
-.item-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-}
-.item-row .controls {
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  width: 100%;
-}
-.item-side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  width: 100%;
-}
-/* 発注数の表示スタイル */
-.order-amount {
-  font-size: 0.85em;
-  color: #d32f2f;
-  font-weight: bold;
-}
-
-.controls { 
-  display: flex; 
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
-}
-.controls button { 
-  padding: 5px 12px; 
-  font-size: 18px; 
-  border: none; 
-  background: #e0e0e0; 
-  border-radius: 4px; 
-  cursor: pointer; 
-  margin: 0;
-  touch-action: manipulation;
-}
-.controls button:active { 
-  background: #ccc; 
-}
-.count-container {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  width: 100%;
-  margin: 0;
-}
-.count-row {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 44px minmax(3em, auto);
-  align-items: center;
-  column-gap: 6px;
-  width: 100%;
-}
 .count-step {
   min-width: 44px;
   min-height: 44px;
@@ -1008,57 +890,6 @@ button.order-group-title:active {
   width: 88px;
   flex-shrink: 0;
 }
-.stock-spec-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.stock-spec-header,
-.stock-spec-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  align-items: stretch;
-}
-.stock-spec-header span {
-  font-size: 0.72em;
-  color: #666;
-  font-weight: bold;
-  text-align: center;
-  line-height: 1.3;
-  word-break: break-word;
-}
-.stock-spec-row input,
-.stock-spec-row select,
-.stock-spec-unit-readout {
-  width: 100%;
-  min-width: 0;
-  min-height: 48px;
-  padding: 10px 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
-  box-sizing: border-box;
-}
-.stock-spec-row input {
-  text-align: right;
-}
-.stock-spec-row select {
-  cursor: pointer;
-  padding-right: 28px;
-}
-.stock-spec-unit-readout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-color: #e0e0e0;
-  background: #f5f5f5;
-  color: #555;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .count-input { 
   font-size: 1.35em; 
   width: 100%; 
@@ -1092,10 +923,6 @@ button.order-group-title:active {
 }
 .count-input[type=number] {
   -moz-appearance: textfield;
-}
-.target-count {
-  font-size: 0.7em;
-  color: #666;
 }
 
 /* 追加ボタン */
@@ -1181,12 +1008,6 @@ button.order-group-title:active {
   font-size: 0.8em;
   color: #666;
   line-height: 1.45;
-}
-.settings-app-name {
-  margin: 0 0 16px;
-  font-size: 0.8em;
-  color: #888;
-  text-align: center;
 }
 .settings-row {
   display: flex;

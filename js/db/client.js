@@ -1,22 +1,3 @@
-window.CheckStock = window.CheckStock || {};
-CheckStock.db = CheckStock.db || {};
-
-function isMissingColumnError(error) {
-  if (!error) return false;
-  const code = String(error.code || '');
-  if (code === '42703' || code === 'PGRST204') return true;
-  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
-  return /schema cache|column .* does not exist|could not find .* column/i.test(text);
-}
-
-function isMissingRelationError(error) {
-  if (!error) return false;
-  const code = String(error.code || '');
-  if (code === '42P01' || code === 'PGRST205') return true;
-  const text = `${error.message || ''} ${error.details || ''} ${error.hint || ''}`;
-  return /could not find the table|relation .* does not exist|schema cache/i.test(text);
-}
-
 function throwIfError(error) {
   if (error) throw error;
 }
@@ -82,7 +63,3 @@ async function dbDelete(table, configure) {
   throwIfError(error);
   return data || [];
 }
-
-CheckStock.db.errors = { isMissingColumnError, isMissingRelationError, throwIfError };
-CheckStock.db.client = { init: initSupabase, isReady: isCloudReady, get: getSupabaseClient };
-CheckStock.db.query = { select: dbSelect, upsert: dbUpsert, insert: dbInsert, update: dbUpdate, del: dbDelete };

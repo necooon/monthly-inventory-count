@@ -304,6 +304,3 @@ const DbMapper = {
     })).filter(row => row.cycle_id && row.location_id);
   }
 };
-
-CheckStock.db = CheckStock.db || {};
-CheckStock.db.mapper = DbMapper;

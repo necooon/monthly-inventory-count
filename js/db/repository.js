@@ -278,6 +278,3 @@ const DbRepository = {
     return true;
   }
 };
-
-CheckStock.db = CheckStock.db || {};
-CheckStock.db.repository = DbRepository;
