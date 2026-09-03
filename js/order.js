@@ -1,4 +1,3 @@
-const ORDER_VIEW_LABELS = { shopping: '買い物', receipt: '受け取り' };
 const ORDER_EMPTY_MESSAGE = {
   order: '発注が必要なアイテムはありません',
   shopping: '買い物リストは空です',
@@ -10,6 +9,28 @@ const ORDER_HINT = {
 const SELECT_LOHACO_CART_LABEL = 'カートに入れる';
 const SELECT_LIST_ADD_LABEL = 'リストに追加';
 const FULFILL_COMPLETE_LABELS = { shopping: '買った', receipt: '受け取り済み' };
+const FULFILL_PAGES = {
+  shopping: {
+    page: 'shopping',
+    mode: 'shopping',
+    navId: 'nav-shopping',
+    navLabel: 'Shopping List',
+    listId: 'shopping-list',
+    filterId: 'shopping-filters',
+    actionsId: 'shopping-complete-actions',
+    buttonId: 'confirm-shopping-complete-btn'
+  },
+  pickup: {
+    page: 'pickup',
+    mode: 'receipt',
+    navId: 'nav-pickup',
+    navLabel: 'Pick Up',
+    listId: 'pickup-list',
+    filterId: 'pickup-filters',
+    actionsId: 'pickup-complete-actions',
+    buttonId: 'confirm-pickup-complete-btn'
+  }
+};
 let selectCollapsedItemIds = new Set();
 
 function pendingProductName(item) {
@@ -38,7 +59,7 @@ function appendFulfillChecklistRow(parent, item, view) {
   input.setAttribute('aria-label', `${label}を選ぶ`);
   input.checked = false;
   input.onclick = event => event.stopPropagation();
-  input.onchange = syncFulfillCompleteButton;
+  input.onchange = () => syncFulfillCompleteButton(view);
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
@@ -125,24 +146,8 @@ function appendOrderDestGroup(parent, dest, destCount, fillBody) {
   parent.appendChild(group);
 }
 
-function setOrderFulfillmentView(view) {
-  if (view !== 'shopping' && view !== 'receipt') return;
-  orderFulfillmentView = view;
-  persistOrderFulfillmentView();
-  saveAndRender();
-}
-
-function updateOrderSubnav() {
-  const counts = fulfillmentCounts();
-  ['shopping', 'receipt'].forEach(view => {
-    const btn = document.getElementById('order-view-' + view);
-    if (!btn) return;
-    const on = orderFulfillmentView === view;
-    btn.classList.toggle('active', on);
-    btn.setAttribute('aria-selected', on ? 'true' : 'false');
-    const count = counts[view];
-    btn.textContent = count ? `${ORDER_VIEW_LABELS[view]}（${count}）` : ORDER_VIEW_LABELS[view];
-  });
+function fulfillPage(pageKey) {
+  return FULFILL_PAGES[pageKey] || FULFILL_PAGES.shopping;
 }
 
 function renderGroupedFulfillItems(orderDiv, items, view) {
@@ -176,19 +181,20 @@ function setOrderLohacoActionsVisible(visible) {
   if (visible) syncLohacoSelectButtons();
 }
 
-function setFulfillCompleteActionsVisible(visible) {
-  const bar = document.getElementById('fulfill-complete-actions');
-  const page = document.getElementById('page-fulfillment');
+function setFulfillCompleteActionsVisible(pageKey, visible) {
+  const page = fulfillPage(pageKey);
+  const bar = document.getElementById(page.actionsId);
+  const pageEl = document.getElementById(`page-${page.page}`);
   if (bar) bar.hidden = !visible;
-  if (page) page.classList.toggle('fulfill-complete-step', !!visible);
-  if (visible) syncFulfillCompleteButton();
+  if (pageEl) pageEl.classList.toggle('fulfill-complete-step', !!visible);
+  if (visible) syncFulfillCompleteButton(page.mode);
 }
 
-function fulfillCheckedItems() {
-  const mode = orderFulfillmentView;
+function fulfillCheckedItems(mode) {
+  const page = Object.values(FULFILL_PAGES).find(entry => entry.mode === mode) || FULFILL_PAGES.shopping;
   const items = [];
   const seen = new Set();
-  document.querySelectorAll('#fulfill-list .order-lohaco-check:checked').forEach(input => {
+  document.querySelectorAll(`#${page.listId} .order-lohaco-check:checked`).forEach(input => {
     const item = findItemById(input.dataset.itemId);
     if (!item || itemPendingMode(item) !== mode) return;
     const id = String(item.id);
@@ -199,18 +205,20 @@ function fulfillCheckedItems() {
   return items;
 }
 
-function syncFulfillCompleteButton() {
-  const n = fulfillCheckedItems().length;
-  const btn = document.getElementById('confirm-fulfill-complete-btn');
+function syncFulfillCompleteButton(mode) {
+  const page = Object.values(FULFILL_PAGES).find(entry => entry.mode === mode) || FULFILL_PAGES.shopping;
+  const n = fulfillCheckedItems(page.mode).length;
+  const btn = document.getElementById(page.buttonId);
   if (!btn) return;
-  const label = FULFILL_COMPLETE_LABELS[orderFulfillmentView] || FULFILL_COMPLETE_LABELS.shopping;
+  const label = FULFILL_COMPLETE_LABELS[page.mode] || FULFILL_COMPLETE_LABELS.shopping;
   btn.disabled = n === 0;
   btn.textContent = labeledCount(label, n);
 }
 
-function completeCheckedFulfillmentItems() {
-  const mode = orderFulfillmentView;
-  const items = fulfillCheckedItems();
+function completeCheckedFulfillmentItems(pageKey) {
+  const page = fulfillPage(pageKey);
+  const mode = page.mode;
+  const items = fulfillCheckedItems(mode);
   if (!items.length) return;
   lastOrderUndo = items.map(item => {
     const snap = captureFulfillment(item);
@@ -307,28 +315,32 @@ function renderPlaceOrderList() {
   setOrderLohacoActionsVisible(true);
 }
 
-function renderFulfillmentList() {
-  const orderDiv = document.getElementById('fulfill-list');
-  const filterDiv = document.getElementById('fulfill-filters');
+function renderFulfillmentPage(pageKey) {
+  const page = fulfillPage(pageKey);
+  const orderDiv = document.getElementById(page.listId);
+  const filterDiv = document.getElementById(page.filterId);
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
-  updateOrderSubnav();
   orderCategoryFilter = bindOrderViewFilters(filterDiv);
-  const view = orderFulfillmentView;
-  renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(view), view);
+  renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(page.mode), page.mode);
   const hasRows = !!orderDiv.querySelector('.order-lohaco-check');
-  setFulfillCompleteActionsVisible(hasRows);
+  setFulfillCompleteActionsVisible(page.page, hasRows);
+}
+
+function updateFulfillNavCounts(counts) {
+  Object.values(FULFILL_PAGES).forEach(page => {
+    const nav = document.getElementById(page.navId);
+    if (!nav) return;
+    const n = counts[page.mode];
+    nav.textContent = n ? `${page.navLabel}（${n}）` : page.navLabel;
+  });
 }
 
 function renderOrderList() {
   renderPlaceOrderList();
-  renderFulfillmentList();
+  Object.keys(FULFILL_PAGES).forEach(renderFulfillmentPage);
   const counts = fulfillmentCounts();
-  const fulfillNav = document.getElementById('nav-fulfillment');
-  if (fulfillNav) {
-    const n = counts.shopping + counts.receipt;
-    fulfillNav.textContent = n ? `Stock（${n}）` : 'Stock';
-  }
+  updateFulfillNavCounts(counts);
   const orderNav = document.getElementById('nav-order');
   if (orderNav) {
     orderNav.textContent = counts.order ? `Select（${counts.order}）` : 'Select';
