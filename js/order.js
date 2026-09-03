@@ -9,89 +9,48 @@ const ORDER_HINT = {
 };
 const SELECT_LOHACO_CART_LABEL = 'カートに入れる';
 const SELECT_LIST_ADD_LABEL = 'リストに追加';
-const SHOPPING_BOUGHT_LABEL = '買った';
+const FULFILL_COMPLETE_LABELS = { shopping: '買った', receipt: '受け取り済み' };
 let selectCollapsedItemIds = new Set();
 
-function pendingProductNote(item) {
+function pendingProductDisplayName(item) {
   const product = findProductById(item.pendingProductId);
-  return product ? `<span class="item-last-order">商品: ${product.name}</span>` : '';
+  return product && product.name ? product.name : item.name;
 }
 
-function appendShoppingFulfillItemRow(parent, item) {
+function fulfillRowLabel(item, view) {
+  return view === 'receipt' ? pendingProductDisplayName(item) : item.name;
+}
+
+function appendFulfillChecklistRow(parent, item, view) {
   const itemDiv = document.createElement('div');
   itemDiv.className = 'item order-place-item order-lohaco-item order-fulfill-card';
   itemDiv.dataset.itemId = item.id;
+  const label = fulfillRowLabel(item, view);
 
   const row = document.createElement('div');
-  row.className = 'order-lohaco-row';
+  row.className = view === 'receipt' ? 'order-lohaco-row order-fulfill-name-row' : 'order-lohaco-row';
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.className = 'order-lohaco-check';
   input.dataset.itemId = item.id;
-  input.setAttribute('aria-label', `${item.name}を選ぶ`);
+  input.setAttribute('aria-label', `${label}を選ぶ`);
   input.checked = false;
   input.onclick = event => event.stopPropagation();
-  input.onchange = syncShoppingCompleteButton;
+  input.onchange = syncFulfillCompleteButton;
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'order-lohaco-main';
-  trigger.setAttribute('aria-label', `${item.name}の操作`);
+  trigger.setAttribute('aria-label', `${label}の操作`);
   const info = document.createElement('div');
   info.className = 'item-info';
-  info.innerHTML = orderPlaceInfoHtml(item, { shoppingLayout: true });
+  info.innerHTML = orderPlaceInfoHtml(item, view === 'receipt' ? { receiptLayout: true } : { shoppingLayout: true });
   trigger.appendChild(info);
   trigger.onclick = () => handleFulfillmentItemTap(item.id);
 
   row.appendChild(input);
   row.appendChild(trigger);
   itemDiv.appendChild(row);
-  parent.appendChild(itemDiv);
-}
-
-function appendFulfillItemRow(parent, item, dest) {
-  const orderAmount = itemOrderQty(item);
-  const itemDiv = document.createElement('div');
-  itemDiv.className = 'item order-place-item order-item order-fulfill-card';
-  const lastOrder = formatLastOrder(item.lastOrderedOn);
-  const destLabel = dest && dest !== UNSET_PURCHASE_DEST_LABEL ? dest : '';
-  const destNote = destLabel ? `<span class="item-last-order">購入先: ${destLabel}（${destKindLabel(destLabel)}）</span>` : '';
-  const info = document.createElement('div');
-  info.className = 'item-info';
-  info.innerHTML = `
-      <span class="item-name"><span class="item-name-text">${item.name}</span></span>
-      ${pendingProductNote(item)}
-      ${destNote}
-      <span class="item-last-order">前回発注: ${lastOrder || 'なし'}</span>
-      <span class="order-amount">買う数: ${formatQty(orderAmount, item.unit)}（現在: ${formatQty(item.count, item.unit)} / 必要: ${formatQty(item.target, item.unit)}）</span>
-  `;
-  const controls = document.createElement('div');
-  controls.className = 'controls order-place-form';
-  const isLohaco = normalizePurchaseDest(dest) === LOHACO_DEST_NAME;
-  const hideLohacoReceiptActions = orderFulfillmentView === 'receipt' && isLohaco;
-  if (!hideLohacoReceiptActions) {
-    const onlineActions = mountOnlineAccessActions(
-      item,
-      findProductById(item.pendingProductId),
-      dest,
-      { includeSearch: false, includeCartAdd: isLohaco }
-    );
-    if (onlineActions) controls.appendChild(onlineActions);
-    if (isLohaco) {
-      const actionBar = onlineActions || document.createElement('div');
-      if (!onlineActions) {
-        actionBar.className = 'order-online-actions';
-        controls.appendChild(actionBar);
-      }
-      actionBar.appendChild(createOrderExternalLink(lohacoCartViewUrl(), 'LOHACOカートを見る', 'order-online-link'));
-    }
-  }
-  itemDiv.appendChild(info);
-  if (controls.childElementCount) itemDiv.appendChild(controls);
-  itemDiv.addEventListener('click', event => {
-    if (event.target.closest('.controls, a, button')) return;
-    handleFulfillmentItemTap(item.id);
-  });
   parent.appendChild(itemDiv);
 }
 
@@ -194,7 +153,7 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
     orderDiv,
     destGroups,
     [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL],
-    view === 'shopping' ? appendShoppingFulfillItemRow : appendFulfillItemRow
+    (parent, item) => appendFulfillChecklistRow(parent, item, view)
   );
 }
 
@@ -215,20 +174,21 @@ function setOrderLohacoActionsVisible(visible) {
   if (visible) syncLohacoSelectButtons();
 }
 
-function setShoppingCompleteActionsVisible(visible) {
-  const bar = document.getElementById('fulfill-shopping-actions');
+function setFulfillCompleteActionsVisible(visible) {
+  const bar = document.getElementById('fulfill-complete-actions');
   const page = document.getElementById('page-fulfillment');
   if (bar) bar.hidden = !visible;
-  if (page) page.classList.toggle('shopping-complete-step', !!visible);
-  if (visible) syncShoppingCompleteButton();
+  if (page) page.classList.toggle('fulfill-complete-step', !!visible);
+  if (visible) syncFulfillCompleteButton();
 }
 
-function shoppingCheckedItems() {
+function fulfillCheckedItems() {
+  const mode = orderFulfillmentView;
   const items = [];
   const seen = new Set();
   document.querySelectorAll('#fulfill-list .order-lohaco-check:checked').forEach(input => {
     const item = findItemById(input.dataset.itemId);
-    if (!item || itemPendingMode(item) !== 'shopping') return;
+    if (!item || itemPendingMode(item) !== mode) return;
     const id = String(item.id);
     if (seen.has(id)) return;
     seen.add(id);
@@ -237,16 +197,18 @@ function shoppingCheckedItems() {
   return items;
 }
 
-function syncShoppingCompleteButton() {
-  const n = shoppingCheckedItems().length;
-  const btn = document.getElementById('confirm-shopping-complete-btn');
+function syncFulfillCompleteButton() {
+  const n = fulfillCheckedItems().length;
+  const btn = document.getElementById('confirm-fulfill-complete-btn');
   if (!btn) return;
+  const label = FULFILL_COMPLETE_LABELS[orderFulfillmentView] || FULFILL_COMPLETE_LABELS.shopping;
   btn.disabled = n === 0;
-  btn.textContent = labeledCount(SHOPPING_BOUGHT_LABEL, n);
+  btn.textContent = labeledCount(label, n);
 }
 
-function completeCheckedShoppingItems() {
-  const items = shoppingCheckedItems();
+function completeCheckedFulfillmentItems() {
+  const mode = orderFulfillmentView;
+  const items = fulfillCheckedItems();
   if (!items.length) return;
   lastOrderUndo = items.map(item => {
     const snap = captureFulfillment(item);
@@ -254,11 +216,9 @@ function completeCheckedShoppingItems() {
     return snap;
   });
   saveAndRender();
-  showUndoToast(
-    items.length === 1
-      ? `「${items[0].name}」を買いました`
-      : `${items.length}件を買いました`
-  );
+  const done = mode === 'receipt' ? '受け取り済みにしました' : '買いました';
+  const name = fulfillRowLabel(items[0], mode);
+  showUndoToast(items.length === 1 ? `「${name}」を${done}` : `${items.length}件を${done}`);
 }
 
 function lohacoSelectCheckedRows() {
@@ -354,8 +314,8 @@ function renderFulfillmentList() {
   orderCategoryFilter = bindOrderViewFilters(filterDiv);
   const view = orderFulfillmentView;
   renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(view), view);
-  const hasShoppingRows = view === 'shopping' && !!orderDiv.querySelector('.order-lohaco-check');
-  setShoppingCompleteActionsVisible(hasShoppingRows);
+  const hasRows = !!orderDiv.querySelector('.order-lohaco-check');
+  setFulfillCompleteActionsVisible(hasRows);
 }
 
 function renderOrderList() {
