@@ -15,19 +15,19 @@ function migrateCycleNames(list) {
   return next.length ? next : [...DEFAULT_CYCLES];
 }
 
-function initCheckStockState() {
+function migrateCurrentPage() {
   let currentPage = localStorage.getItem(StorageKeys.CURRENT_PAGE) || 'inventory';
   if (currentPage === 'items') currentPage = 'settings';
-  const rawOrderView = localStorage.getItem(StorageKeys.ORDER_VIEW);
-  if (currentPage === 'order' && (rawOrderView === 'shopping' || rawOrderView === 'receipt')) {
-    currentPage = 'fulfillment';
+  if (currentPage === 'fulfillment') {
+    const rawOrderView = localStorage.getItem(StorageKeys.ORDER_VIEW);
+    currentPage = rawOrderView === 'receipt' ? 'pickup' : 'shopping';
   }
   if (!PAGE_IDS.includes(currentPage)) currentPage = 'inventory';
+  return currentPage;
+}
 
-  let orderFulfillmentView = loadOrderFulfillmentView();
-  if (currentPage === 'fulfillment' && orderFulfillmentView !== 'shopping' && orderFulfillmentView !== 'receipt') {
-    orderFulfillmentView = 'shopping';
-  }
+function initCheckStockState() {
+  const currentPage = migrateCurrentPage();
 
   let customPlaces = loadNameList(StorageKeys.PLACES, loadNameList(StorageKeys.LOCATIONS, DEFAULT_PLACES));
   customPlaces = customPlaces.filter(loc => loc !== REMOVED_LOCATION && !CATEGORY_PLACE_NAMES.has(loc));
@@ -63,8 +63,7 @@ function initCheckStockState() {
       order: {
         category: ALL_FILTER,
         collapsedDests: loadOrderCollapsedDests()
-      },
-      fulfillment: { view: orderFulfillmentView }
+      }
     },
     ui: {
       currentPage,
@@ -122,7 +121,6 @@ function bindGlobalState() {
     catalogCategoryFilter: 'filters.catalog.category',
     orderCategoryFilter: 'filters.order.category',
     orderCollapsedDests: 'filters.order.collapsedDests',
-    orderFulfillmentView: 'filters.fulfillment.view',
     currentPage: 'ui.currentPage',
     selectedItemId: 'ui.selectedItemId',
     editingItemId: 'ui.editingItemId',

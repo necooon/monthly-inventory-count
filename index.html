@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=82">
+<link rel="stylesheet" href="styles.css?v=83">
 </head>
 <body>
   <header class="app-header">
@@ -14,7 +14,8 @@
   <nav class="tab-bar" aria-label="画面切替">
     <button type="button" id="nav-inventory" onclick="showPage('inventory')">Check</button>
     <button type="button" id="nav-order" onclick="showPage('order')">Select</button>
-    <button type="button" id="nav-fulfillment" onclick="showPage('fulfillment')">Stock</button>
+    <button type="button" id="nav-shopping" onclick="showPage('shopping')">Shopping List</button>
+    <button type="button" id="nav-pickup" onclick="showPage('pickup')">Pick Up</button>
     <button type="button" id="nav-settings" onclick="showPage('settings')" aria-label="設定">
       <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54A.49.49 0 0 0 13.9 2h-3.8a.49.49 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64L4.86 10.7c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.71 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.23 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
@@ -48,16 +49,21 @@
   </div>
   </div>
 
-  <!-- 買い物・受け取り -->
-  <div class="page" id="page-fulfillment">
-  <div class="order-subnav" role="tablist" aria-label="買い物と受け取り">
-    <button type="button" id="order-view-shopping" class="active" role="tab" aria-selected="true" onclick="setOrderFulfillmentView('shopping')">買い物</button>
-    <button type="button" id="order-view-receipt" role="tab" aria-selected="false" onclick="setOrderFulfillmentView('receipt')">受け取り</button>
+  <!-- 買い物 -->
+  <div class="page" id="page-shopping">
+  <div class="filter-bar" id="shopping-filters"></div>
+  <div id="shopping-list"></div>
+  <div class="order-lohaco-actions" id="shopping-complete-actions" hidden>
+    <button type="button" class="order-action-btn" id="confirm-shopping-complete-btn" onclick="completeCheckedFulfillmentItems('shopping')" disabled>買った</button>
   </div>
-  <div class="filter-bar" id="fulfill-filters"></div>
-  <div id="fulfill-list"></div>
-  <div class="order-lohaco-actions" id="fulfill-complete-actions" hidden>
-    <button type="button" class="order-action-btn" id="confirm-fulfill-complete-btn" onclick="completeCheckedFulfillmentItems()" disabled>買った</button>
+  </div>
+
+  <!-- 受け取り -->
+  <div class="page" id="page-pickup">
+  <div class="filter-bar" id="pickup-filters"></div>
+  <div id="pickup-list"></div>
+  <div class="order-lohaco-actions" id="pickup-complete-actions" hidden>
+    <button type="button" class="order-action-btn" id="confirm-pickup-complete-btn" onclick="completeCheckedFulfillmentItems('pickup')" disabled>受け取り済み</button>
   </div>
   </div>
 
@@ -160,13 +166,13 @@
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/db/localStore.js?v=75"></script>
-<script src="js/constants.js?v=78"></script>
+<script src="js/db/localStore.js?v=76"></script>
+<script src="js/constants.js?v=79"></script>
 <script src="js/fulfillment.js?v=77"></script>
 <script src="js/items.js?v=76"></script>
 <script src="js/masters.js?v=76"></script>
 <script src="js/products.js?v=76"></script>
-<script src="js/state.js?v=76"></script>
+<script src="js/state.js?v=77"></script>
 <script src="js/productUrl.js?v=75"></script>
 <script src="js/productMeta.js?v=78"></script>
 <script src="js/db/client.js?v=75"></script>
@@ -182,7 +188,7 @@
 <script src="js/ui/catalog.js?v=75"></script>
 <script src="js/ui/inventory.js?v=76"></script>
 <script src="js/ui/products.js?v=76"></script>
-<script src="js/order.js?v=81"></script>
+<script src="js/order.js?v=82"></script>
 <script src="js/orderPlace.js?v=79"></script>
 <script src="js/gestures.js?v=75"></script>
 <script src="js/boot.js?v=75"></script>

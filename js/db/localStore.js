@@ -89,16 +89,6 @@ function loadSettingsOpenSections() {
   return new Set(['items']);
 }
 
-function persistOrderFulfillmentView() {
-  localStorage.setItem(StorageKeys.ORDER_VIEW, orderFulfillmentView);
-}
-
-function loadOrderFulfillmentView() {
-  const value = localStorage.getItem(StorageKeys.ORDER_VIEW);
-  if (value === 'shopping' || value === 'receipt') return value;
-  return 'shopping';
-}
-
 window.CheckStock = window.CheckStock || {};
 CheckStock.db = CheckStock.db || {};
 CheckStock.db.local = {
@@ -114,7 +104,5 @@ CheckStock.db.local = {
   loadSettingsOpenSections,
   persistInventoryCollapsedPlaces,
   persistOrderCollapsedDests,
-  persistSettingsOpenSections,
-  persistOrderFulfillmentView,
-  loadOrderFulfillmentView
+  persistSettingsOpenSections
 };
