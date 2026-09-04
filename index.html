@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=88">
+<link rel="stylesheet" href="styles.css?v=89">
 </head>
 <body>
   <header class="app-header">
@@ -12,14 +12,59 @@
   </header>
 
   <nav class="tab-bar" aria-label="画面切替">
-    <button type="button" id="nav-inventory" onclick="showPage('inventory')">Check</button>
-    <button type="button" id="nav-order" onclick="showPage('order')">Select</button>
-    <button type="button" id="nav-shopping" onclick="showPage('shopping')">Shopping List</button>
-    <button type="button" id="nav-pickup" onclick="showPage('pickup')">Pick Up</button>
-    <button type="button" id="nav-settings" onclick="showPage('settings')" aria-label="設定">
-      <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.07 7.07 0 0 0-1.63-.94l-.36-2.54A.49.49 0 0 0 13.9 2h-3.8a.49.49 0 0 0-.49.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.48a.5.5 0 0 0 .12.64L4.86 10.7c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.16a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.39 1.04.71 1.63.94l.36 2.54c.05.24.25.42.49.42h3.8c.24 0 .44-.18.49-.42l.36-2.54c.59-.23 1.13-.55 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
-      </svg>
+    <button type="button" id="nav-inventory" onclick="showPage('inventory')" aria-label="Check">
+      <span class="tab-icon-wrap">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="8" y="2" width="8" height="4" rx="1"/>
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+          <path d="m9 14 2 2 4-4"/>
+        </svg>
+      </span>
+      <span class="tab-label">Check</span>
+    </button>
+    <button type="button" id="nav-order" onclick="showPage('order')" aria-label="Select">
+      <span class="tab-icon-wrap">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m3 17 2 2 4-4"/>
+          <path d="m3 7 2 2 4-4"/>
+          <path d="M13 6h8"/>
+          <path d="M13 12h8"/>
+          <path d="M13 18h8"/>
+        </svg>
+        <span class="tab-badge" hidden></span>
+      </span>
+      <span class="tab-label">Select</span>
+    </button>
+    <button type="button" id="nav-shopping" onclick="showPage('shopping')" aria-label="Shopping">
+      <span class="tab-icon-wrap">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+          <path d="M3 6h18"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span class="tab-badge" hidden></span>
+      </span>
+      <span class="tab-label">Shopping</span>
+    </button>
+    <button type="button" id="nav-pickup" onclick="showPage('pickup')" aria-label="Pick Up">
+      <span class="tab-icon-wrap">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+          <path d="m3.3 7 8.7 5 8.7-5"/>
+          <path d="M12 22V12"/>
+        </svg>
+        <span class="tab-badge" hidden></span>
+      </span>
+      <span class="tab-label">Pick Up</span>
+    </button>
+    <button type="button" id="nav-settings" onclick="showPage('settings')" aria-label="Settings">
+      <span class="tab-icon-wrap">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </span>
+      <span class="tab-label">Settings</span>
     </button>
   </nav>
 
@@ -188,7 +233,7 @@
 <script src="js/ui/catalog.js?v=76"></script>
 <script src="js/ui/inventory.js?v=77"></script>
 <script src="js/ui/products.js?v=76"></script>
-<script src="js/order.js?v=82"></script>
+<script src="js/order.js?v=83"></script>
 <script src="js/orderPlace.js?v=79"></script>
 <script src="js/gestures.js?v=75"></script>
 <script src="js/boot.js?v=75"></script>
