@@ -388,7 +388,7 @@ h1 {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
 }
 
 /* 場所絞り込み（10件以上でも扱いやすいセレクト） */
@@ -456,8 +456,7 @@ h1 {
   background: white; 
   margin-bottom: 10px; 
   border-radius: 8px; 
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  border: 2px solid transparent;
+  border: 1px solid #e0e0e0;
   cursor: pointer;
 }
 .item.empty { 
@@ -483,7 +482,6 @@ h1 {
   border: 1px solid #e0e7ef;
   border-left: 4px solid #1565c0;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(21, 101, 192, 0.08);
   background: #fff;
   overflow: hidden;
 }
@@ -1005,7 +1003,7 @@ button.order-group-title:active {
   padding: 10px 12px;
   margin-bottom: 8px;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  border: 1px solid #e0e0e0;
 }
 .settings-row-name {
   flex: 1;
