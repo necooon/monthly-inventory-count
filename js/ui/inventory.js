@@ -201,9 +201,8 @@ function renderInventory() {
     const body = document.createElement('div');
     body.className = 'order-group-items';
     placeItems.forEach(item => {
-      const itemNeedsOrder = needsOrderAction(item);
       const itemDiv = document.createElement('div');
-      itemDiv.className = `item inventory-item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
+      itemDiv.className = itemCardClassName(item, 'inventory-item');
       itemDiv.dataset.itemId = item.id;
       const countDisplay = item.entered ? String(item.count) : '';
       const showCount = primaryCountPlace(item) === place;
@@ -216,10 +215,7 @@ function renderInventory() {
       itemDiv.innerHTML = `
         <div class="inventory-line">
           <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
-          <span class="item-name">
-            <span class="item-name-text">${item.name}</span>
-            ${itemStatusBadgeHtml(item)}
-          </span>
+          ${itemNameHtml(item)}
           <div class="inventory-count">${countControls}</div>
         </div>
       `;

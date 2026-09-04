@@ -92,6 +92,14 @@ function isComplete(item) {
   return item.entered && item.count > item.orderThreshold;
 }
 
+function itemCardStatus(item) {
+  const pending = itemPendingMode(item);
+  if (pending) return pending;
+  if (needsOrder(item)) return 'stock-empty';
+  if (isComplete(item)) return 'stock-ok';
+  return '';
+}
+
 function syncItemFlags(item) {
   item.complete = isComplete(item);
 }

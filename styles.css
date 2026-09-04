@@ -461,10 +461,10 @@ h1 {
   border: 1px solid #e0e0e0;
   cursor: pointer;
 }
-.item.empty { 
+.item.stock-empty { 
   border-left: 4px solid #f44336; 
 }
-.item.complete {
+.item.stock-ok {
   border-left: 4px solid #43a047;
 }
 .item.selected {

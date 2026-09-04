@@ -210,13 +210,27 @@ function syncUnitReadouts() {
   if (editThreshold) editThreshold.textContent = editUnit;
 }
 
+const ITEM_STATUS_BADGES = {
+  shopping: { className: 'order-badge pending-shopping', label: '買い物中' },
+  receipt: { className: 'order-badge pending-receipt', label: '受け取り待ち' },
+  'stock-empty': { className: 'order-badge stock-empty', label: '在庫切れ' },
+  'stock-ok': { className: 'order-badge stock-ok', label: '在庫OK' }
+};
+
+function itemCardClassName(item, extraClass) {
+  const status = itemCardStatus(item);
+  const stockClass = status === 'stock-empty' || status === 'stock-ok' ? status : '';
+  const selected = String(selectedItemId) === String(item.id) ? 'selected' : '';
+  return ['item', extraClass, stockClass, selected].filter(Boolean).join(' ');
+}
+
 function itemStatusBadgeHtml(item) {
-  const pending = itemPendingMode(item);
-  if (pending === 'shopping') return '<span class="order-badge pending-shopping">買い物中</span>';
-  if (pending === 'receipt') return '<span class="order-badge pending-receipt">受け取り待ち</span>';
-  if (needsOrderAction(item)) return '<span class="order-badge stock-empty">在庫切れ</span>';
-  if (item.complete) return '<span class="order-badge stock-ok">在庫OK</span>';
-  return '';
+  const spec = ITEM_STATUS_BADGES[itemCardStatus(item)];
+  return spec ? `<span class="${spec.className}">${spec.label}</span>` : '';
+}
+
+function itemNameHtml(item) {
+  return `<span class="item-name"><span class="item-name-text">${item.name}</span>${itemStatusBadgeHtml(item)}</span>`;
 }
 
 function formatQty(n, unit) {
