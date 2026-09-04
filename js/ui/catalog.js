@@ -14,18 +14,14 @@ function renderItemsCatalog() {
     return;
   }
   items.forEach(item => {
-    const itemNeedsOrder = needsOrderAction(item);
     const itemDiv = document.createElement('div');
-    itemDiv.className = `item ${itemNeedsOrder ? 'empty' : ''} ${item.complete ? 'complete' : ''} ${String(selectedItemId) === String(item.id) ? 'selected' : ''}`;
+    itemDiv.className = itemCardClassName(item);
     itemDiv.dataset.itemId = item.id;
     const lastOrderText = formatLastOrder(item.lastOrderedOn);
     const stockText = item.entered ? formatQty(item.count, item.unit) : '未入力';
     itemDiv.innerHTML = `
       <div class="item-info">
-        <span class="item-name">
-          <span class="item-name-text">${item.name}</span>
-          ${itemStatusBadgeHtml(item)}
-        </span>
+        ${itemNameHtml(item)}
         ${itemFieldsHtml(item)}
         <span class="item-meta">在庫: ${stockText}　必要: ${formatQty(item.target, item.unit)}　補充基準: ${formatQty(item.orderThreshold, item.unit)}</span>
         ${lastOrderText ? `<span class="item-last-order">前回発注: ${lastOrderText}</span>` : ''}
