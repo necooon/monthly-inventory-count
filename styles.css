@@ -378,11 +378,9 @@ h1 {
 }
 .order-badge.pending-shopping {
   background-color: #ef6c00;
-  animation: none;
 }
 .order-badge.pending-receipt {
   background-color: #1565c0;
-  animation: none;
 }
 .empty-message {
   text-align: center;
@@ -615,7 +613,7 @@ h1 {
   color: #666;
 }
 
-/* 発注バッジのデザイン */
+/* 買い物中／受け取り待ちバッジのデザイン */
 .order-badge {
   background-color: #f44336;
   color: white;
@@ -624,16 +622,6 @@ h1 {
   padding: 3px 6px;
   border-radius: 4px;
   margin-left: 10px;
-  animation: blink 1s infinite alternate;
-}
-@keyframes blink {
-  from { opacity: 1; }
-  to { opacity: 0.5; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .order-badge {
-    animation: none;
-  }
 }
 
 .item-location-wrap {
