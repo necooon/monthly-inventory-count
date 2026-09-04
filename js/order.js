@@ -14,7 +14,7 @@ const FULFILL_PAGES = {
     page: 'shopping',
     mode: 'shopping',
     navId: 'nav-shopping',
-    navLabel: 'Shopping List',
+    navLabel: 'Shopping',
     listId: 'shopping-list',
     filterId: 'shopping-filters',
     actionsId: 'shopping-complete-actions',
@@ -327,12 +327,19 @@ function renderFulfillmentPage(pageKey) {
   setFulfillCompleteActionsVisible(page.page, hasRows);
 }
 
+function setNavCount(nav, baseLabel, n) {
+  if (!nav) return;
+  const badge = nav.querySelector('.tab-badge');
+  if (badge) {
+    badge.hidden = !n;
+    badge.textContent = n ? String(n) : '';
+  }
+  nav.setAttribute('aria-label', n ? `${baseLabel}、${n}件` : baseLabel);
+}
+
 function updateFulfillNavCounts(counts) {
   Object.values(FULFILL_PAGES).forEach(page => {
-    const nav = document.getElementById(page.navId);
-    if (!nav) return;
-    const n = counts[page.mode];
-    nav.textContent = n ? `${page.navLabel}（${n}）` : page.navLabel;
+    setNavCount(document.getElementById(page.navId), page.navLabel, counts[page.mode]);
   });
 }
 
@@ -341,10 +348,7 @@ function renderOrderList() {
   Object.keys(FULFILL_PAGES).forEach(renderFulfillmentPage);
   const counts = fulfillmentCounts();
   updateFulfillNavCounts(counts);
-  const orderNav = document.getElementById('nav-order');
-  if (orderNav) {
-    orderNav.textContent = counts.order ? `Select（${counts.order}）` : 'Select';
-  }
+  setNavCount(document.getElementById('nav-order'), 'Select', counts.order);
 }
 
 function hideUndoToast() {

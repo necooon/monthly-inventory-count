@@ -6,7 +6,7 @@ html {
 
 body { 
   font-family: sans-serif; 
-  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(72px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
   max-width: 560px; 
   margin: 0 auto;
   min-height: 100dvh;
@@ -51,17 +51,18 @@ h1 {
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tab-bar button {
-  min-height: 52px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   border: none;
   background: none;
-  font-size: 12px;
-  font-weight: bold;
   color: #666;
-  padding: 8px 4px;
+  padding: 6px 4px 8px;
   cursor: pointer;
   touch-action: manipulation;
-  white-space: normal;
-  line-height: 1.2;
 }
 .tab-bar button.active {
   color: #1565c0;
@@ -70,11 +71,39 @@ h1 {
   outline: 2px solid #1565c0;
   outline-offset: -2px;
 }
-.tab-bar .tab-icon {
-  display: block;
-  margin: 0 auto;
+.tab-icon-wrap {
+  position: relative;
+  display: inline-flex;
   width: 22px;
   height: 22px;
+}
+.tab-bar .tab-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+}
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.tab-badge {
+  position: absolute;
+  top: -5px;
+  right: -9px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e53935;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
 }
 
 .page { display: none; touch-action: pan-y; }
@@ -125,7 +154,7 @@ h1 {
 }
 .order-lohaco-actions {
   position: sticky;
-  bottom: calc(60px + env(safe-area-inset-bottom));
+  bottom: calc(68px + env(safe-area-inset-bottom));
   z-index: 50;
   display: flex;
   flex-direction: row;
@@ -1244,7 +1273,7 @@ button.order-group-title:active {
   display: none;
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom) + 12px);
+  bottom: calc(80px + env(safe-area-inset-bottom) + 12px);
   transform: translateX(-50%);
   width: calc(100% - 24px);
   max-width: 536px;
