@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=90">
+<link rel="stylesheet" href="styles.css?v=91">
 </head>
 <body>
   <header class="app-header">
@@ -118,7 +118,9 @@
       <summary id="settings-items-heading">アイテム</summary>
       <p class="settings-hint">登録した品目の確認・編集ができます。</p>
       <div class="filter-bar" id="items-filters"></div>
-      <button class="open-modal-btn" onclick="openModal()">＋ 新しいアイテムを追加</button>
+      <button type="button" class="add-item-fab" onclick="openModal()" aria-label="新しいアイテムを追加">
+        <span aria-hidden="true">＋</span>
+      </button>
       <div id="item-catalog-list"></div>
     </details>
     <details class="settings-section" data-settings-section="products" aria-labelledby="settings-products-heading">
@@ -230,7 +232,7 @@
 <script src="js/ui/modals.js?v=78"></script>
 <script src="js/ui/forms.js?v=86"></script>
 <script src="js/ui/filters.js?v=76"></script>
-<script src="js/ui/catalog.js?v=76"></script>
+<script src="js/ui/catalog.js?v=77"></script>
 <script src="js/ui/inventory.js?v=77"></script>
 <script src="js/ui/products.js?v=76"></script>
 <script src="js/order.js?v=83"></script>

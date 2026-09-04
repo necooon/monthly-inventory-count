@@ -981,6 +981,38 @@ button.order-group-title:active {
   min-height: 48px;
   touch-action: manipulation;
 }
+.add-item-fab {
+  position: fixed;
+  z-index: 850;
+  right: max(16px, env(safe-area-inset-right), calc(50vw - 280px + 16px));
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--brand-shadow);
+  touch-action: manipulation;
+}
+.add-item-fab:active {
+  background: var(--brand-pressed);
+}
+.add-item-fab:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
+.settings-section[data-settings-section="items"][open] #item-catalog-list {
+  padding-bottom: 72px;
+}
 .inventory-action-row {
   display: flex;
   flex-wrap: wrap;
