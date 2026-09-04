@@ -1,5 +1,12 @@
 *, *::before, *::after { box-sizing: border-box; }
 
+:root {
+  --brand: #1565c0;
+  --brand-pressed: #0d47a1;
+  --brand-soft: #e3f2fd;
+  --brand-shadow: rgba(21, 101, 192, 0.28);
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }
@@ -182,10 +189,10 @@ h1 {
 .order-skip-btn {
   min-height: 44px;
   padding: 8px 12px;
-  border: 1px solid #90a4ae;
+  border: 2px solid var(--brand);
   border-radius: 8px;
-  background: white;
-  color: #455a64;
+  background: transparent;
+  color: var(--brand);
   font-weight: bold;
   font-size: 13px;
   cursor: pointer;
@@ -193,13 +200,16 @@ h1 {
   width: 100%;
 }
 .order-skip-btn:focus-visible {
-  outline: 2px solid #1565c0;
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
+.order-skip-btn:not(:disabled):active {
+  background: var(--brand-soft);
+}
 .order-skip-btn:disabled {
-  color: #b0bec5;
-  border-color: #eceff1;
-  background: #fafafa;
+  color: var(--brand);
+  border-color: var(--brand);
+  background: transparent;
   cursor: not-allowed;
 }
 .order-lohaco-item {
@@ -314,18 +324,22 @@ h1 {
   padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  background: #1565c0;
-  color: white;
+  background: var(--brand);
+  color: #fff;
   font-weight: bold;
   font-size: 13px;
   cursor: pointer;
   touch-action: manipulation;
   white-space: nowrap;
   width: 100%;
+  box-shadow: 0 2px 6px var(--brand-shadow);
+}
+.order-action-btn:not(:disabled):active {
+  background: var(--brand-pressed);
 }
 .order-action-btn:disabled {
-  background: #b0bec5;
-  color: #eceff1;
+  background: var(--brand);
+  color: #fff;
   cursor: not-allowed;
 }
 .order-field-label {
@@ -333,9 +347,6 @@ h1 {
   font-weight: bold;
   color: #666;
   letter-spacing: 0.02em;
-}
-.order-action-btn:not(:disabled) {
-  box-shadow: 0 2px 4px rgba(21, 101, 192, 0.2);
 }
 .order-place-head {
   display: flex;
