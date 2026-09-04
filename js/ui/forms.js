@@ -214,7 +214,6 @@ function itemStatusBadgeHtml(item) {
   const pending = itemPendingMode(item);
   if (pending === 'shopping') return '<span class="order-badge pending-shopping">買い物中</span>';
   if (pending === 'receipt') return '<span class="order-badge pending-receipt">受け取り待ち</span>';
-  if (needsOrder(item)) return '<span class="order-badge">発注</span>';
   return '';
 }
 
