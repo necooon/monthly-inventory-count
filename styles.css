@@ -335,8 +335,9 @@ h1 {
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0;
-  font-size: 0.88em;
-  color: #333;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: #666;
   line-height: 1.4;
 }
 .order-place-qty-sep {
@@ -349,13 +350,14 @@ h1 {
   gap: 4px 14px;
 }
 .order-place-meta-item {
-  font-size: 0.8em;
+  font-size: 0.72em;
+  font-weight: 400;
   color: #666;
   line-height: 1.4;
 }
 .order-place-meta-label {
   color: #888;
-  font-weight: bold;
+  font-weight: 500;
   margin-right: 4px;
 }
 .history-row {
@@ -493,7 +495,7 @@ h1 {
   padding: 0;
 }
 .order-place-item .item-name {
-  font-size: 1em;
+  font-size: 1.12em;
   line-height: 1.35;
 }
 .order-place-item .item-name-text {
@@ -607,7 +609,8 @@ h1 {
 }
 
 .item-last-order {
-  font-size: 0.75em;
+  font-size: 0.72em;
+  font-weight: 400;
   color: #666;
 }
 
@@ -628,8 +631,9 @@ h1 {
   gap: 4px;
 }
 .item-meta {
-  font-size: 0.8em;
-  color: #555;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: #666;
   line-height: 1.45;
   word-break: break-word;
 }
@@ -644,14 +648,16 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 0.8em;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: #666;
   min-width: 0;
 }
 .item-field-label {
   flex-shrink: 0;
   min-width: 5em;
   color: #888;
-  font-weight: bold;
+  font-weight: 500;
   padding-top: 3px;
 }
 .order-group-title {
@@ -731,14 +737,16 @@ button.order-group-title:active {
   min-width: 0;
 }
 .item-name { 
-  font-weight: bold; 
-  font-size: 1.1em; 
+  font-weight: 700; 
+  font-size: 1.12em;
+  color: #222;
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
 .item-name-text {
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -751,7 +759,7 @@ button.order-group-title:active {
 }
 .item-location { 
   font-size: 0.75em; 
-  color: #555; 
+  color: #666; 
   background: #e0e0e0; 
   padding: 3px 8px; 
   border-radius: 12px; 
