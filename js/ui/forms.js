@@ -470,6 +470,27 @@ function filterCountInput(input) {
   input.value = input.value.replace(/[^\d]/g, '');
 }
 
+function applyCountToItem(id, value) {
+  const item = findItemById(id);
+  if (!item) return null;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    item.count = 0;
+    item.entered = false;
+    return { item, moveToUnentered: false };
+  }
+  const newCount = parseInt(trimmed, 10);
+  if (isNaN(newCount)) return null;
+  item.count = newCount < 0 ? 0 : newCount;
+  item.entered = true;
+  return { item, moveToUnentered: true };
+}
+
+function handleCountInput(input) {
+  filterCountInput(input);
+  if (!applyCountToItem(input.dataset.itemId, input.value)) return;
+  scheduleLocalAutosave();
+}
 
 // 数量を直接入力して変更する関数
 
@@ -485,23 +506,13 @@ function adjustCount(event, id, delta) {
 }
 
 function updateCountDirect(id, value, options) {
-  const item = findItemById(id);
-  if (!item) return;
-  const trimmed = String(value).trim();
-  let moveToUnentered = false;
-  if (trimmed === '') {
-    item.count = 0;
-    item.entered = false;
-  } else {
-    const newCount = parseInt(trimmed, 10);
-    if (isNaN(newCount)) return;
-    item.count = newCount < 0 ? 0 : newCount;
-    item.entered = true;
-    moveToUnentered = true;
-  }
-  const jump = moveToUnentered && !(options && options.keepFocus);
+  const applied = applyCountToItem(id, value);
+  if (!applied) return;
+  const jump = applied.moveToUnentered && !(options && options.keepFocus);
   const nextId = jump ? nextUnenteredIdAfter(id) : null;
+  cancelLocalAutosave();
   saveAndRender();
+  markLocalSaved();
   if (nextId != null) {
     requestAnimationFrame(() => focusCountInput(nextId));
   }
