@@ -229,42 +229,60 @@ function focusCountInput(id) {
   input.select();
 }
 
-function jumpToUnenteredItem(event, id) {
-  if (event) event.preventDefault();
-  const item = findItemById(id);
-  if (!item || item.entered) return;
-  requestAnimationFrame(() => focusCountInput(id));
+function handleCountKey(event) {
+  if (event.isComposing) return;
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    event.target.blur();
+  }
 }
 
-function renderUnenteredJumps() {
-  const nav = document.getElementById('inventory-unentered-jumps');
-  if (!nav) return;
-  nav.innerHTML = '';
-  if (isInventoryDashboard()) {
-    nav.hidden = true;
-    return;
+function filterCountInput(input) {
+  input.value = input.value.replace(/[^\d]/g, '');
+}
+
+function applyCountToItem(id, value) {
+  const item = findItemById(id);
+  if (!item) return null;
+  const trimmed = String(value).trim();
+  if (trimmed === '') {
+    item.count = 0;
+    item.entered = false;
+    return { item, moveToUnentered: false };
   }
-  const items = getScopeItems()
-    .filter(item => !item.entered)
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
-  if (!items.length) {
-    nav.hidden = true;
-    return;
+  const newCount = parseInt(trimmed, 10);
+  if (isNaN(newCount)) return null;
+  item.count = newCount < 0 ? 0 : newCount;
+  item.entered = true;
+  return { item, moveToUnentered: true };
+}
+
+function handleCountInput(input) {
+  filterCountInput(input);
+  if (!applyCountToItem(input.dataset.itemId, input.value)) return;
+  scheduleLocalAutosave();
+}
+
+function adjustCount(event, id, delta) {
+  event.stopPropagation();
+  const item = findItemById(id);
+  if (!item) return;
+  const step = Number(delta);
+  if (item.entered && item.count <= 0 && step < 0) return;
+  const current = item.entered ? item.count : 0;
+  const next = Math.max(0, current + step);
+  updateCountDirect(id, String(next), { keepFocus: true });
+}
+
+function updateCountDirect(id, value, options) {
+  const applied = applyCountToItem(id, value);
+  if (!applied) return;
+  const jump = applied.moveToUnentered && !(options && options.keepFocus);
+  const nextId = jump ? nextUnenteredIdAfter(id) : null;
+  persistAutosave({ render: true });
+  if (nextId != null) {
+    requestAnimationFrame(() => focusCountInput(nextId));
   }
-  nav.hidden = false;
-  const label = document.createElement('span');
-  label.className = 'unentered-jumps-label';
-  label.textContent = `未入力 ${items.length}件`;
-  nav.appendChild(label);
-  items.forEach(item => {
-    const link = document.createElement('a');
-    link.className = 'unentered-jump';
-    link.href = `#inventory-item-${item.id}`;
-    link.dataset.itemId = item.id;
-    link.textContent = item.name;
-    link.addEventListener('click', event => jumpToUnenteredItem(event, item.id));
-    nav.appendChild(link);
-  });
 }
 
 function renderInventoryItemRow(item, place) {
@@ -355,10 +373,8 @@ function renderInventory() {
 
   if (isDashboard) {
     renderPlaceDashboard();
-    renderUnenteredJumps();
     return;
   }
 
-  renderUnenteredJumps();
   renderInventoryDetailList(listDiv);
 }

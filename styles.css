@@ -734,34 +734,6 @@ h1 {
   color: #e53935;
   line-height: 1;
 }
-.unentered-jumps {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  margin: -6px 0 12px;
-}
-.unentered-jumps[hidden] {
-  display: none;
-}
-.unentered-jumps-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #c62828;
-}
-.unentered-jump {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #fff5f5;
-  border: 1px solid #ffcdd2;
-  color: #c62828;
-  font-size: 13px;
-  text-decoration: none;
-}
-.unentered-jump:active {
-  background: #ffcdd2;
-}
 .inventory-line {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);

@@ -31,6 +31,7 @@ CheckStock.constants = {
   DELETE_VALUE: 'DELETE',
   APP_TITLE: 'Check＆Stock',
   PAGE_IDS: ['inventory', 'order', 'shopping', 'pickup', 'settings'],
+  AUTOSAVE_DELAY_MS: 400,
   ITEM_UUID_RE: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   DEFAULT_STOCK_ITEMS: [
     { id: 1, name: 'トイレットペーパー', count: 2, location: 'トイレ', checkUnits: [{ cycle: '月単位', place: 'トイレ' }], target: 4, orderThreshold: 1, unit: '巻', entered: true },
@@ -64,5 +65,6 @@ var RENAME_VALUE = C.RENAME_VALUE;
 var DELETE_VALUE = C.DELETE_VALUE;
 var APP_TITLE = C.APP_TITLE;
 var PAGE_IDS = C.PAGE_IDS;
+var AUTOSAVE_DELAY_MS = C.AUTOSAVE_DELAY_MS;
 var ITEM_UUID_RE = C.ITEM_UUID_RE;
 var DEFAULT_STOCK_ITEMS = C.DEFAULT_STOCK_ITEMS;

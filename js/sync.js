@@ -3,15 +3,18 @@ const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_
 function scheduleCloudSave() {
   if (applyingRemote || skipScheduledCloudSave || !isCloudReady()) return;
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(pushToCloud, 400);
+  syncTimer = setTimeout(pushToCloud, AUTOSAVE_DELAY_MS);
 }
 
-async function flushCloudSave() {
+async function flushCloudSave(options) {
+  const quiet = options && options.quiet;
+  const onlyIfPending = options && options.onlyIfPending;
   if (!isCloudReady()) return true;
+  if (onlyIfPending && !syncTimer) return true;
   clearTimeout(syncTimer);
   syncTimer = null;
   const ok = await pushToCloud();
-  if (!ok) alert('クラウドへの保存に失敗しました。接続を確認してください。');
+  if (!ok && !quiet) alert('クラウドへの保存に失敗しました。接続を確認してください。');
   return ok;
 }
 
