@@ -4,6 +4,20 @@ const PLACE_STATUS_LABELS = {
   'not-started': '未着手'
 };
 
+function placeBadgeText(status, done, total) {
+  if (status === 'not-started') return PLACE_STATUS_LABELS['not-started'];
+  return `${done}/${total} ${PLACE_STATUS_LABELS[status]}`;
+}
+
+function inventoryDashboardPeriodLabel() {
+  const now = new Date();
+  const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月度`;
+  if (inventoryCycleFilter !== ALL_FILTER) {
+    return `${monthLabel} ${inventoryCycleFilter}棚卸し`;
+  }
+  return `${monthLabel} 棚卸し`;
+}
+
 function isInventoryDashboard() {
   return inventoryPlaceFilter === ALL_FILTER;
 }
@@ -132,27 +146,45 @@ function primaryCountPlace(item) {
 
 function updatePageTitle() {
   const titleEl = document.getElementById('page-title');
-  if (!titleEl) return;
-  titleEl.textContent = APP_TITLE;
+  if (titleEl) titleEl.textContent = APP_TITLE;
   document.title = APP_TITLE;
 }
 
+function updateInventoryHeaderMode() {
+  const appHeader = document.getElementById('app-header');
+  const dashboardHeader = document.getElementById('inventory-header-dashboard');
+  const defaultHeader = document.getElementById('inventory-header-default');
+  const showDashboard = currentPage === 'inventory' && isInventoryDashboard();
+  if (appHeader) appHeader.classList.toggle('inventory-dashboard-mode', showDashboard);
+  if (dashboardHeader) dashboardHeader.hidden = !showDashboard;
+  if (defaultHeader) defaultHeader.hidden = showDashboard;
+  if (!showDashboard) return;
+  const periodEl = document.getElementById('inventory-dashboard-period');
+  const overallEl = document.getElementById('inventory-dashboard-overall');
+  if (periodEl) periodEl.textContent = inventoryDashboardPeriodLabel();
+  if (!overallEl) return;
+  const items = stockItems;
+  if (!items.length) {
+    overallEl.textContent = '';
+    return;
+  }
+  const done = items.filter(item => item.entered).length;
+  const percent = Math.round((done / items.length) * 100);
+  overallEl.textContent = percent >= 100 ? `全体 ${percent}% 完了` : `全体 ${percent}%`;
+}
+
 function updateInventoryProgress() {
+  updateInventoryHeaderMode();
   const wrap = document.getElementById('inventory-progress');
   const label = document.getElementById('inventory-progress-label');
   const fill = document.getElementById('inventory-progress-fill');
   updatePageTitle();
   if (!wrap || !label || !fill) return;
-  if (currentPage !== 'inventory') {
+  if (currentPage !== 'inventory' || isInventoryDashboard()) {
     wrap.hidden = true;
     return;
   }
-  let items;
-  if (isInventoryDashboard()) {
-    items = stockItems;
-  } else {
-    items = getPlaceScopeItems(inventoryPlaceFilter);
-  }
+  const items = getPlaceScopeItems(inventoryPlaceFilter);
   if (!items.length) {
     wrap.hidden = true;
     return;
@@ -185,9 +217,11 @@ function toggleInventoryView(isDashboard) {
   const dashboard = document.getElementById('inventory-place-dashboard');
   const detailNav = document.getElementById('inventory-detail-nav');
   const stockList = document.getElementById('stock-list');
+  const pageInventory = document.getElementById('page-inventory');
   if (dashboard) dashboard.hidden = !isDashboard;
   if (detailNav) detailNav.hidden = isDashboard;
   if (stockList) stockList.hidden = isDashboard;
+  if (pageInventory) pageInventory.classList.toggle('inventory-dashboard-view', isDashboard);
 }
 
 function openInventoryPlace(place) {
@@ -330,11 +364,10 @@ function renderPlaceDashboard() {
     card.innerHTML = `
       <div class="place-card-head">
         <span class="place-card-name">${place}</span>
-        <span class="place-card-badge ${status}">${PLACE_STATUS_LABELS[status]}</span>
+        <span class="place-card-badge ${status}">${placeBadgeText(status, done, total)}</span>
       </div>
-      <div class="place-card-progress">
-        <span class="place-card-progress-label">${done} / ${total}（${percent}%）</span>
-        <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" style="width: ${percent}%"></div></div>
+      <div class="place-card-bar" aria-hidden="true">
+        <div class="place-card-bar-track"><div class="place-card-bar-fill ${status}" style="width: ${percent}%"></div></div>
       </div>
     `;
     dashboard.appendChild(card);

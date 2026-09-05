@@ -5,6 +5,16 @@
   --brand-pressed: #0d47a1;
   --brand-soft: #e3f2fd;
   --brand-shadow: rgba(21, 101, 192, 0.28);
+  --dashboard-purple: #635bff;
+  --dashboard-purple-dark: #5248e6;
+  --status-complete: #22c55e;
+  --status-complete-soft: #dcfce7;
+  --status-complete-text: #15803d;
+  --status-progress: #f97316;
+  --status-progress-soft: #ffedd5;
+  --status-progress-text: #c2410c;
+  --status-idle: #e5e7eb;
+  --status-idle-text: #6b7280;
   --card-lh-title: 2;
   --card-lh-body: 2.1;
   --card-stack-gap: 9px;
@@ -65,6 +75,53 @@ h1 {
   margin-bottom: 8px;
   padding-bottom: 4px;
   background: #f9f9f9;
+}
+.app-header.inventory-dashboard-mode {
+  background: linear-gradient(180deg, var(--dashboard-purple) 0%, var(--dashboard-purple-dark) 100%);
+  margin: calc(-1 * max(12px, env(safe-area-inset-top))) -12px 0 -12px;
+  padding: max(12px, env(safe-area-inset-top)) 16px 20px;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 4px 16px rgba(99, 91, 255, 0.25);
+}
+.inventory-header-default {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.inventory-header-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.inventory-header-dashboard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.inventory-dashboard-period {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 500;
+}
+.inventory-dashboard-overall {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.inventory-dashboard-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 5vw, 1.65rem);
+  font-weight: 700;
+  color: white;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
 }
 .app-header h1 {
   margin: 0;
@@ -571,89 +628,104 @@ h1 {
   white-space: nowrap;
 }
 .place-dashboard {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0 10px;
+  padding: 0 2px;
 }
 .place-dashboard[hidden],
 #stock-list[hidden],
-.inventory-detail-nav[hidden] {
+.inventory-detail-nav[hidden],
+.inventory-header-dashboard[hidden],
+.inventory-header-default[hidden] {
   display: none;
 }
-@media (min-width: 480px) {
-  .place-dashboard {
-    grid-template-columns: repeat(2, 1fr);
-  }
+#page-inventory.inventory-dashboard-view {
+  margin-top: 0;
+}
+#page-inventory.inventory-dashboard-view .filter-bar {
+  margin: 12px 0 4px;
+  padding: 0 2px;
+}
+#page-inventory.inventory-dashboard-view .filter-select {
+  background: white;
+  border-color: #ececf1;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 .place-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: var(--card-padding);
+  padding: 18px 18px 16px;
   background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  border: 1px solid #ececf1;
+  border-radius: 16px;
   text-align: left;
   cursor: pointer;
   touch-action: manipulation;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 .place-card:active {
-  background: #f5f9ff;
-}
-.place-card.place-card-complete {
-  border-left: 4px solid #43a047;
-}
-.place-card.place-card-in-progress {
-  border-left: 4px solid #1565c0;
-}
-.place-card.place-card-not-started {
-  border-left: 4px solid #bdbdbd;
+  transform: scale(0.995);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
 }
 .place-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
 }
 .place-card-name {
-  font-size: 1.05em;
-  font-weight: bold;
-  color: #333;
-  line-height: var(--card-lh-title);
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.35;
+  min-width: 0;
 }
 .place-card-badge {
   flex-shrink: 0;
-  font-size: 0.7em;
-  font-weight: bold;
-  padding: 3px 8px;
-  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 .place-card-badge.complete {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: var(--status-complete-soft);
+  color: var(--status-complete-text);
 }
 .place-card-badge.in-progress {
-  background-color: #e3f2fd;
-  color: #1565c0;
+  background-color: var(--status-progress-soft);
+  color: var(--status-progress-text);
 }
 .place-card-badge.not-started {
-  background-color: #f5f5f5;
-  color: #757575;
+  background-color: #f3f4f6;
+  color: var(--status-idle-text);
 }
-.place-card-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.place-card-progress-label {
-  font-size: 0.85em;
-  color: #555;
-}
-.place-card-progress .progress-bar-track {
+.place-card-bar-track {
   width: 100%;
+  height: 10px;
+  background: var(--status-idle);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.place-card-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+.place-card-bar-fill.complete {
+  background: var(--status-complete);
+}
+.place-card-bar-fill.in-progress {
+  background: var(--status-progress);
+}
+.place-card-bar-fill.not-started {
+  background: transparent;
 }
 
 .item { 
