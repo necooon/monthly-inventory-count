@@ -4,15 +4,15 @@ function orderPlaceInfoHtml(item, options) {
   const stock = formatQty(item.count, item.unit);
   const target = formatQty(item.target, item.unit);
   if (options && options.receiptLayout) {
-    const productName = pendingProductName(item);
-    const productLine = productName
-      ? `<div class="order-fulfill-product-name">${productName}</div>`
-      : '';
+    const places = [...new Set(itemCheckUnits(item).map(u => placeLabel(u.place)))];
+    const chips = (places.length ? places : [UNSET_PLACE_FILTER])
+      .map(place => `<span class="item-location">${place}</span>`)
+      .join('');
     return `
       <div class="order-place-head">
         <span class="item-name"><span class="item-name-text">${item.name}</span></span>
       </div>
-      ${productLine}
+      <div class="item-location-wrap">${chips}</div>
     `;
   }
   if (options && (options.selectLayout || options.shoppingLayout)) {
