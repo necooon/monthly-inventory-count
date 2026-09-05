@@ -692,7 +692,7 @@ h1 {
 .inventory-header-dashboard[hidden],
 .inventory-header-detail[hidden],
 .inventory-header-default[hidden] {
-  display: none;
+  display: none !important;
 }
 #page-inventory.inventory-detail-view .filter-bar,
 #page-inventory.inventory-detail-view .inventory-action-row {
@@ -767,7 +767,7 @@ h1 {
 .inventory-scan-btn:active {
   background: #f8fafc;
 }
-#page-inventory.inventory-detail-view #stock-list {
+#page-inventory.inventory-detail-view #stock-list.stock-list-visible {
   display: flex;
   flex-direction: column;
   gap: 10px;

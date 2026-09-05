@@ -4,7 +4,7 @@ function renderFilters() {
   if (inventoryCycleFilter !== ALL_FILTER && !customCycles.includes(inventoryCycleFilter)) {
     inventoryCycleFilter = ALL_FILTER;
   }
-  if (inventoryPlaceFilter !== ALL_FILTER && inventoryPlaceFilter !== UNSET_PLACE_FILTER && !customPlaces.includes(inventoryPlaceFilter)) {
+  if (inventoryPlaceFilter !== ALL_FILTER && inventoryPlaceFilter !== UNSET_PLACE_FILTER && !customPlaces.includes(inventoryPlaceFilter) && !isInventoryDetailView()) {
     inventoryPlaceFilter = ALL_FILTER;
   }
   if (!isInventoryDashboard()) {
@@ -70,6 +70,7 @@ function resetCurrentLocation() {
 }
 
 function getScopeItems() {
+  if (isInventoryDetailView()) return getDetailScopeItems();
   return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, inventoryPlaceFilter));
 }
 
@@ -169,10 +170,6 @@ function inventoryItemRowInnerHtml(item) {
 function renderInventory() {
   const listDiv = document.getElementById('stock-list');
   if (!listDiv) return;
-
-  if (!isInventoryDashboard() && getPlaceScopeItems(inventoryPlaceFilter).length === 0) {
-    inventoryPlaceFilter = ALL_FILTER;
-  }
 
   const isDashboard = isInventoryDashboard();
   toggleInventoryView(isDashboard);
