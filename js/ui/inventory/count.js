@@ -44,7 +44,7 @@ function syncInventoryItemCard(itemId) {
       if (selStart != null && selEnd != null) input.setSelectionRange(selStart, selEnd);
     }
   }
-  updateInventoryProgress();
+  updateInventoryHeaderMode();
 }
 
 function handleCountInput(input) {

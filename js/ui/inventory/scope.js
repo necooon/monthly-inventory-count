@@ -22,6 +22,11 @@ function getPlaceStatus(done, total) {
   return 'in-progress';
 }
 
+function formatProgressPill(items) {
+  const { done, total } = countEnteredProgress(items);
+  return `${done}/${total}`;
+}
+
 function inventoryPlaceOrder() {
   const names = customPlaces.filter(Boolean);
   if (!names.includes(UNSET_PLACE_FILTER)) names.push(UNSET_PLACE_FILTER);
@@ -48,7 +53,22 @@ function overallProgressLabel(percent) {
   return percent >= 100 ? `全体 ${percent}% 完了` : `全体 ${percent}%`;
 }
 
-function progressLabel(done, total) {
-  const percent = total ? Math.round((done / total) * 100) : 0;
-  return `${done} / ${total}（${percent}%）`;
+function getScopeItems() {
+  if (isInventoryDetailView()) return getDetailScopeItems();
+  return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, inventoryPlaceFilter));
+}
+
+function itemMatchesInventorySearch(item, query) {
+  if (String(item.name || '').toLowerCase().includes(query)) return true;
+  return productsForItem(item.id).some(product =>
+    String(product.name || '').toLowerCase().includes(query) ||
+    String(product.barcode || '').toLowerCase().includes(query)
+  );
+}
+
+function getFilteredItems() {
+  const items = getScopeItems();
+  const query = inventorySearchQuery.trim().toLowerCase();
+  if (!query) return items;
+  return items.filter(item => itemMatchesInventorySearch(item, query));
 }

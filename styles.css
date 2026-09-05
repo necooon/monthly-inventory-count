@@ -611,74 +611,11 @@ h1 {
   color: #333;
   min-height: 44px;
 }
-.progress-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0 0 4px;
-  padding: 6px 10px;
-  background: white;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #333;
-}
-.progress-bar[hidden] {
-  display: none;
-}
-#inventory-progress-label {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.progress-bar-track {
-  flex: 1;
-  height: 8px;
-  background: #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.progress-bar-fill {
-  height: 100%;
-  background: #43a047;
-  width: 0;
-  transition: width 0.2s ease;
-}
 .count-shared-note {
   font-size: 0.8em;
   color: #555;
 }
 
-.inventory-detail-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-  padding: 0 2px;
-}
-.inventory-back-btn {
-  flex-shrink: 0;
-  border: none;
-  background: none;
-  color: #1565c0;
-  font-size: 0.9em;
-  font-weight: 600;
-  padding: 8px 4px;
-  min-height: 44px;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-.inventory-back-btn:active {
-  opacity: 0.7;
-}
-.inventory-detail-place {
-  font-size: 1.05em;
-  font-weight: bold;
-  color: #333;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .place-dashboard {
   display: flex;
   flex-direction: column;
@@ -688,7 +625,6 @@ h1 {
 }
 .place-dashboard[hidden],
 #stock-list[hidden],
-.inventory-detail-nav[hidden],
 .inventory-header-dashboard[hidden],
 .inventory-header-detail[hidden],
 .inventory-header-default[hidden] {
