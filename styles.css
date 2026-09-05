@@ -35,13 +35,22 @@ h1 {
 
 .app-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  position: sticky;
+  top: 0;
+  z-index: 100;
   min-height: 44px;
   margin-bottom: 8px;
+  padding-bottom: 4px;
+  background: #f9f9f9;
 }
 .app-header h1 {
   margin: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -476,12 +485,19 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
+  margin: 0 0 4px;
+  padding: 6px 10px;
   background: white;
   border-radius: 8px;
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
+}
+.progress-bar[hidden] {
+  display: none;
+}
+#inventory-progress-label {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .progress-bar-track {
   flex: 1;
@@ -494,6 +510,7 @@ h1 {
   height: 100%;
   background: #43a047;
   width: 0;
+  transition: width 0.2s ease;
 }
 .count-shared-note {
   font-size: 0.8em;
