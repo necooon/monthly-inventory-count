@@ -4,15 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=98">
+<link rel="stylesheet" href="styles.css?v=99">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
-  <header class="app-header">
-    <h1 id="page-title">Check＆Stock</h1>
-    <div class="progress-bar" id="inventory-progress" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="棚卸の入力完了率">
-      <span id="inventory-progress-label"></span>
-      <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" id="inventory-progress-fill"></div></div>
+  <header class="app-header" id="app-header">
+    <div id="inventory-header-dashboard" class="inventory-header-dashboard" hidden>
+      <div class="inventory-header-dashboard-top">
+        <span class="inventory-dashboard-brand">Check＆Stock</span>
+        <span id="inventory-dashboard-overall" class="inventory-dashboard-overall"></span>
+      </div>
+      <h1 class="inventory-dashboard-title">エリア選択</h1>
+    </div>
+    <div id="inventory-header-default" class="inventory-header-default">
+      <h1 id="page-title">Check＆Stock</h1>
+      <div class="progress-bar" id="inventory-progress" hidden role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="棚卸の入力完了率">
+        <span id="inventory-progress-label"></span>
+        <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" id="inventory-progress-fill"></div></div>
+      </div>
     </div>
   </header>
 
@@ -241,7 +250,7 @@
 <script src="js/ui/forms.js?v=88"></script>
 <script src="js/ui/filters.js?v=76"></script>
 <script src="js/ui/catalog.js?v=77"></script>
-<script src="js/ui/inventory.js?v=83"></script>
+<script src="js/ui/inventory.js?v=84"></script>
 <script src="js/ui/products.js?v=76"></script>
 <script src="js/order.js?v=85"></script>
 <script src="js/orderPlace.js?v=80"></script>
