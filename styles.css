@@ -587,40 +587,22 @@ h1 {
 }
 .inventory-count {
   grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 1fr 44px auto 44px 1fr;
+  display: flex;
   align-items: center;
-  column-gap: 6px;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
   min-width: 0;
 }
 .inventory-count .count-shared-note {
-  grid-column: 1 / -1;
   margin: 0;
   text-align: center;
-}
-.inventory-count .count-step:first-of-type {
-  grid-column: 2;
-}
-.inventory-count .count-input {
-  grid-column: 3;
-  width: calc(2.6ch + 1.15em);
-  min-width: calc(2.6ch + 1.15em);
-  justify-self: center;
-  padding-left: 6px;
-  padding-right: 6px;
-  text-align: center;
-  background: none;
-  border-color: #ccc;
-}
-.inventory-count .count-step:last-of-type {
-  grid-column: 4;
+  width: 100%;
 }
 .inventory-count .unit-suffix {
-  grid-column: 5;
   width: auto;
   max-width: 4.5em;
-  justify-self: start;
+  flex-shrink: 1;
   text-align: left;
 }
 .item.inventory-item .item-edit-btn {
@@ -873,6 +855,21 @@ button.order-group-title:active {
   margin: 0;
   flex-shrink: 0;
 }
+.count-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  height: 44px;
+  min-height: 44px;
+  background: #f2f2f7;
+  border: 1px solid #d8d8dc;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.count-stepper:focus-within {
+  box-shadow: 0 0 0 3px var(--brand-shadow);
+  border-color: var(--brand);
+}
 .count-step {
   min-width: 44px;
   min-height: 44px;
@@ -881,21 +878,40 @@ button.order-group-title:active {
   padding: 0 !important;
   font-size: 22px !important;
   font-weight: bold;
-  background: #fff !important;
-  color: #333 !important;
-  border: 1.5px solid #555 !important;
-  border-radius: 50% !important;
+  background: transparent !important;
+  color: var(--brand) !important;
+  border: none !important;
+  border-radius: 0 !important;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 .count-step:active {
-  background: #e0e0e0 !important;
+  background: var(--brand-soft) !important;
 }
 .count-step:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.count-stepper .count-input {
+  width: calc(2.6ch + 1.15em);
+  min-width: calc(2.6ch + 1.15em);
+  min-height: 0;
+  height: auto;
+  padding: 0 4px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+}
+.count-stepper .count-input:focus {
+  outline: none;
+  border: none;
+  box-shadow: none;
+  background: transparent;
 }
 .count-input.unentered {
   font-weight: normal;
