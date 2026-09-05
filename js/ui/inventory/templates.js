@@ -2,10 +2,12 @@ const INVENTORY_EMPTY_NO_ITEMS = 'この条件のアイテムはありません�
 const INVENTORY_EMPTY_NO_SEARCH_TITLE = '一致する商品がありません';
 const INVENTORY_EMPTY_NO_SEARCH_HINT = '商品名・商品コードを変えて検索してください。';
 
+function inventoryNoItemsHtml() {
+  return `<div class="empty-message">${INVENTORY_EMPTY_NO_ITEMS}</div>`;
+}
+
 function inventoryEmptyHtml() {
-  if (!inventorySearchQuery.trim()) {
-    return `<div class="empty-message">${INVENTORY_EMPTY_NO_ITEMS}</div>`;
-  }
+  if (!hasInventorySearchQuery()) return inventoryNoItemsHtml();
   return `
     <div class="inventory-search-empty" role="status">
       <span class="inventory-search-empty-icon" aria-hidden="true">

@@ -100,7 +100,7 @@ function renderPlaceDashboard() {
   dashboard.replaceChildren();
   const places = getDashboardPlaces();
   if (!places.length) {
-    dashboard.innerHTML = `<div class="empty-message">${INVENTORY_EMPTY_NO_ITEMS}</div>`;
+    dashboard.innerHTML = inventoryNoItemsHtml();
     return;
   }
   places.forEach(place => dashboard.appendChild(createPlaceCard(place)));
@@ -115,16 +115,8 @@ function renderInventoryDetailList(listDiv) {
     return;
   }
 
-  filteredItems
-    .slice()
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'))
+  sortItemsByNameJa(filteredItems)
     .forEach(item => listDiv.appendChild(renderInventoryItemRow(item)));
-}
-
-function handleInventorySearch(input) {
-  inventorySearchQuery = input.value;
-  const listDiv = document.getElementById('stock-list');
-  if (listDiv && isInventoryPlaceDetailView()) renderInventoryDetailList(listDiv);
 }
 
 function renderInventory() {
@@ -135,11 +127,7 @@ function renderInventory() {
   const isPlaceList = isInventoryPlaceListView();
   toggleInventoryView(isPlaceList);
   updateInventoryHeaderMode();
-
-  const searchInput = document.getElementById('inventory-search-input');
-  if (searchInput && searchInput.value !== inventorySearchQuery) {
-    searchInput.value = inventorySearchQuery;
-  }
+  syncInventorySearchInput();
   listDiv.replaceChildren();
 
   if (isPlaceList) {

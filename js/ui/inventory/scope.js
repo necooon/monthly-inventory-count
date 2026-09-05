@@ -54,21 +54,6 @@ function overallProgressLabel(percent) {
 }
 
 function getScopeItems() {
-  if (isInventoryDetailView()) return getDetailScopeItems();
+  if (isInventoryPlaceDetailView()) return getDetailScopeItems();
   return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, inventoryPlaceFilter));
-}
-
-function itemMatchesInventorySearch(item, query) {
-  if (String(item.name || '').toLowerCase().includes(query)) return true;
-  return productsForItem(item.id).some(product =>
-    String(product.name || '').toLowerCase().includes(query) ||
-    String(product.barcode || '').toLowerCase().includes(query)
-  );
-}
-
-function getFilteredItems() {
-  const items = getScopeItems();
-  const query = inventorySearchQuery.trim().toLowerCase();
-  if (!query) return items;
-  return items.filter(item => itemMatchesInventorySearch(item, query));
 }
