@@ -555,16 +555,6 @@ h1 {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-.order-fulfill-product-name {
-  font-weight: normal;
-  font-size: 0.88em;
-  color: #555;
-  line-height: var(--card-lh-body);
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
 .order-fulfill-card {
   cursor: pointer;
   touch-action: manipulation;

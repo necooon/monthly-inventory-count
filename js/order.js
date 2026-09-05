@@ -33,22 +33,11 @@ const FULFILL_PAGES = {
 };
 let selectCollapsedItemIds = new Set();
 
-function pendingProductName(item) {
-  const product = findProductById(item.pendingProductId);
-  return product && product.name ? product.name : '';
-}
-
-function fulfillRowLabel(item, view) {
-  if (view !== 'receipt') return item.name;
-  const productName = pendingProductName(item);
-  return productName && productName !== item.name ? `${item.name}、${productName}` : item.name;
-}
-
 function appendFulfillChecklistRow(parent, item, view) {
   const itemDiv = document.createElement('div');
   itemDiv.className = 'item order-place-item order-lohaco-item order-fulfill-card';
   itemDiv.dataset.itemId = item.id;
-  const label = fulfillRowLabel(item, view);
+  const label = item.name;
 
   const row = document.createElement('div');
   row.className = 'order-lohaco-row';
@@ -227,7 +216,7 @@ function completeCheckedFulfillmentItems(pageKey) {
   });
   saveAndRender();
   const done = mode === 'receipt' ? '受け取り済みにしました' : '買いました';
-  const name = fulfillRowLabel(items[0], mode);
+  const name = items[0].name;
   showUndoToast(items.length === 1 ? `「${name}」を${done}` : `${items.length}件を${done}`);
 }
 
