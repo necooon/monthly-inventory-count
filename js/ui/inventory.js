@@ -104,18 +104,17 @@ function updateInventoryProgress() {
   const fill = document.getElementById('inventory-progress-fill');
   updatePageTitle();
   if (!wrap || !label || !fill) return;
-  const items = getScopeItems();
-  if (!items.length) {
+  const items = stockItems;
+  if (currentPage !== 'inventory' || !items.length) {
     wrap.hidden = true;
     return;
   }
   const done = items.filter(item => item.entered).length;
-  const remaining = items.length - done;
+  const percent = Math.round((done / items.length) * 100);
   wrap.hidden = false;
-  label.textContent = inventoryUnenteredOnly
-    ? (remaining === 0 ? '未入力はありません' : `残り ${remaining} 件`)
-    : `${done} / ${items.length} 件入力済み`;
-  fill.style.width = `${Math.round((done / items.length) * 100)}%`;
+  wrap.setAttribute('aria-valuenow', String(percent));
+  label.textContent = `${done} / ${items.length}（${percent}%）`;
+  fill.style.width = `${percent}%`;
 }
 
 function inventoryPlacesForItem(item) {
