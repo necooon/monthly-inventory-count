@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=108">
+<link rel="stylesheet" href="styles.css?v=109">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
@@ -18,12 +18,18 @@
     </div>
     <div id="inventory-header-detail" class="inventory-header-detail" hidden>
       <div class="inventory-header-detail-top">
-        <button type="button" id="inventory-detail-place-chip" class="inventory-detail-place-chip" onclick="closeInventoryPlace()">
-          <span id="inventory-detail-place-name"></span>
+        <button type="button" id="inventory-detail-back-btn" class="inventory-detail-back-btn" onclick="closeInventoryPlace()" aria-label="エリア選択に戻る">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+          <span>エリア選択</span>
         </button>
         <span id="inventory-detail-progress-pill" class="inventory-detail-progress-pill"></span>
       </div>
-      <h1 class="inventory-detail-title">実地在庫の数量入力</h1>
+      <div class="inventory-header-detail-heading">
+        <h1 class="inventory-detail-title">在庫チェック</h1>
+        <p id="inventory-detail-place-name" class="inventory-detail-place-name"></p>
+      </div>
     </div>
     <div id="inventory-header-default" class="inventory-header-default">
       <h1 id="page-title">Check＆Stock</h1>
