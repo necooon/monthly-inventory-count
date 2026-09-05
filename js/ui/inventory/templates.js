@@ -24,7 +24,7 @@ function inventoryEmptyHtml() {
 
 function inventoryItemMetaLine(item) {
   const products = productsForItem(item.id);
-  const barcode = products.map(p => String(p.barcode || '').trim()).find(Boolean);
+  const barcode = products.map(p => normalizeBarcode(p.barcode)).find(Boolean);
   if (barcode) return barcode;
   const category = normalizeCategory(item.category);
   return category || '';

@@ -1,11 +1,21 @@
+const OVERLAY_IDS = ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal', 'product-modal', 'scan-modal'];
+
 function overlayIsOpen(el) {
   return el && el.style.display === 'flex';
 }
 
+function overlayCloser(id) {
+  if (id === 'prompt-modal') return () => resolvePrompt(null);
+  if (id === 'choice-modal') return () => resolveChoice(null);
+  if (id === 'edit-modal') return closeEditModal;
+  if (id === 'add-modal') return closeModal;
+  if (id === 'product-modal') return closeProductModal;
+  if (id === 'scan-modal') return closeInventoryScan;
+  return null;
+}
+
 function openOverlays() {
-  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal', 'product-modal', 'scan-modal']
-    .map(id => document.getElementById(id))
-    .filter(overlayIsOpen);
+  return OVERLAY_IDS.map(id => document.getElementById(id)).filter(overlayIsOpen);
 }
 
 function syncBodyScrollLock() {
@@ -13,29 +23,9 @@ function syncBodyScrollLock() {
 }
 
 function closeTopOverlay() {
-  if (overlayIsOpen(document.getElementById('prompt-modal'))) {
-    resolvePrompt(null);
-    return;
-  }
-  if (overlayIsOpen(document.getElementById('choice-modal'))) {
-    resolveChoice(null);
-    return;
-  }
-  if (overlayIsOpen(document.getElementById('edit-modal'))) {
-    closeEditModal();
-    return;
-  }
-  if (overlayIsOpen(document.getElementById('add-modal'))) {
-    closeModal();
-    return;
-  }
-  if (overlayIsOpen(document.getElementById('product-modal'))) {
-    closeProductModal();
-    return;
-  }
-  if (overlayIsOpen(document.getElementById('scan-modal'))) {
-    closeInventoryScan();
-  }
+  const id = OVERLAY_IDS.find(overlayId => overlayIsOpen(document.getElementById(overlayId)));
+  const close = overlayCloser(id);
+  if (close) close();
 }
 
 function overlayFocusables(overlay) {
