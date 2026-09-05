@@ -31,13 +31,19 @@ function syncInventoryItemCard(itemId) {
   if (!item) return;
   const card = document.getElementById(`inventory-item-${itemId}`);
   if (!card) return;
+  const activeInput = document.activeElement;
+  const focused = activeInput && activeInput.classList.contains('count-input') && String(activeInput.dataset.itemId) === String(itemId);
+  const selStart = focused ? activeInput.selectionStart : null;
+  const selEnd = focused ? activeInput.selectionEnd : null;
   card.className = itemCardClassName(item, 'inventory-item');
-  const nameEl = card.querySelector('.item-name');
-  if (nameEl) nameEl.outerHTML = itemNameHtml(item);
-  const input = card.querySelector('.count-input');
-  if (input) input.classList.toggle('unentered', !item.entered);
-  const minusBtn = card.querySelector('.count-stepper .count-step:first-child');
-  if (minusBtn) minusBtn.disabled = item.entered && item.count <= 0;
+  card.innerHTML = inventoryItemRowInnerHtml(item);
+  if (focused) {
+    const input = card.querySelector('.count-input');
+    if (input) {
+      input.focus();
+      if (selStart != null && selEnd != null) input.setSelectionRange(selStart, selEnd);
+    }
+  }
   updateInventoryProgress();
 }
 
