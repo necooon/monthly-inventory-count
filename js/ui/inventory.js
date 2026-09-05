@@ -217,51 +217,10 @@ function updateCountDirect(id, value, options) {
   }
 }
 
-function jumpToUnenteredItem(event, id) {
-  if (event) event.preventDefault();
-  const item = findItemById(id);
-  if (!item || item.entered) return;
-  const place = primaryCountPlace(item);
-  if (place && inventoryCollapsedPlaces.has(place)) {
-    inventoryCollapsedPlaces.delete(place);
-    persistInventoryCollapsedPlaces();
-    saveAndRender();
-  }
-  requestAnimationFrame(() => focusCountInput(id));
-}
-
-function renderUnenteredJumps() {
-  const nav = document.getElementById('inventory-unentered-jumps');
-  if (!nav) return;
-  nav.innerHTML = '';
-  const items = getScopeItems()
-    .filter(item => !item.entered)
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
-  if (!items.length) {
-    nav.hidden = true;
-    return;
-  }
-  nav.hidden = false;
-  const label = document.createElement('span');
-  label.className = 'unentered-jumps-label';
-  label.textContent = `未入力 ${items.length}件`;
-  nav.appendChild(label);
-  items.forEach(item => {
-    const link = document.createElement('a');
-    link.className = 'unentered-jump';
-    link.href = `#inventory-item-${item.id}`;
-    link.dataset.itemId = item.id;
-    link.textContent = item.name;
-    link.addEventListener('click', event => jumpToUnenteredItem(event, item.id));
-    nav.appendChild(link);
-  });
-}
-
 function renderInventory() {
   const listDiv = document.getElementById('stock-list');
   if (!listDiv) return;
   listDiv.innerHTML = '';
-  renderUnenteredJumps();
 
   const filteredItems = getFilteredItems();
   const groups = new Map();
