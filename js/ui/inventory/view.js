@@ -21,10 +21,14 @@ function toggleInventoryView(isPlaceList) {
   }
 }
 
-function openInventoryPlace(place) {
+function prepareInventoryPlace(place) {
   inventoryPlaceFilter = place;
   inventoryCycleFilter = ALL_FILTER;
   clearInventorySearch();
+}
+
+function openInventoryPlace(place) {
+  prepareInventoryPlace(place);
   saveAndRender();
 }
 
@@ -32,6 +36,22 @@ function closeInventoryPlace() {
   inventoryPlaceFilter = ALL_FILTER;
   clearInventorySearch();
   saveAndRender();
+}
+
+function itemInventoryPlace(item) {
+  return placeLabel((itemCheckUnits(item)[0] || {}).place);
+}
+
+function jumpToInventoryItem(item) {
+  const place = itemInventoryPlace(item);
+  if (currentPage === 'inventory') openInventoryPlace(place);
+  else {
+    prepareInventoryPlace(place);
+    showPage('inventory');
+  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => focusCountInput(item.id));
+  });
 }
 
 function applyInventoryHeaderVisibility(showPlaceList, showPlaceDetail) {

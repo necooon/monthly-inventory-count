@@ -2,6 +2,7 @@
 mountItemForms();
 initLocalAutosave();
 initSwipeNavigation();
+initInventoryScan();
 initSupabase();
 Promise.resolve(startCloudListener()).finally(() => {
   renderFilters();

@@ -6,7 +6,7 @@ function migrateProduct(product) {
   next.purchaseDests = normalizePurchaseDests(next.purchaseDests);
   next.purchaseDests.forEach(dest => ensurePurchaseDest(dest));
   next.url = String(next.url || '').trim();
-  next.barcode = String(next.barcode || '').trim();
+  next.barcode = normalizeBarcode(next.barcode);
   return next;
 }
 
@@ -59,6 +59,19 @@ function findProductsByBarcode(code) {
   const key = normalizeBarcode(code);
   if (!key) return [];
   return catalogProducts.filter(product => normalizeBarcode(product.barcode) === key);
+}
+
+function findItemsByBarcode(code) {
+  const seen = new Set();
+  const matches = [];
+  findProductsByBarcode(code).forEach(product => {
+    if (!product.itemId) return;
+    const item = findItemById(product.itemId);
+    if (!item || seen.has(item.id)) return;
+    seen.add(item.id);
+    matches.push({ item, product });
+  });
+  return matches;
 }
 
 function productsForItem(itemId) {
