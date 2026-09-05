@@ -282,7 +282,7 @@ function saveProduct() {
   product.itemId = itemId;
   product.purchaseDests = dests;
   product.url = document.getElementById('product-url').value.trim();
-  product.barcode = document.getElementById('product-barcode').value.trim();
+  product.barcode = normalizeBarcode(document.getElementById('product-barcode').value);
   closeProductModal();
   saveAndRender();
 }
