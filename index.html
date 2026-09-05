@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=104">
+<link rel="stylesheet" href="styles.css?v=105">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
@@ -243,13 +243,32 @@
     </div>
   </div>
 
+  <!-- バーコードスキャン -->
+  <div class="modal-overlay" id="scan-modal" role="presentation" onclick="if (event.target === this) closeInventoryScan()">
+    <div class="modal-content scan-modal-content" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
+      <h3 id="scan-modal-title">バーコードスキャン</h3>
+      <div class="modal-body">
+        <div id="scan-preview-wrap" class="scan-preview-wrap" hidden>
+          <video id="scan-preview" autoplay playsinline muted></video>
+        </div>
+        <p id="scan-status" class="scan-status" role="status"></p>
+        <label for="scan-code-input">JANコード</label>
+        <input type="text" id="scan-code-input" inputmode="numeric" autocomplete="off" enterkeyhint="search" placeholder="数字を入力" aria-label="JANコード">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeInventoryScan()">キャンセル</button>
+        <button type="button" class="btn-save" onclick="submitInventoryScanCode()">このコードで探す</button>
+      </div>
+    </div>
+  </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/db/localStore.js?v=84"></script>
 <script src="js/constants.js?v=85"></script>
 <script src="js/fulfillment.js?v=78"></script>
 <script src="js/items.js?v=77"></script>
 <script src="js/masters.js?v=77"></script>
-<script src="js/products.js?v=76"></script>
+<script src="js/products.js?v=105"></script>
 <script src="js/state.js?v=85"></script>
 <script src="js/productUrl.js?v=84"></script>
 <script src="js/productMeta.js?v=78"></script>
@@ -261,16 +280,17 @@
 <script src="js/autosave.js?v=87"></script>
 <script src="js/ui/settings.js?v=75"></script>
 <script src="js/ui/common.js?v=104"></script>
-<script src="js/ui/modals.js?v=78"></script>
+<script src="js/ui/modals.js?v=105"></script>
 <script src="js/ui/forms.js?v=88"></script>
 <script src="js/ui/filters.js?v=76"></script>
 <script src="js/ui/catalog.js?v=77"></script>
 <script src="js/ui/inventory/scope.js?v=104"></script>
 <script src="js/ui/inventory/search.js?v=104"></script>
 <script src="js/ui/inventory/templates.js?v=104"></script>
-<script src="js/ui/inventory/view.js?v=104"></script>
+<script src="js/ui/inventory/view.js?v=105"></script>
 <script src="js/ui/inventory/render.js?v=104"></script>
 <script src="js/ui/inventory/count.js?v=104"></script>
+<script src="js/ui/inventory/scan.js?v=105"></script>
 <script src="js/ui/products.js?v=76"></script>
 <script src="js/order.js?v=85"></script>
 <script src="js/orderPlace.js?v=80"></script>
