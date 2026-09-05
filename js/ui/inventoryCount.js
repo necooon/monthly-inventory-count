@@ -26,9 +26,26 @@ function applyCountToItem(id, value) {
   return { item, moveToUnentered: true };
 }
 
+function syncInventoryItemCard(itemId) {
+  const item = findItemById(itemId);
+  if (!item) return;
+  const card = document.getElementById(`inventory-item-${itemId}`);
+  if (!card) return;
+  card.className = itemCardClassName(item, 'inventory-item');
+  const nameEl = card.querySelector('.item-name');
+  if (nameEl) nameEl.outerHTML = itemNameHtml(item);
+  const input = card.querySelector('.count-input');
+  if (input) input.classList.toggle('unentered', !item.entered);
+  const minusBtn = card.querySelector('.count-stepper .count-step:first-child');
+  if (minusBtn) minusBtn.disabled = item.entered && item.count <= 0;
+  updateInventoryProgress();
+}
+
 function handleCountInput(input) {
   filterCountInput(input);
-  if (!applyCountToItem(input.dataset.itemId, input.value)) return;
+  const itemId = input.dataset.itemId;
+  if (!applyCountToItem(itemId, input.value)) return;
+  syncInventoryItemCard(itemId);
   scheduleLocalAutosave();
 }
 

@@ -92,6 +92,10 @@ function isComplete(item) {
   return item.entered && item.count > item.orderThreshold;
 }
 
+function itemCheckStatus(item) {
+  return item.entered ? 'check-done' : 'check-unentered';
+}
+
 function itemCardStatus(item) {
   const pending = itemPendingMode(item);
   if (pending) return pending;
