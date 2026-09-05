@@ -10,7 +10,7 @@ function renderItemsCatalog() {
   listDiv.innerHTML = '';
   const items = getCatalogItems();
   if (items.length === 0) {
-    listDiv.innerHTML = '<div class="empty-message">アイテムがありません。下のボタンから追加してください。チェック頻度と場所は、どこで・どの周期で数えるかを表します。</div>';
+    listDiv.innerHTML = '<div class="empty-message">アイテムがありません。右下の＋から追加してください。チェック頻度と場所は、どこで・どの周期で数えるかを表します。</div>';
     return;
   }
   items.forEach(item => {
