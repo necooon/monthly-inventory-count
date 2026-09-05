@@ -1,11 +1,10 @@
 const PLACE_STATUS_LABELS = {
   complete: '完了',
   'in-progress': '進行中',
-  'not-started': '未着手'
+  'not-started': '未チェック'
 };
 
 function placeBadgeText(status, done, total) {
-  if (status === 'not-started') return PLACE_STATUS_LABELS['not-started'];
   return `${done}/${total} ${PLACE_STATUS_LABELS[status]}`;
 }
 
