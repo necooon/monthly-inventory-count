@@ -69,7 +69,8 @@ function renderGroupedFulfillItems(orderDiv, items, view) {
     orderDiv,
     destGroups,
     [...allPurchaseDests(), UNSET_PURCHASE_DEST_LABEL],
-    (parent, item) => appendFulfillChecklistRow(parent, item, view)
+    (parent, item) => appendFulfillChecklistRow(parent, item, view),
+    { collapsible: view !== 'receipt' }
   );
 }
 
@@ -129,7 +130,8 @@ function renderFulfillmentPage(pageKey) {
   const filterDiv = document.getElementById(page.filterId);
   if (!orderDiv) return;
   orderDiv.innerHTML = '';
-  orderCategoryFilter = bindOrderViewFilters(filterDiv);
+  if (page.page === 'pickup') pickupPlaceFilter = bindPickupViewFilters(filterDiv);
+  else orderCategoryFilter = bindOrderViewFilters(filterDiv);
   renderGroupedFulfillItems(orderDiv, itemsForFulfillmentView(page.mode), page.mode);
   const hasRows = !!orderDiv.querySelector('.order-lohaco-check');
   setFulfillCompleteActionsVisible(page.page, hasRows);

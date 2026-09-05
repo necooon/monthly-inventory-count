@@ -696,6 +696,17 @@ h1 {
   font-size: 0.95em;
   margin: 16px 0 8px;
 }
+.order-group-title:not(button) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #555;
+}
 button.order-group-title {
   display: flex;
   align-items: center;

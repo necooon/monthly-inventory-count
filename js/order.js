@@ -18,6 +18,14 @@ function bindOrderViewFilters(filterDiv) {
   });
 }
 
+function bindPickupViewFilters(filterDiv) {
+  if (!filterDiv) return pickupPlaceFilter;
+  filterDiv.innerHTML = '';
+  return bindFilterSelect(filterDiv, '場所', [UNSET_PLACE_FILTER, ...customPlaces], pickupPlaceFilter, value => {
+    pickupPlaceFilter = value;
+  });
+}
+
 function toggleOrderDestGroup(dest) {
   if (orderCollapsedDests.has(dest)) orderCollapsedDests.delete(dest);
   else orderCollapsedDests.add(dest);
@@ -50,27 +58,33 @@ function appendCategoryItemRows(body, cats, appendItem) {
   });
 }
 
-function renderDestCategoryGroups(parent, destGroups, destOrder, appendItem) {
+function renderDestCategoryGroups(parent, destGroups, destOrder, appendItem, options) {
+  const collapsible = !options || options.collapsible !== false;
   sortNamesByMaster(destGroups.keys(), destOrder).forEach(dest => {
     const cats = destGroups.get(dest);
     appendOrderDestGroup(parent, dest, destCategoryGroupCount(cats), body => {
       appendCategoryItemRows(body, cats, (rowParent, item) => appendItem(rowParent, item, dest));
-    });
+    }, { collapsible });
   });
 }
 
-function appendOrderDestGroup(parent, dest, destCount, fillBody) {
-  const collapsed = orderCollapsedDests.has(dest);
+function appendOrderDestGroup(parent, dest, destCount, fillBody, options) {
+  const collapsible = !options || options.collapsible !== false;
+  const collapsed = collapsible && orderCollapsedDests.has(dest);
   const group = document.createElement('div');
   group.className = `order-group${collapsed ? ' collapsed' : ''}`;
   group.dataset.dest = dest;
-  const title = document.createElement('button');
-  title.type = 'button';
+  const title = document.createElement(collapsible ? 'button' : 'div');
   title.className = 'order-group-title';
-  title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
   title.setAttribute('aria-label', `${dest}、${destCount}件`);
-  title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
-  title.onclick = () => toggleOrderDestGroup(dest);
+  if (collapsible) {
+    title.type = 'button';
+    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span><span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
+    title.onclick = () => toggleOrderDestGroup(dest);
+  } else {
+    title.innerHTML = `<span>${dest}</span><span class="order-group-count">${destCount}件</span>`;
+  }
   group.appendChild(title);
   const body = document.createElement('div');
   body.className = 'order-group-items';

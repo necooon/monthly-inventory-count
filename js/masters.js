@@ -214,6 +214,7 @@ const MASTER_KINDS = {
       rewriteCheckUnits(u => u.place === oldName ? { cycle: u.cycle, place: next } : u);
       inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, oldName, next);
       catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, oldName, next);
+      pickupPlaceFilter = remapNamedFilter(pickupPlaceFilter, oldName, next);
       return true;
     },
     applyDelete: name => {
@@ -226,6 +227,7 @@ const MASTER_KINDS = {
       customCheckUnits = customCheckUnits.filter(u => u.place !== name);
       inventoryPlaceFilter = remapNamedFilter(inventoryPlaceFilter, name, ALL_FILTER);
       catalogPlaceFilter = remapNamedFilter(catalogPlaceFilter, name, ALL_FILTER);
+      pickupPlaceFilter = remapNamedFilter(pickupPlaceFilter, name, ALL_FILTER);
       return true;
     }
   },

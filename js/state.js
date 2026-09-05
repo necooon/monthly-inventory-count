@@ -62,6 +62,7 @@ function initCheckStockState() {
       },
       order: {
         category: ALL_FILTER,
+        place: ALL_FILTER,
         collapsedDests: loadOrderCollapsedDests()
       }
     },
@@ -120,6 +121,7 @@ function bindGlobalState() {
     catalogPlaceFilter: 'filters.catalog.place',
     catalogCategoryFilter: 'filters.catalog.category',
     orderCategoryFilter: 'filters.order.category',
+    pickupPlaceFilter: 'filters.order.place',
     orderCollapsedDests: 'filters.order.collapsedDests',
     currentPage: 'ui.currentPage',
     selectedItemId: 'ui.selectedItemId',
