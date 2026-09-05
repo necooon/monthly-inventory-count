@@ -323,7 +323,10 @@ function itemsForLohacoSelect() {
 }
 
 function itemsForFulfillmentView(view) {
-  return itemsMatchingOrderCategory().filter(item => itemPendingMode(item) === view);
+  const items = view === 'receipt'
+    ? stockItems.filter(item => itemMatchesCyclePlace(item, ALL_FILTER, pickupPlaceFilter))
+    : itemsMatchingOrderCategory();
+  return items.filter(item => itemPendingMode(item) === view);
 }
 
 function addItemToDestCategoryGroup(destGroups, dest, item) {
