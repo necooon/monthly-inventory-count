@@ -160,6 +160,52 @@ function focusCountInput(id) {
   input.select();
 }
 
+function handleCountKey(event) {
+  if (event.isComposing) return;
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    event.target.blur();
+  }
+}
+
+function filterCountInput(input) {
+  input.value = input.value.replace(/[^\d]/g, '');
+}
+
+function adjustCount(event, id, delta) {
+  event.stopPropagation();
+  const item = findItemById(id);
+  if (!item) return;
+  const step = Number(delta);
+  if (item.entered && item.count <= 0 && step < 0) return;
+  const current = item.entered ? item.count : 0;
+  const next = Math.max(0, current + step);
+  updateCountDirect(id, String(next), { keepFocus: true });
+}
+
+function updateCountDirect(id, value, options) {
+  const item = findItemById(id);
+  if (!item) return;
+  const trimmed = String(value).trim();
+  let moveToUnentered = false;
+  if (trimmed === '') {
+    item.count = 0;
+    item.entered = false;
+  } else {
+    const newCount = parseInt(trimmed, 10);
+    if (isNaN(newCount)) return;
+    item.count = newCount < 0 ? 0 : newCount;
+    item.entered = true;
+    moveToUnentered = true;
+  }
+  const jump = moveToUnentered && !(options && options.keepFocus);
+  const nextId = jump ? nextUnenteredIdAfter(id) : null;
+  saveAndRender();
+  if (nextId != null) {
+    requestAnimationFrame(() => focusCountInput(nextId));
+  }
+}
+
 function renderInventory() {
   const listDiv = document.getElementById('stock-list');
   if (!listDiv) return;
