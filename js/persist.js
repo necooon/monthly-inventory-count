@@ -53,15 +53,27 @@ function flushLocalAutosave() {
   setSaveStatus('saved');
 }
 
+function flushPendingCloudSave() {
+  if (typeof isCloudReady !== 'function' || !isCloudReady()) return;
+  if (!syncTimer) return;
+  clearTimeout(syncTimer);
+  syncTimer = null;
+  pushToCloud();
+}
+
 function markLocalSaved() {
   cancelLocalAutosave();
   setSaveStatus('saved');
 }
 
 function initLocalAutosave() {
-  window.addEventListener('pagehide', flushLocalAutosave);
+  const flushAll = () => {
+    flushLocalAutosave();
+    flushPendingCloudSave();
+  };
+  window.addEventListener('pagehide', flushAll);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushLocalAutosave();
+    if (document.visibilityState === 'hidden') flushAll();
   });
 }
 
