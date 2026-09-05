@@ -21,7 +21,7 @@ function renderAll() {
   renderItemsCatalog();
   renderSettings();
   updateResetLocationButton();
-  updateInventoryProgress();
+  if (currentPage === 'inventory') updateInventoryHeaderMode();
 }
 
 function selectAndEditItem(id) {

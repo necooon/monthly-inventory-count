@@ -52,7 +52,7 @@ function initCheckStockState() {
       inventory: {
         cycle: ALL_FILTER,
         place: ALL_FILTER,
-        unenteredOnly: false,
+        searchQuery: '',
         collapsedPlaces: loadInventoryCollapsedPlaces()
       },
       catalog: {
@@ -115,7 +115,7 @@ function bindGlobalState() {
     customCheckUnits: 'masters.checkUnits',
     inventoryCycleFilter: 'filters.inventory.cycle',
     inventoryPlaceFilter: 'filters.inventory.place',
-    inventoryUnenteredOnly: 'filters.inventory.unenteredOnly',
+    inventorySearchQuery: 'filters.inventory.searchQuery',
     inventoryCollapsedPlaces: 'filters.inventory.collapsedPlaces',
     catalogCycleFilter: 'filters.catalog.cycle',
     catalogPlaceFilter: 'filters.catalog.place',
