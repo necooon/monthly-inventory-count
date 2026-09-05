@@ -96,13 +96,7 @@ h1 {
 .inventory-header-dashboard-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.inventory-dashboard-period {
-  font-size: 0.78rem;
-  color: rgba(255, 255, 255, 0.88);
-  font-weight: 500;
+  justify-content: flex-end;
 }
 .inventory-dashboard-overall {
   flex-shrink: 0;

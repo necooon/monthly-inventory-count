@@ -9,15 +9,6 @@ function placeBadgeText(status, done, total) {
   return `${done}/${total} ${PLACE_STATUS_LABELS[status]}`;
 }
 
-function inventoryDashboardPeriodLabel() {
-  const now = new Date();
-  const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月度`;
-  if (inventoryCycleFilter !== ALL_FILTER) {
-    return `${monthLabel} ${inventoryCycleFilter}棚卸し`;
-  }
-  return `${monthLabel} 棚卸し`;
-}
-
 function isInventoryDashboard() {
   return inventoryPlaceFilter === ALL_FILTER;
 }
@@ -159,9 +150,7 @@ function updateInventoryHeaderMode() {
   if (dashboardHeader) dashboardHeader.hidden = !showDashboard;
   if (defaultHeader) defaultHeader.hidden = showDashboard;
   if (!showDashboard) return;
-  const periodEl = document.getElementById('inventory-dashboard-period');
   const overallEl = document.getElementById('inventory-dashboard-overall');
-  if (periodEl) periodEl.textContent = inventoryDashboardPeriodLabel();
   if (!overallEl) return;
   const items = stockItems;
   if (!items.length) {
