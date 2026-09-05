@@ -460,69 +460,6 @@ function deleteEditingItem() {
   if (editingItemId) deleteItem(editingItemId);
 }
 
-function handleCountKey(event) {
-  if (event.isComposing) return;
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    event.target.blur();
-  }
-}
-
-function filterCountInput(input) {
-  input.value = input.value.replace(/[^\d]/g, '');
-}
-
-function applyCountToItem(id, value) {
-  const item = findItemById(id);
-  if (!item) return null;
-  const trimmed = String(value).trim();
-  if (trimmed === '') {
-    item.count = 0;
-    item.entered = false;
-    return { item, moveToUnentered: false };
-  }
-  const newCount = parseInt(trimmed, 10);
-  if (isNaN(newCount)) return null;
-  item.count = newCount < 0 ? 0 : newCount;
-  item.entered = true;
-  return { item, moveToUnentered: true };
-}
-
-function handleCountInput(input) {
-  filterCountInput(input);
-  if (!applyCountToItem(input.dataset.itemId, input.value)) return;
-  scheduleLocalAutosave();
-}
-
-// 数量を直接入力して変更する関数
-
-function adjustCount(event, id, delta) {
-  event.stopPropagation();
-  const item = findItemById(id);
-  if (!item) return;
-  const step = Number(delta);
-  if (item.entered && item.count <= 0 && step < 0) return;
-  const current = item.entered ? item.count : 0;
-  const next = Math.max(0, current + step);
-  updateCountDirect(id, String(next), { keepFocus: true });
-}
-
-function updateCountDirect(id, value, options) {
-  const applied = applyCountToItem(id, value);
-  if (!applied) return;
-  const jump = applied.moveToUnentered && !(options && options.keepFocus);
-  const nextId = jump ? nextUnenteredIdAfter(id) : null;
-  cancelLocalAutosave();
-  saveAndRender();
-  markLocalSaved();
-  if (nextId != null) {
-    requestAnimationFrame(() => focusCountInput(nextId));
-  }
-}
-
-
-// アイテムを追加する関数
-
 function addItem() {
   const fields = readItemForm('new-item');
   if (!fields) return;
