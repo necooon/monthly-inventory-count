@@ -45,10 +45,20 @@ function migrateHistory(row) {
   return next;
 }
 
+function normalizeBarcode(value) {
+  return String(value || '').trim().replace(/[\s-]+/g, '');
+}
+
 function findProductById(id) {
   const key = String(id || '');
   if (!key) return null;
   return catalogProducts.find(p => String(p.id) === key) || null;
+}
+
+function findProductsByBarcode(code) {
+  const key = normalizeBarcode(code);
+  if (!key) return [];
+  return catalogProducts.filter(product => normalizeBarcode(product.barcode) === key);
 }
 
 function productsForItem(itemId) {

@@ -3,7 +3,7 @@ function overlayIsOpen(el) {
 }
 
 function openOverlays() {
-  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal', 'product-modal']
+  return ['prompt-modal', 'choice-modal', 'edit-modal', 'add-modal', 'product-modal', 'scan-modal']
     .map(id => document.getElementById(id))
     .filter(overlayIsOpen);
 }
@@ -31,6 +31,10 @@ function closeTopOverlay() {
   }
   if (overlayIsOpen(document.getElementById('product-modal'))) {
     closeProductModal();
+    return;
+  }
+  if (overlayIsOpen(document.getElementById('scan-modal'))) {
+    closeInventoryScan();
   }
 }
 
@@ -226,9 +230,12 @@ document.getElementById('prompt-input').addEventListener('keydown', (e) => {
 
 document.addEventListener('keydown', (e) => {
   const promptEl = document.getElementById('prompt-modal');
+  const choiceEl = document.getElementById('choice-modal');
   const overlay = overlayIsOpen(promptEl)
     ? promptEl
-    : openOverlays().slice(-1)[0];
+    : overlayIsOpen(choiceEl)
+      ? choiceEl
+      : openOverlays().slice(-1)[0];
   if (!overlay) return;
   if (e.key === 'Escape') {
     e.preventDefault();

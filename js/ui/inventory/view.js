@@ -34,10 +34,6 @@ function closeInventoryPlace() {
   saveAndRender();
 }
 
-function openInventoryScan() {
-  alert('バーコードスキャン機能は準備中です。');
-}
-
 function applyInventoryHeaderVisibility(showPlaceList, showPlaceDetail) {
   const appHeader = document.getElementById('app-header');
   const dashboardHeader = document.getElementById('inventory-header-dashboard');
