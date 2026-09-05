@@ -83,6 +83,18 @@ h1 {
   border-radius: 0 0 20px 20px;
   box-shadow: 0 4px 16px rgba(99, 91, 255, 0.25);
 }
+.app-header.inventory-dashboard-mode.inventory-search-pinned {
+  background: #f9f9f9;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 0 8px;
+}
+.app-header.inventory-search-pinned .inventory-header-detail {
+  background: linear-gradient(180deg, var(--dashboard-purple) 0%, var(--dashboard-purple-dark) 100%);
+  padding: max(12px, env(safe-area-inset-top)) 16px 20px;
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 4px 16px rgba(99, 91, 255, 0.25);
+}
 .inventory-header-default {
   display: flex;
   flex-direction: column;
@@ -583,6 +595,40 @@ h1 {
   border-radius: 8px;
   border: 1px solid #e0e0e0;
 }
+.inventory-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  background: white;
+  padding: 36px 20px 32px;
+  border-radius: 16px;
+  border: 1px solid #e8eaf0;
+}
+.inventory-search-empty-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.inventory-search-empty-icon svg {
+  width: 40px;
+  height: 40px;
+}
+.inventory-search-empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.inventory-search-empty-hint {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #64748b;
+}
 
 /* 場所絞り込み（10件以上でも扱いやすいセレクト） */
 .filter-bar {
@@ -640,6 +686,10 @@ h1 {
   gap: 10px;
   margin: 12px 0 14px;
   padding: 0 2px;
+}
+.app-header .inventory-search-toolbar {
+  margin: 12px 16px 4px;
+  padding: 0;
 }
 .inventory-search-toolbar[hidden] {
   display: none !important;

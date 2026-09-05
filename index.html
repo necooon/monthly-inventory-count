@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=102">
+<link rel="stylesheet" href="styles.css?v=103">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
@@ -27,6 +27,20 @@
     </div>
     <div id="inventory-header-default" class="inventory-header-default">
       <h1 id="page-title">Check＆Stock</h1>
+    </div>
+    <div id="inventory-search-toolbar" class="inventory-search-toolbar" hidden>
+      <label class="inventory-search-field">
+        <span class="inventory-search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </span>
+        <input type="search" id="inventory-search-input" placeholder="商品名・商品コードで絞り込み..." autocomplete="off" enterkeyhint="search" aria-label="商品名・商品コードで絞り込み" oninput="handleInventorySearch(this)">
+      </label>
+      <button type="button" class="inventory-scan-btn" id="inventory-scan-btn" aria-label="バーコードスキャン" onclick="openInventoryScan()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7V4h3"/><path d="M20 7V4h-3"/><path d="M4 17v3h3"/><path d="M20 17v3h-3"/>
+          <path d="M7 8h1"/><path d="M7 12h1"/><path d="M7 16h1"/><path d="M11 8h6"/><path d="M11 12h6"/><path d="M11 16h6"/>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -92,21 +106,6 @@
   <div class="filter-bar" id="location-filters"></div>
   <div class="inventory-action-row" id="inventory-action-row" hidden>
     <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
-  </div>
-
-  <div id="inventory-search-toolbar" class="inventory-search-toolbar" hidden>
-    <label class="inventory-search-field">
-      <span class="inventory-search-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      </span>
-      <input type="search" id="inventory-search-input" placeholder="商品名で絞り込み..." autocomplete="off" enterkeyhint="search" oninput="handleInventorySearch(this)">
-    </label>
-    <button type="button" class="inventory-scan-btn" id="inventory-scan-btn" aria-label="バーコードスキャン" onclick="openInventoryScan()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
-        <path d="M4 7V4h3"/><path d="M20 7V4h-3"/><path d="M4 17v3h3"/><path d="M20 17v3h-3"/>
-        <path d="M7 8h1"/><path d="M7 12h1"/><path d="M7 16h1"/><path d="M11 8h6"/><path d="M11 12h6"/><path d="M11 16h6"/>
-      </svg>
-    </button>
   </div>
 
   <div id="inventory-place-dashboard" class="place-dashboard" aria-label="保管場所一覧"></div>
@@ -266,11 +265,11 @@
 <script src="js/ui/forms.js?v=88"></script>
 <script src="js/ui/filters.js?v=76"></script>
 <script src="js/ui/catalog.js?v=77"></script>
-<script src="js/ui/inventory/scope.js?v=102"></script>
-<script src="js/ui/inventory/templates.js?v=102"></script>
-<script src="js/ui/inventory/view.js?v=102"></script>
-<script src="js/ui/inventory/render.js?v=102"></script>
-<script src="js/ui/inventory/count.js?v=102"></script>
+<script src="js/ui/inventory/scope.js?v=103"></script>
+<script src="js/ui/inventory/templates.js?v=103"></script>
+<script src="js/ui/inventory/view.js?v=103"></script>
+<script src="js/ui/inventory/render.js?v=103"></script>
+<script src="js/ui/inventory/count.js?v=103"></script>
 <script src="js/ui/products.js?v=76"></script>
 <script src="js/order.js?v=85"></script>
 <script src="js/orderPlace.js?v=80"></script>

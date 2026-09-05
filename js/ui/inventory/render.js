@@ -111,7 +111,7 @@ function renderInventoryDetailList(listDiv) {
   listDiv.replaceChildren();
 
   if (!filteredItems.length) {
-    listDiv.innerHTML = `<div class="empty-message">${inventoryEmptyMessage()}</div>`;
+    listDiv.innerHTML = inventoryEmptyHtml();
     return;
   }
 

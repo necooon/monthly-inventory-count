@@ -1,8 +1,23 @@
 const INVENTORY_EMPTY_NO_ITEMS = 'この条件のアイテムはありません。設定のアイテムから追加してください。';
-const INVENTORY_EMPTY_NO_SEARCH = '検索条件に一致するアイテムはありません。';
+const INVENTORY_EMPTY_NO_SEARCH_TITLE = '一致する商品がありません';
+const INVENTORY_EMPTY_NO_SEARCH_HINT = '商品名・商品コードを変えて検索してください。';
 
-function inventoryEmptyMessage() {
-  return inventorySearchQuery.trim() ? INVENTORY_EMPTY_NO_SEARCH : INVENTORY_EMPTY_NO_ITEMS;
+function inventoryEmptyHtml() {
+  if (!inventorySearchQuery.trim()) {
+    return `<div class="empty-message">${INVENTORY_EMPTY_NO_ITEMS}</div>`;
+  }
+  return `
+    <div class="inventory-search-empty" role="status">
+      <span class="inventory-search-empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/>
+          <path d="m20 20-3.5-3.5"/>
+        </svg>
+      </span>
+      <p class="inventory-search-empty-title">${INVENTORY_EMPTY_NO_SEARCH_TITLE}</p>
+      <p class="inventory-search-empty-hint">${INVENTORY_EMPTY_NO_SEARCH_HINT}</p>
+    </div>
+  `;
 }
 
 function inventoryItemMetaLine(item) {
