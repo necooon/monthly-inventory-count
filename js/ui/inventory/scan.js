@@ -1,10 +1,11 @@
 const SCAN_STATUS = {
   needCode: 'コードを入力してください。',
-  notFound: '一致する商品がありません。',
-  unsupported: 'カメラ非対応のため、JANコードを入力してください。',
+  notFound: 'このバーコードの商品は登録されていません',
+  unlinked: 'このバーコードの商品はアイテムに紐づいていません',
+  unsupported: 'このブラウザはカメラ読み取りに対応していません。',
   starting: 'カメラを起動しています…',
   ready: 'バーコードを枠に合わせてください。',
-  denied: 'カメラを使えません。JANコードを入力してください。'
+  denied: 'カメラの使用が許可されていません。設定からカメラを許可してください。'
 };
 
 function scanModalEl() {
@@ -23,20 +24,28 @@ function setScanPreviewVisible(visible) {
   if (wrap) wrap.hidden = !visible;
 }
 
-async function pickScannedItem(matches) {
+function setScanManualVisible(visible) {
+  const manual = document.getElementById('scan-manual');
+  if (manual) manual.hidden = !visible;
+  const inner = document.querySelector('#scan-modal .scan-overlay-inner');
+  if (inner) inner.classList.toggle('is-fallback', !!visible);
+}
+
+function pickScannedItem(matches) {
   if (matches.length === 1) return matches[0];
-  setScanCameraPaused(true);
-  const pickedId = await showActionChoice(
-    '商品を選ぶ',
-    '同じバーコードの商品が複数あります。',
-    matches.map(match => ({
-      label: `${match.item.name}（${match.product.name}）`,
-      value: match.item.id
-    }))
-  );
-  setScanCameraPaused(false);
-  if (!pickedId) return null;
-  return matches.find(match => String(match.item.id) === String(pickedId)) || null;
+  if (typeof isInventoryPlaceDetailView === 'function' && isInventoryPlaceDetailView()) {
+    const local = matches.find(match =>
+      itemMatchesCyclePlace(match.item, ALL_FILTER, inventoryPlaceFilter)
+    );
+    if (local) return local;
+  }
+  return matches[0];
+}
+
+function failScannedCode(message) {
+  closeInventoryScan();
+  alert(message);
+  return false;
 }
 
 async function handleScannedCode(raw, options) {
@@ -48,13 +57,11 @@ async function handleScannedCode(raw, options) {
   }
   if (shouldIgnoreScanCode(code, fromManual)) return false;
 
-  const matches = findItemsByBarcode(code);
-  if (!matches.length) {
-    setScanStatus(SCAN_STATUS.notFound, 'error');
-    return false;
-  }
+  const result = lookupItemsByBarcode(code);
+  if (result.status === 'notFound') return failScannedCode(SCAN_STATUS.notFound);
+  if (result.status === 'unlinked') return failScannedCode(SCAN_STATUS.unlinked);
 
-  const chosen = await pickScannedItem(matches);
+  const chosen = pickScannedItem(result.matches);
   if (!chosen) return false;
 
   closeInventoryScan();
@@ -69,8 +76,11 @@ function submitInventoryScanCode() {
 
 async function startInventoryScanCamera() {
   setScanPreviewVisible(false);
+  setScanManualVisible(false);
   if (!canUseScanCamera()) {
-    setScanStatus(SCAN_STATUS.unsupported);
+    setScanManualVisible(true);
+    setScanStatus(SCAN_STATUS.unsupported, 'error');
+    alert(SCAN_STATUS.unsupported);
     return;
   }
   setScanStatus(SCAN_STATUS.starting);
@@ -81,11 +91,10 @@ async function startInventoryScanCamera() {
     return;
   }
   setScanPreviewVisible(false);
-  if (result.reason === 'unsupported') {
-    setScanStatus(SCAN_STATUS.unsupported);
-    return;
-  }
-  setScanStatus(SCAN_STATUS.denied, 'error');
+  setScanManualVisible(true);
+  const message = result.reason === 'unsupported' ? SCAN_STATUS.unsupported : SCAN_STATUS.denied;
+  setScanStatus(message, 'error');
+  alert(message);
 }
 
 function openInventoryScan() {
@@ -97,13 +106,10 @@ function openInventoryScan() {
   if (input) input.value = '';
   setScanStatus('');
   setScanPreviewVisible(false);
+  setScanManualVisible(false);
   modal.style.display = 'flex';
   syncBodyScrollLock();
   startInventoryScanCamera();
-  if (input && !isCoarsePointer()) {
-    input.focus();
-    input.select();
-  }
 }
 
 function closeInventoryScan() {

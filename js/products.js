@@ -46,7 +46,16 @@ function migrateHistory(row) {
 }
 
 function normalizeBarcode(value) {
-  return String(value || '').trim().replace(/[\s-]+/g, '');
+  return String(value || '').replace(/\D/g, '');
+}
+
+function barcodeLookupKeys(code) {
+  const key = normalizeBarcode(code);
+  if (!key) return [];
+  const keys = [key];
+  if (key.length === 12) keys.push(`0${key}`);
+  if (key.length === 13 && key.charAt(0) === '0') keys.push(key.slice(1));
+  return keys;
 }
 
 function findProductById(id) {
@@ -56,22 +65,31 @@ function findProductById(id) {
 }
 
 function findProductsByBarcode(code) {
-  const key = normalizeBarcode(code);
-  if (!key) return [];
-  return catalogProducts.filter(product => normalizeBarcode(product.barcode) === key);
+  const keys = new Set(barcodeLookupKeys(code));
+  if (!keys.size) return [];
+  return catalogProducts.filter(product =>
+    barcodeLookupKeys(product.barcode).some(key => keys.has(key))
+  );
 }
 
-function findItemsByBarcode(code) {
+function lookupItemsByBarcode(code) {
+  const products = findProductsByBarcode(code);
+  if (!products.length) return { status: 'notFound', matches: [] };
   const seen = new Set();
   const matches = [];
-  findProductsByBarcode(code).forEach(product => {
+  products.forEach(product => {
     if (!product.itemId) return;
     const item = findItemById(product.itemId);
     if (!item || seen.has(item.id)) return;
     seen.add(item.id);
     matches.push({ item, product });
   });
-  return matches;
+  if (!matches.length) return { status: 'unlinked', matches: [] };
+  return { status: 'matched', matches };
+}
+
+function findItemsByBarcode(code) {
+  return lookupItemsByBarcode(code).matches;
 }
 
 function productsForItem(itemId) {

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=105">
+<link rel="stylesheet" href="styles.css?v=108">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
@@ -244,20 +244,21 @@
   </div>
 
   <!-- バーコードスキャン -->
-  <div class="modal-overlay" id="scan-modal" role="presentation" onclick="if (event.target === this) closeInventoryScan()">
-    <div class="modal-content scan-modal-content" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
-      <h3 id="scan-modal-title">バーコードスキャン</h3>
-      <div class="modal-body">
-        <div id="scan-preview-wrap" class="scan-preview-wrap" hidden>
-          <video id="scan-preview" autoplay playsinline muted></video>
-        </div>
-        <p id="scan-status" class="scan-status" role="status"></p>
-        <label for="scan-code-input">JANコード</label>
-        <input type="text" id="scan-code-input" inputmode="numeric" autocomplete="off" enterkeyhint="search" placeholder="数字を入力" aria-label="JANコード">
+  <div class="modal-overlay scan-overlay" id="scan-modal" role="presentation">
+    <div class="scan-overlay-inner" role="dialog" aria-modal="true" aria-labelledby="scan-modal-title">
+      <h3 id="scan-modal-title" class="scan-overlay-title">バーコードスキャン</h3>
+      <button type="button" class="scan-close-btn" onclick="closeInventoryScan()">閉じる</button>
+      <div id="scan-preview-wrap" class="scan-preview-wrap" hidden>
+        <video id="scan-preview" autoplay playsinline muted></video>
+        <div class="scan-viewfinder" aria-hidden="true"></div>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel" onclick="closeInventoryScan()">キャンセル</button>
-        <button type="button" class="btn-save" onclick="submitInventoryScanCode()">このコードで探す</button>
+      <p id="scan-status" class="scan-status" role="status"></p>
+      <div id="scan-manual" class="scan-manual" hidden>
+        <label for="scan-code-input">JANコード</label>
+        <div class="scan-manual-row">
+          <input type="text" id="scan-code-input" inputmode="numeric" autocomplete="off" enterkeyhint="search" placeholder="数字を入力" aria-label="JANコード">
+          <button type="button" class="btn-save" onclick="submitInventoryScanCode()">探す</button>
+        </div>
       </div>
     </div>
   </div>
@@ -268,7 +269,7 @@
 <script src="js/fulfillment.js?v=78"></script>
 <script src="js/items.js?v=77"></script>
 <script src="js/masters.js?v=77"></script>
-<script src="js/products.js?v=106"></script>
+<script src="js/products.js?v=107"></script>
 <script src="js/state.js?v=85"></script>
 <script src="js/productUrl.js?v=84"></script>
 <script src="js/productMeta.js?v=78"></script>
@@ -287,12 +288,12 @@
 <script src="js/ui/inventory/scope.js?v=104"></script>
 <script src="js/ui/inventory/search.js?v=104"></script>
 <script src="js/ui/inventory/templates.js?v=106"></script>
-<script src="js/ui/inventory/view.js?v=106"></script>
+<script src="js/ui/inventory/view.js?v=107"></script>
 <script src="js/ui/inventory/render.js?v=104"></script>
 <script src="js/ui/inventory/count.js?v=104"></script>
-<script src="js/ui/inventory/scanCamera.js?v=106"></script>
-<script src="js/ui/inventory/scan.js?v=106"></script>
-<script src="js/ui/products.js?v=76"></script>
+<script src="js/ui/inventory/scanCamera.js?v=107"></script>
+<script src="js/ui/inventory/scan.js?v=108"></script>
+<script src="js/ui/products.js?v=107"></script>
 <script src="js/order.js?v=85"></script>
 <script src="js/orderPlace.js?v=80"></script>
 <script src="js/gestures.js?v=75"></script>

@@ -38,19 +38,38 @@ function closeInventoryPlace() {
   saveAndRender();
 }
 
-function itemInventoryPlace(item) {
-  return placeLabel((itemCheckUnits(item)[0] || {}).place);
+function itemInventoryPlaces(item) {
+  const units = itemCheckUnits(item);
+  if (!units.length) return [UNSET_PLACE_FILTER];
+  return [...new Set(units.map(unit => placeLabel(unit.place)))];
+}
+
+function resolveInventoryPlaceForItem(item) {
+  const places = itemInventoryPlaces(item);
+  if (places.includes(inventoryPlaceFilter)) return inventoryPlaceFilter;
+  return places[0];
+}
+
+function highlightScannedInventoryItem(itemId) {
+  const card = document.getElementById(`inventory-item-${itemId}`);
+  if (!card) return;
+  card.classList.remove('inventory-item-scanned');
+  void card.offsetWidth;
+  card.classList.add('inventory-item-scanned');
 }
 
 function jumpToInventoryItem(item) {
-  const place = itemInventoryPlace(item);
+  const place = resolveInventoryPlaceForItem(item);
   if (currentPage === 'inventory') openInventoryPlace(place);
   else {
     prepareInventoryPlace(place);
     showPage('inventory');
   }
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => focusCountInput(item.id));
+    requestAnimationFrame(() => {
+      highlightScannedInventoryItem(item.id);
+      focusCountInput(item.id);
+    });
   });
 }
 
