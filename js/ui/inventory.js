@@ -1,3 +1,13 @@
+const PLACE_STATUS_LABELS = {
+  complete: '完了',
+  'in-progress': '進行中',
+  'not-started': '未着手'
+};
+
+function isInventoryDashboard() {
+  return inventoryPlaceFilter === ALL_FILTER;
+}
+
 function renderFilters() {
   const filterDiv = document.getElementById('location-filters');
   filterDiv.innerHTML = '';
@@ -8,19 +18,20 @@ function renderFilters() {
     inventoryPlaceFilter = ALL_FILTER;
   }
   inventoryCycleFilter = bindFilterSelect(filterDiv, 'チェック頻度', customCycles, inventoryCycleFilter, value => { inventoryCycleFilter = value; });
-  inventoryPlaceFilter = bindFilterSelect(filterDiv, '場所', [UNSET_PLACE_FILTER, ...customPlaces], inventoryPlaceFilter, value => { inventoryPlaceFilter = value; });
-  const unentered = document.createElement('label');
-  unentered.className = 'filter-check';
-  const unenteredInput = document.createElement('input');
-  unenteredInput.type = 'checkbox';
-  unenteredInput.checked = inventoryUnenteredOnly;
-  unenteredInput.onchange = () => {
-    inventoryUnenteredOnly = unenteredInput.checked;
-    saveAndRender();
-  };
-  unentered.appendChild(unenteredInput);
-  unentered.appendChild(document.createTextNode('未入力だけ表示'));
-  filterDiv.appendChild(unentered);
+  if (!isInventoryDashboard()) {
+    const unentered = document.createElement('label');
+    unentered.className = 'filter-check';
+    const unenteredInput = document.createElement('input');
+    unenteredInput.type = 'checkbox';
+    unenteredInput.checked = inventoryUnenteredOnly;
+    unenteredInput.onchange = () => {
+      inventoryUnenteredOnly = unenteredInput.checked;
+      saveAndRender();
+    };
+    unentered.appendChild(unenteredInput);
+    unentered.appendChild(document.createTextNode('未入力だけ表示'));
+    filterDiv.appendChild(unentered);
+  }
   updateResetLocationButton();
 }
 
@@ -35,6 +46,11 @@ function updateResetLocationButton() {
   const resetBtn = document.getElementById('reset-location-btn');
   const row = document.getElementById('inventory-action-row');
   if (!resetBtn || !row) return;
+  if (isInventoryDashboard()) {
+    resetBtn.hidden = true;
+    row.hidden = true;
+    return;
+  }
   const label = inventoryFilterLabel();
   const showReset = !!label;
   resetBtn.hidden = !showReset;
@@ -75,6 +91,29 @@ function getScopeItems() {
   return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, inventoryPlaceFilter));
 }
 
+function getPlaceScopeItems(place) {
+  return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, place));
+}
+
+function getPlaceProgress(place) {
+  const items = getPlaceScopeItems(place);
+  const total = items.length;
+  const done = items.filter(item => item.entered).length;
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  return { total, done, percent };
+}
+
+function getPlaceStatus(done, total) {
+  if (total === 0) return null;
+  if (done === 0) return 'not-started';
+  if (done === total) return 'complete';
+  return 'in-progress';
+}
+
+function getDashboardPlaces() {
+  return inventoryPlaceOrder().filter(place => getPlaceScopeItems(place).length > 0);
+}
+
 function getFilteredItems() {
   const items = getScopeItems();
   return inventoryUnenteredOnly ? items.filter(item => !item.entered) : items;
@@ -104,8 +143,17 @@ function updateInventoryProgress() {
   const fill = document.getElementById('inventory-progress-fill');
   updatePageTitle();
   if (!wrap || !label || !fill) return;
-  const items = stockItems;
-  if (currentPage !== 'inventory' || !items.length) {
+  if (currentPage !== 'inventory') {
+    wrap.hidden = true;
+    return;
+  }
+  let items;
+  if (isInventoryDashboard()) {
+    items = stockItems;
+  } else {
+    items = getPlaceScopeItems(inventoryPlaceFilter);
+  }
+  if (!items.length) {
     wrap.hidden = true;
     return;
   }
@@ -131,6 +179,26 @@ function inventoryPlaceOrder() {
   const names = customPlaces.filter(Boolean);
   if (!names.includes(UNSET_PLACE_FILTER)) names.push(UNSET_PLACE_FILTER);
   return names;
+}
+
+function toggleInventoryView(isDashboard) {
+  const dashboard = document.getElementById('inventory-place-dashboard');
+  const detailNav = document.getElementById('inventory-detail-nav');
+  const stockList = document.getElementById('stock-list');
+  if (dashboard) dashboard.hidden = !isDashboard;
+  if (detailNav) detailNav.hidden = isDashboard;
+  if (stockList) stockList.hidden = isDashboard;
+}
+
+function openInventoryPlace(place) {
+  inventoryPlaceFilter = place;
+  inventoryUnenteredOnly = false;
+  saveAndRender();
+}
+
+function closeInventoryPlace() {
+  inventoryPlaceFilter = ALL_FILTER;
+  saveAndRender();
 }
 
 function toggleInventoryPlaceGroup(place) {
@@ -165,12 +233,6 @@ function jumpToUnenteredItem(event, id) {
   if (event) event.preventDefault();
   const item = findItemById(id);
   if (!item || item.entered) return;
-  const place = primaryCountPlace(item);
-  if (place && inventoryCollapsedPlaces.has(place)) {
-    inventoryCollapsedPlaces.delete(place);
-    persistInventoryCollapsedPlaces();
-    saveAndRender();
-  }
   requestAnimationFrame(() => focusCountInput(id));
 }
 
@@ -178,6 +240,10 @@ function renderUnenteredJumps() {
   const nav = document.getElementById('inventory-unentered-jumps');
   if (!nav) return;
   nav.innerHTML = '';
+  if (isInventoryDashboard()) {
+    nav.hidden = true;
+    return;
+  }
   const items = getScopeItems()
     .filter(item => !item.entered)
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
@@ -201,23 +267,67 @@ function renderUnenteredJumps() {
   });
 }
 
-function renderInventory() {
-  const listDiv = document.getElementById('stock-list');
-  if (!listDiv) return;
-  listDiv.innerHTML = '';
-  renderUnenteredJumps();
+function renderInventoryItemRow(item, place) {
+  const itemDiv = document.createElement('div');
+  itemDiv.className = itemCardClassName(item, 'inventory-item');
+  itemDiv.dataset.itemId = item.id;
+  const countDisplay = item.entered ? String(item.count) : '';
+  const showCount = !place || primaryCountPlace(item) === place;
+  if (showCount) itemDiv.id = `inventory-item-${item.id}`;
+  const minusDisabled = item.entered && item.count <= 0;
+  const countControls = showCount ? `
+    <div class="count-stepper">
+      <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1減らす" ${minusDisabled ? 'disabled' : ''} onclick="adjustCount(event, this.dataset.itemId, -1)">−</button>
+      <input type="text" class="count-input${item.entered ? '' : ' unentered'}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="handleCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
+      <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1増やす" onclick="adjustCount(event, this.dataset.itemId, 1)">＋</button>
+    </div>
+    <span class="unit-suffix">${item.unit}</span>` : `<span class="count-shared-note">「${primaryCountPlace(item)}」で入力${item.entered ? ` · ${formatQty(item.count, item.unit)}` : ' · 未入力'}</span>`;
+  itemDiv.innerHTML = `
+    <div class="inventory-line">
+      <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
+      ${itemNameHtml(item)}
+      <div class="inventory-count">${countControls}</div>
+    </div>
+  `;
+  return itemDiv;
+}
+
+function renderPlaceDashboard() {
+  const dashboard = document.getElementById('inventory-place-dashboard');
+  if (!dashboard) return;
+  dashboard.innerHTML = '';
+  const places = getDashboardPlaces();
+  if (!places.length) {
+    dashboard.innerHTML = '<div class="empty-message">この条件のアイテムはありません。設定のアイテムから追加してください。</div>';
+    return;
+  }
+  places.forEach(place => {
+    const { total, done, percent } = getPlaceProgress(place);
+    const status = getPlaceStatus(done, total);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `place-card place-card-${status}`;
+    card.setAttribute('aria-label', `${place}、${PLACE_STATUS_LABELS[status]}、${done} / ${total}（${percent}%）`);
+    card.onclick = () => openInventoryPlace(place);
+    card.innerHTML = `
+      <div class="place-card-head">
+        <span class="place-card-name">${place}</span>
+        <span class="place-card-badge ${status}">${PLACE_STATUS_LABELS[status]}</span>
+      </div>
+      <div class="place-card-progress">
+        <span class="place-card-progress-label">${done} / ${total}（${percent}%）</span>
+        <div class="progress-bar-track" aria-hidden="true"><div class="progress-bar-fill" style="width: ${percent}%"></div></div>
+      </div>
+    `;
+    dashboard.appendChild(card);
+  });
+}
+
+function renderInventoryDetailList(listDiv) {
+  const detailPlaceEl = document.getElementById('inventory-detail-place');
+  if (detailPlaceEl) detailPlaceEl.textContent = inventoryPlaceFilter;
 
   const filteredItems = getFilteredItems();
-  const groups = new Map();
-  filteredItems.forEach(item => {
-    inventoryPlacesForItem(item).forEach(place => {
-      if (!groups.has(place)) groups.set(place, []);
-      groups.get(place).push(item);
-    });
-  });
-  const placeOrder = inventoryPlaceOrder();
-  const keys = sortNamesByMaster(groups.keys(), placeOrder);
-
   if (filteredItems.length === 0) {
     listDiv.innerHTML = inventoryUnenteredOnly
       ? '<div class="empty-message">未入力のアイテムはありません。</div>'
@@ -225,48 +335,30 @@ function renderInventory() {
     return;
   }
 
-  keys.forEach(place => {
-    const placeItems = groups.get(place).sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
-    const collapsed = inventoryCollapsedPlaces.has(place);
-    const placeDone = placeItems.length > 0 && placeItems.every(item => item.entered);
-    const group = document.createElement('div');
-    group.className = `order-group${collapsed ? ' collapsed' : ''}${placeDone ? ' place-complete' : ''}`;
-    group.dataset.place = place;
-    const title = document.createElement('button');
-    title.type = 'button';
-    title.className = 'order-group-title';
-    title.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    if (placeDone) title.setAttribute('aria-label', `${place}、チェック完了、${placeItems.length}件`);
-    title.innerHTML = `<span class="order-group-chevron" aria-hidden="true">${collapsed ? '▶' : '▼'}</span>${placeDone ? '<span class="order-group-check" aria-hidden="true">✓</span>' : ''}<span>${place}</span><span class="order-group-count">${placeItems.length}件</span>`;
-    title.onclick = () => toggleInventoryPlaceGroup(place);
-    group.appendChild(title);
-    const body = document.createElement('div');
-    body.className = 'order-group-items';
-    placeItems.forEach(item => {
-      const itemDiv = document.createElement('div');
-      itemDiv.className = itemCardClassName(item, 'inventory-item');
-      itemDiv.dataset.itemId = item.id;
-      const countDisplay = item.entered ? String(item.count) : '';
-      const showCount = primaryCountPlace(item) === place;
-      if (showCount) itemDiv.id = `inventory-item-${item.id}`;
-      const minusDisabled = item.entered && item.count <= 0;
-      const countControls = showCount ? `
-                  <div class="count-stepper">
-                    <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1減らす" ${minusDisabled ? 'disabled' : ''} onclick="adjustCount(event, this.dataset.itemId, -1)">−</button>
-                    <input type="text" class="count-input${item.entered ? '' : ' unentered'}" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="off" aria-label="${item.name}の在庫数" value="${countDisplay}" data-item-id="${item.id}" onfocus="this.select()" oninput="handleCountInput(this)" onchange="updateCountDirect(this.dataset.itemId, this.value)" onkeydown="handleCountKey(event)">
-                    <button type="button" class="count-step" data-item-id="${item.id}" aria-label="${item.name}の在庫を1増やす" onclick="adjustCount(event, this.dataset.itemId, 1)">＋</button>
-                  </div>
-                  <span class="unit-suffix">${item.unit}</span>` : `<span class="count-shared-note">「${primaryCountPlace(item)}」で入力${item.entered ? ` · ${formatQty(item.count, item.unit)}` : ' · 未入力'}</span>`;
-      itemDiv.innerHTML = `
-        <div class="inventory-line">
-          <button type="button" class="item-edit-btn" data-item-id="${item.id}" aria-label="${item.name}を編集" onclick="selectAndEditItem(this.dataset.itemId)">⋯</button>
-          ${itemNameHtml(item)}
-          <div class="inventory-count">${countControls}</div>
-        </div>
-      `;
-      body.appendChild(itemDiv);
-    });
-    group.appendChild(body);
-    listDiv.appendChild(group);
+  const sorted = filteredItems.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'ja'));
+  sorted.forEach(item => {
+    listDiv.appendChild(renderInventoryItemRow(item, inventoryPlaceFilter));
   });
+}
+
+function renderInventory() {
+  const listDiv = document.getElementById('stock-list');
+  if (!listDiv) return;
+
+  if (!isInventoryDashboard() && getPlaceScopeItems(inventoryPlaceFilter).length === 0) {
+    inventoryPlaceFilter = ALL_FILTER;
+  }
+
+  const isDashboard = isInventoryDashboard();
+  toggleInventoryView(isDashboard);
+  listDiv.innerHTML = '';
+
+  if (isDashboard) {
+    renderPlaceDashboard();
+    renderUnenteredJumps();
+    return;
+  }
+
+  renderUnenteredJumps();
+  renderInventoryDetailList(listDiv);
 }

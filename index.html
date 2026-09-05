@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Check＆Stock</title>
-<link rel="stylesheet" href="styles.css?v=97">
+<link rel="stylesheet" href="styles.css?v=98">
 </head>
 <body>
   <div id="save-status" class="save-status" hidden role="status" aria-live="polite"></div>
@@ -80,6 +80,12 @@
   <div class="inventory-action-row" id="inventory-action-row" hidden>
     <button type="button" class="reset-btn" id="reset-location-btn" onclick="resetCurrentLocation()" hidden>リセット</button>
   </div>
+
+  <div id="inventory-detail-nav" class="inventory-detail-nav" hidden>
+    <button type="button" id="inventory-back-btn" class="inventory-back-btn" onclick="closeInventoryPlace()">← 保管場所一覧</button>
+    <span id="inventory-detail-place" class="inventory-detail-place"></span>
+  </div>
+  <div id="inventory-place-dashboard" class="place-dashboard" aria-label="保管場所一覧"></div>
 
   <!-- リスト表示エリア -->
   <div id="stock-list"></div>
@@ -235,7 +241,7 @@
 <script src="js/ui/forms.js?v=87"></script>
 <script src="js/ui/filters.js?v=76"></script>
 <script src="js/ui/catalog.js?v=77"></script>
-<script src="js/ui/inventory.js?v=80"></script>
+<script src="js/ui/inventory.js?v=81"></script>
 <script src="js/ui/products.js?v=76"></script>
 <script src="js/order.js?v=85"></script>
 <script src="js/orderPlace.js?v=80"></script>
