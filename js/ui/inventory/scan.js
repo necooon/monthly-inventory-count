@@ -27,6 +27,8 @@ function setScanPreviewVisible(visible) {
 function setScanManualVisible(visible) {
   const manual = document.getElementById('scan-manual');
   if (manual) manual.hidden = !visible;
+  const inner = document.querySelector('#scan-modal .scan-overlay-inner');
+  if (inner) inner.classList.toggle('is-fallback', !!visible);
 }
 
 function pickScannedItem(matches) {
