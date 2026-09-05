@@ -1,116 +1,31 @@
-const SCAN_DEBOUNCE_MS = 1500;
-const SCAN_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
-
-let scanStream = null;
-let scanRaf = 0;
-let scanDetector = null;
-let scanPaused = false;
-let lastScanCode = '';
-let lastScanAt = 0;
+const SCAN_STATUS = {
+  needCode: 'コードを入力してください。',
+  notFound: '一致する商品がありません。',
+  unsupported: 'カメラ非対応のため、JANコードを入力してください。',
+  starting: 'カメラを起動しています…',
+  ready: 'バーコードを枠に合わせてください。',
+  denied: 'カメラを使えません。JANコードを入力してください。'
+};
 
 function scanModalEl() {
   return document.getElementById('scan-modal');
 }
 
-function scanPreviewWrapEl() {
-  return document.getElementById('scan-preview-wrap');
-}
-
-function scanPreviewEl() {
-  return document.getElementById('scan-preview');
-}
-
-function scanStatusEl() {
-  return document.getElementById('scan-status');
-}
-
-function scanCodeInputEl() {
-  return document.getElementById('scan-code-input');
-}
-
 function setScanStatus(message, kind) {
-  const status = scanStatusEl();
+  const status = document.getElementById('scan-status');
   if (!status) return;
   status.textContent = message || '';
   status.classList.toggle('is-error', kind === 'error');
 }
 
-function hideScanPreview() {
-  const wrap = scanPreviewWrapEl();
-  if (wrap) wrap.hidden = true;
-}
-
-function showScanPreview() {
-  const wrap = scanPreviewWrapEl();
-  if (wrap) wrap.hidden = false;
-}
-
-function canUseScanCamera() {
-  return typeof window.BarcodeDetector === 'function'
-    && navigator.mediaDevices
-    && typeof navigator.mediaDevices.getUserMedia === 'function';
-}
-
-async function createScanDetector() {
-  if (typeof BarcodeDetector.getSupportedFormats === 'function') {
-    const supported = await BarcodeDetector.getSupportedFormats();
-    const formats = SCAN_FORMATS.filter(format => supported.includes(format));
-    if (formats.length) return new BarcodeDetector({ formats });
-  }
-  try {
-    return new BarcodeDetector({ formats: SCAN_FORMATS });
-  } catch (err) {
-    return new BarcodeDetector();
-  }
-}
-
-function stopScanCamera() {
-  if (scanRaf) {
-    cancelAnimationFrame(scanRaf);
-    scanRaf = 0;
-  }
-  scanDetector = null;
-  scanPaused = false;
-  if (scanStream) {
-    scanStream.getTracks().forEach(track => track.stop());
-    scanStream = null;
-  }
-  const video = scanPreviewEl();
-  if (video) {
-    video.pause();
-    video.srcObject = null;
-  }
-  hideScanPreview();
-}
-
-function itemsForScannedBarcode(code) {
-  const seen = new Set();
-  const matches = [];
-  findProductsByBarcode(code).forEach(product => {
-    if (!product.itemId) return;
-    const item = findItemById(product.itemId);
-    if (!item || seen.has(item.id)) return;
-    seen.add(item.id);
-    matches.push({ item, product });
-  });
-  return matches;
-}
-
-function jumpToInventoryItem(item) {
-  const place = placeLabel((itemCheckUnits(item)[0] || {}).place);
-  inventoryPlaceFilter = place;
-  inventoryCycleFilter = ALL_FILTER;
-  clearInventorySearch();
-  if (currentPage !== 'inventory') showPage('inventory');
-  else saveAndRender();
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => focusCountInput(item.id));
-  });
+function setScanPreviewVisible(visible) {
+  const wrap = document.getElementById('scan-preview-wrap');
+  if (wrap) wrap.hidden = !visible;
 }
 
 async function pickScannedItem(matches) {
   if (matches.length === 1) return matches[0];
-  scanPaused = true;
+  setScanCameraPaused(true);
   const pickedId = await showActionChoice(
     '商品を選ぶ',
     '同じバーコードの商品が複数あります。',
@@ -119,7 +34,7 @@ async function pickScannedItem(matches) {
       value: match.item.id
     }))
   );
-  scanPaused = false;
+  setScanCameraPaused(false);
   if (!pickedId) return null;
   return matches.find(match => String(match.item.id) === String(pickedId)) || null;
 }
@@ -128,18 +43,14 @@ async function handleScannedCode(raw, options) {
   const fromManual = !!(options && options.fromManual);
   const code = normalizeBarcode(raw);
   if (!code) {
-    setScanStatus('コードを入力してください。', 'error');
+    setScanStatus(SCAN_STATUS.needCode, 'error');
     return false;
   }
+  if (shouldIgnoreScanCode(code, fromManual)) return false;
 
-  const now = Date.now();
-  if (!fromManual && code === lastScanCode && now - lastScanAt < SCAN_DEBOUNCE_MS) return false;
-  lastScanCode = code;
-  lastScanAt = now;
-
-  const matches = itemsForScannedBarcode(code);
+  const matches = findItemsByBarcode(code);
   if (!matches.length) {
-    setScanStatus('一致する商品がありません。', 'error');
+    setScanStatus(SCAN_STATUS.notFound, 'error');
     return false;
   }
 
@@ -152,75 +63,43 @@ async function handleScannedCode(raw, options) {
 }
 
 function submitInventoryScanCode() {
-  const input = scanCodeInputEl();
+  const input = document.getElementById('scan-code-input');
   handleScannedCode(input ? input.value : '', { fromManual: true });
 }
 
-async function scanDetectFrame() {
-  if (!scanDetector || !scanStream || scanPaused) return;
-  const video = scanPreviewEl();
-  if (!video || video.readyState < 2) return;
-  try {
-    const codes = await scanDetector.detect(video);
-    const raw = codes && codes[0] && codes[0].rawValue;
-    if (raw) await handleScannedCode(raw);
-  } catch (err) {
-    /* keep scanning */
-  }
-}
-
-function scanLoop() {
-  if (!scanStream) return;
-  scanRaf = requestAnimationFrame(async () => {
-    await scanDetectFrame();
-    if (scanStream) scanLoop();
-  });
-}
-
-async function startScanCamera() {
+async function startInventoryScanCamera() {
+  setScanPreviewVisible(false);
   if (!canUseScanCamera()) {
-    hideScanPreview();
-    setScanStatus('カメラ非対応のため、JANコードを入力してください。');
+    setScanStatus(SCAN_STATUS.unsupported);
     return;
   }
-
-  setScanStatus('カメラを起動しています…');
-  try {
-    scanDetector = await createScanDetector();
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false
-    });
-    const video = scanPreviewEl();
-    if (!video) {
-      stopScanCamera();
-      return;
-    }
-    video.srcObject = scanStream;
-    await video.play();
-    showScanPreview();
-    setScanStatus('バーコードを枠に合わせてください。');
-    scanLoop();
-  } catch (err) {
-    stopScanCamera();
-    setScanStatus('カメラを使えません。JANコードを入力してください。', 'error');
+  setScanStatus(SCAN_STATUS.starting);
+  const result = await startScanCamera(raw => handleScannedCode(raw));
+  if (result.ok) {
+    setScanPreviewVisible(true);
+    setScanStatus(SCAN_STATUS.ready);
+    return;
   }
+  setScanPreviewVisible(false);
+  if (result.reason === 'unsupported') {
+    setScanStatus(SCAN_STATUS.unsupported);
+    return;
+  }
+  setScanStatus(SCAN_STATUS.denied, 'error');
 }
 
 function openInventoryScan() {
   const modal = scanModalEl();
-  const input = scanCodeInputEl();
+  const input = document.getElementById('scan-code-input');
   if (!modal) return;
   stopScanCamera();
-  lastScanCode = '';
-  lastScanAt = 0;
-  scanPaused = false;
+  resetScanCameraMemory();
   if (input) input.value = '';
   setScanStatus('');
-  hideScanPreview();
+  setScanPreviewVisible(false);
   modal.style.display = 'flex';
   syncBodyScrollLock();
-  startScanCamera();
+  startInventoryScanCamera();
   if (input && !isCoarsePointer()) {
     input.focus();
     input.select();
@@ -234,22 +113,23 @@ function closeInventoryScan() {
   syncBodyScrollLock();
 }
 
-const scanCodeInput = scanCodeInputEl();
-if (scanCodeInput) {
-  scanCodeInput.addEventListener('keydown', event => {
-    if (event.isComposing) return;
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      submitInventoryScanCode();
+function initInventoryScan() {
+  const input = document.getElementById('scan-code-input');
+  if (input) {
+    input.addEventListener('keydown', event => {
+      if (event.isComposing) return;
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitInventoryScanCode();
+      }
+    });
+  }
+  window.addEventListener('pagehide', stopScanCamera);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopScanCamera();
+      return;
     }
+    if (overlayIsOpen(scanModalEl())) startInventoryScanCamera();
   });
 }
-
-window.addEventListener('pagehide', stopScanCamera);
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    stopScanCamera();
-    return;
-  }
-  if (overlayIsOpen(scanModalEl())) startScanCamera();
-});
