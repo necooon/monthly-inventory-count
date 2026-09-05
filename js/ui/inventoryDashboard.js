@@ -21,7 +21,10 @@ function toggleInventoryView(isDashboard) {
   if (dashboard) dashboard.hidden = !isDashboard;
   if (detailNav) detailNav.hidden = true;
   if (searchToolbar) searchToolbar.hidden = isDashboard;
-  if (stockList) stockList.hidden = isDashboard;
+  if (stockList) {
+    stockList.hidden = isDashboard;
+    stockList.classList.toggle('stock-list-visible', !isDashboard);
+  }
   if (pageInventory) {
     pageInventory.classList.toggle('inventory-dashboard-view', isDashboard);
     pageInventory.classList.toggle('inventory-detail-view', !isDashboard);
@@ -30,6 +33,7 @@ function toggleInventoryView(isDashboard) {
 
 function openInventoryPlace(place) {
   inventoryPlaceFilter = place;
+  inventoryCycleFilter = ALL_FILTER;
   inventoryUnenteredOnly = false;
   inventorySearchQuery = '';
   const searchInput = document.getElementById('inventory-search-input');
@@ -87,7 +91,7 @@ function updateInventoryHeaderMode() {
   if (placeNameEl) placeNameEl.textContent = inventoryPlaceFilter;
   if (!progressPill) return;
 
-  const items = getPlaceScopeItems(inventoryPlaceFilter);
+  const items = isInventoryDetailView() ? getDetailScopeItems() : getPlaceScopeItems(inventoryPlaceFilter);
   if (!items.length) {
     progressPill.textContent = '0/0';
     return;

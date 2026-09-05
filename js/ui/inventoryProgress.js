@@ -32,6 +32,10 @@ function getPlaceScopeItems(place) {
   return stockItems.filter(item => itemMatchesCyclePlace(item, inventoryCycleFilter, place));
 }
 
+function getDetailScopeItems() {
+  return stockItems.filter(item => itemMatchesCyclePlace(item, ALL_FILTER, inventoryPlaceFilter));
+}
+
 function getPlaceProgress(place) {
   return countEnteredProgress(getPlaceScopeItems(place));
 }
