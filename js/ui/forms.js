@@ -211,6 +211,8 @@ function syncUnitReadouts() {
 }
 
 const ITEM_STATUS_BADGES = {
+  'check-unentered': { className: 'order-badge check-unentered', label: '未入力' },
+  'check-done': { className: 'order-badge check-done', label: '完了' },
   shopping: { className: 'order-badge pending-shopping', label: '買い物中' },
   receipt: { className: 'order-badge pending-receipt', label: '受け取り待ち' },
   'stock-empty': { className: 'order-badge stock-empty', label: '在庫切れ' },
@@ -225,14 +227,22 @@ function itemCardClassName(item, extraClass) {
   return ['item', extraClass, stockClass, unentered, selected].filter(Boolean).join(' ');
 }
 
-function itemStatusBadgeHtml(item) {
-  const spec = ITEM_STATUS_BADGES[itemCardStatus(item)];
+function renderStatusBadge(key) {
+  const spec = ITEM_STATUS_BADGES[key];
   return spec ? `<span class="${spec.className}">${spec.label}</span>` : '';
 }
 
+function itemStatusBadgeHtml(item) {
+  const badges = [renderStatusBadge(itemCheckStatus(item))];
+  if (item.entered) {
+    const stockStatus = itemCardStatus(item);
+    if (stockStatus) badges.push(renderStatusBadge(stockStatus));
+  }
+  return badges.join('');
+}
+
 function itemNameHtml(item) {
-  const warn = item.entered ? '' : '<span class="unentered-icon" role="img" aria-label="未入力">⚠</span>';
-  return `<span class="item-name"><span class="item-name-text">${item.name}</span>${warn}${itemStatusBadgeHtml(item)}</span>`;
+  return `<span class="item-name"><span class="item-name-text">${item.name}</span>${itemStatusBadgeHtml(item)}</span>`;
 }
 
 function formatQty(n, unit) {

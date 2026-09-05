@@ -894,6 +894,14 @@ h1 {
   background-color: #e8f5e9;
   color: #2e7d32;
 }
+.order-badge.check-unentered {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+.order-badge.check-done {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
 
 .item-location-wrap {
   display: flex;
@@ -1026,6 +1034,7 @@ button.order-group-title:active {
   color: #222;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
