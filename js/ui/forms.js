@@ -220,8 +220,9 @@ const ITEM_STATUS_BADGES = {
 function itemCardClassName(item, extraClass) {
   const status = itemCardStatus(item);
   const stockClass = status === 'stock-empty' || status === 'stock-ok' ? status : '';
+  const unentered = item.entered ? '' : 'unentered';
   const selected = String(selectedItemId) === String(item.id) ? 'selected' : '';
-  return ['item', extraClass, stockClass, selected].filter(Boolean).join(' ');
+  return ['item', extraClass, stockClass, unentered, selected].filter(Boolean).join(' ');
 }
 
 function itemStatusBadgeHtml(item) {
@@ -230,7 +231,8 @@ function itemStatusBadgeHtml(item) {
 }
 
 function itemNameHtml(item) {
-  return `<span class="item-name"><span class="item-name-text">${item.name}</span>${itemStatusBadgeHtml(item)}</span>`;
+  const warn = item.entered ? '' : '<span class="unentered-icon" role="img" aria-label="未入力">⚠</span>';
+  return `<span class="item-name"><span class="item-name-text">${item.name}</span>${warn}${itemStatusBadgeHtml(item)}</span>`;
 }
 
 function formatQty(n, unit) {
