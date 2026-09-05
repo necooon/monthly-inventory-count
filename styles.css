@@ -5,6 +5,11 @@
   --brand-pressed: #0d47a1;
   --brand-soft: #e3f2fd;
   --brand-shadow: rgba(21, 101, 192, 0.28);
+  --card-lh-title: 2;
+  --card-lh-body: 2.1;
+  --card-stack-gap: 9px;
+  --card-field-gap: 6px;
+  --card-padding: 22px;
 }
 
 html {
@@ -219,7 +224,7 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 18px 21px;
 }
 .order-lohaco-check {
   width: 24px;
@@ -298,7 +303,7 @@ h1 {
   padding: 8px 0;
   cursor: pointer;
   font-size: 13px;
-  line-height: 1.45;
+  line-height: var(--card-lh-body);
 }
 .order-lohaco-product-option input {
   margin-top: 3px;
@@ -378,7 +383,7 @@ h1 {
   font-size: 0.72em;
   font-weight: 400;
   color: #666;
-  line-height: 1.4;
+  line-height: var(--card-lh-body);
 }
 .order-place-qty-sep {
   margin: 0 8px;
@@ -387,13 +392,13 @@ h1 {
 .order-place-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  gap: 6px 21px;
 }
 .order-place-meta-item {
   font-size: 0.72em;
   font-weight: 400;
   color: #666;
-  line-height: 1.4;
+  line-height: var(--card-lh-body);
 }
 .order-place-meta-label {
   color: #888;
@@ -401,10 +406,16 @@ h1 {
   margin-right: 4px;
 }
 .history-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-stack-gap);
   background: white;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 15px 18px;
   margin-bottom: 8px;
+}
+.history-row-meta {
+  line-height: var(--card-lh-body);
 }
 .product-extra-fields {
   margin-top: 10px;
@@ -493,8 +504,8 @@ h1 {
   display: flex; 
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
-  padding: 15px; 
+  gap: 15px;
+  padding: var(--card-padding); 
   background: white; 
   margin-bottom: 10px; 
   border-radius: 8px; 
@@ -526,15 +537,15 @@ h1 {
   overflow: hidden;
 }
 .order-place-item .item-info {
-  padding: 12px 14px 10px;
-  gap: 8px;
+  padding: 18px 21px 15px;
+  gap: 12px;
 }
 .order-lohaco-item .item-info {
   padding: 0;
 }
 .order-place-item .item-name {
   font-size: 1.12em;
-  line-height: 1.35;
+  line-height: var(--card-lh-title);
 }
 .order-place-item .item-name-text {
   white-space: normal;
@@ -548,7 +559,7 @@ h1 {
   font-weight: normal;
   font-size: 0.88em;
   color: #555;
-  line-height: 1.4;
+  line-height: var(--card-lh-body);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -632,6 +643,7 @@ h1 {
   font-size: 0.72em;
   font-weight: 400;
   color: #666;
+  line-height: var(--card-lh-body);
 }
 
 /* 買い物中／受け取り待ちバッジのデザイン */
@@ -656,13 +668,13 @@ h1 {
 .item-location-wrap {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--card-field-gap);
 }
 .item-meta {
   font-size: 0.72em;
   font-weight: 400;
   color: #666;
-  line-height: 1.45;
+  line-height: var(--card-lh-body);
   word-break: break-word;
 }
 
@@ -670,7 +682,7 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: var(--card-field-gap);
 }
 .item-field {
   display: flex;
@@ -761,8 +773,11 @@ button.order-group-title:active {
 .item-info { 
   display: flex; 
   flex-direction: column; 
-  gap: 6px;
+  gap: var(--card-stack-gap);
   min-width: 0;
+}
+.item-info .item-name {
+  line-height: var(--card-lh-title);
 }
 .item-name { 
   font-weight: 700; 
