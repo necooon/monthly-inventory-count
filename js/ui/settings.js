@@ -131,7 +131,7 @@ function renderSettings() {
   heading.textContent = '棚卸しデータ';
   const hint = document.createElement('p');
   hint.className = 'settings-hint';
-  hint.textContent = 'アイテム名や場所はそのまま残し、すべての数量入力だけを未入力に戻します。';
+  hint.textContent = 'アイテム名や場所はそのまま残し、在庫チェックの入力だけを未入力に戻します。';
   const resetBtn = document.createElement('button');
   resetBtn.type = 'button';
   resetBtn.className = 'reset-btn';
