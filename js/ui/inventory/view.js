@@ -20,7 +20,7 @@ function toggleInventoryView(isPlaceList) {
   const stockList = document.getElementById('stock-list');
   const pageInventory = document.getElementById('page-inventory');
   if (dashboard) dashboard.hidden = !isPlaceList;
-  if (searchToolbar) searchToolbar.hidden = isPlaceList;
+  if (searchToolbar) searchToolbar.hidden = !isInventoryPlaceDetailView();
   if (stockList) {
     stockList.hidden = isPlaceList;
     stockList.classList.toggle('stock-list-visible', !isPlaceList);
@@ -60,7 +60,10 @@ function updateInventoryHeaderMode() {
 
   if (appHeader) {
     appHeader.classList.toggle('inventory-dashboard-mode', showPlaceList || showPlaceDetail);
+    appHeader.classList.toggle('inventory-search-pinned', showPlaceDetail);
   }
+  const searchToolbar = document.getElementById('inventory-search-toolbar');
+  if (searchToolbar) searchToolbar.hidden = !showPlaceDetail;
   if (dashboardHeader) dashboardHeader.hidden = !showPlaceList;
   if (detailHeader) detailHeader.hidden = !showPlaceDetail;
   if (defaultHeader) defaultHeader.hidden = showPlaceList || showPlaceDetail;
