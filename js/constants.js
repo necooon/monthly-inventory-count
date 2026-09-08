@@ -2,8 +2,8 @@ window.CheckStock = window.CheckStock || {};
 
 CheckStock.constants = {
   SUPABASE_CONFIG: {
-    url: 'https://dmvznvxczrpbqrzfcqcc.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdnpudnhjenJwYnFyemZjcWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjgxNjUsImV4cCI6MjEwMzU0NDE2NX0.tOPfmnQr5HTPk28H-bvfTIuhLzhjBB33JLeZldxzndM'
+    url: 'https://aqrlponulqzjmfisvhlu.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxcmxwb251bHF6am1maXN2aGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NzM2OTIsImV4cCI6MjEwNDQ0OTY5Mn0.EHp9S5ou9ouW8308-Y-E4y08mgAnKhkcb6UKeMdrFZA'
   },
   DEFAULT_CYCLES: ['月単位', '週単位'],
   LEGACY_CYCLE_NAMES: { MONTHLY: '月単位', WEEKLY: '週単位' },
