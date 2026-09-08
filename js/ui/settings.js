@@ -88,6 +88,129 @@ function appendSettingsSection(root, title, kind, names, options = {}) {
   root.appendChild(section);
 }
 
+function setCloudConnectStatus(el, text, kind) {
+  el.textContent = text;
+  el.className = 'settings-connect-status' + (kind ? ' is-' + kind : '');
+}
+
+function appendCloudConnectSection(root) {
+  const config = getActiveSupabaseConfig();
+  const projectRef = supabaseProjectRef(config.url);
+  const section = document.createElement('div');
+  section.className = 'settings-section settings-cloud';
+
+  const heading = document.createElement('h3');
+  heading.textContent = 'クラウド接続';
+  section.appendChild(heading);
+
+  const hint = document.createElement('p');
+  hint.className = 'settings-hint';
+  hint.textContent = '新しい Supabase プロジェクトへ切り替えるときは、Project URL と anon public key を入れて再接続します。先に SQL Editor で setup.sql を実行してください。';
+  section.appendChild(hint);
+
+  const status = document.createElement('p');
+  const sourceLabel = config.source === 'override' ? 'この端末の設定' : '初期設定';
+  setCloudConnectStatus(
+    status,
+    isCloudReady()
+      ? '接続中: ' + (projectRef || config.url) + '（' + sourceLabel + '）'
+      : '未接続',
+    isCloudReady() ? 'ok' : 'error'
+  );
+  section.appendChild(status);
+
+  const form = document.createElement('form');
+  form.className = 'settings-cloud-form';
+
+  const urlField = document.createElement('label');
+  urlField.className = 'settings-field';
+  const urlLabel = document.createElement('span');
+  urlLabel.textContent = 'Project URL';
+  const urlInput = document.createElement('input');
+  urlInput.type = 'text';
+  urlInput.inputMode = 'url';
+  urlInput.name = 'supabaseUrl';
+  urlInput.autocomplete = 'off';
+  urlInput.spellcheck = false;
+  urlInput.placeholder = 'https://xxxx.supabase.co';
+  urlInput.value = config.url;
+  urlField.appendChild(urlLabel);
+  urlField.appendChild(urlInput);
+  form.appendChild(urlField);
+
+  const keyField = document.createElement('label');
+  keyField.className = 'settings-field';
+  const keyLabel = document.createElement('span');
+  keyLabel.textContent = 'anon public key';
+  const keyInput = document.createElement('textarea');
+  keyInput.name = 'supabaseAnonKey';
+  keyInput.autocomplete = 'off';
+  keyInput.spellcheck = false;
+  keyInput.rows = 3;
+  keyInput.placeholder = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+  keyInput.value = config.anonKey;
+  keyField.appendChild(keyLabel);
+  keyField.appendChild(keyInput);
+  form.appendChild(keyField);
+
+  const actions = document.createElement('div');
+  actions.className = 'settings-cloud-actions';
+
+  const connectBtn = document.createElement('button');
+  connectBtn.type = 'submit';
+  connectBtn.className = 'open-modal-btn settings-connect-btn';
+  connectBtn.textContent = '再接続';
+  actions.appendChild(connectBtn);
+
+  if (hasSupabaseOverride()) {
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'settings-add';
+    resetBtn.textContent = '初期設定に戻す';
+    resetBtn.onclick = async () => {
+      if (!confirm('初期設定のプロジェクトに戻しますか？')) return;
+      resetBtn.disabled = true;
+      connectBtn.disabled = true;
+      setCloudConnectStatus(status, '接続しています…', '');
+      try {
+        await resetSupabaseConnection();
+        renderSettings();
+      } catch (e) {
+        setCloudConnectStatus(status, e.message || '接続に失敗しました。', 'error');
+        resetBtn.disabled = false;
+        connectBtn.disabled = false;
+      }
+    };
+    actions.appendChild(resetBtn);
+  }
+
+  form.appendChild(actions);
+
+  form.onsubmit = async event => {
+    event.preventDefault();
+    if (!confirm('接続先を切り替えますか？新しいプロジェクトにデータがあればそれを取り込み、空なら今のデータを送ります。')) {
+      return;
+    }
+    connectBtn.disabled = true;
+    setCloudConnectStatus(status, '接続しています…', '');
+    try {
+      await reconnectSupabase(urlInput.value, keyInput.value);
+      renderSettings();
+    } catch (e) {
+      setCloudConnectStatus(status, e.message || '接続に失敗しました。', 'error');
+      connectBtn.disabled = false;
+    }
+  };
+
+  section.appendChild(form);
+
+  const extra = document.createElement('p');
+  extra.className = 'settings-hint';
+  extra.textContent = 'LOHACO の商品情報取得には Edge Function が必要です。GitHub の SUPABASE_PROJECT_ID を新しいプロジェクト ID に更新し、Deploy Supabase Functions を実行してください。他の端末でも同じ URL と key を入れてください。';
+  section.appendChild(extra);
+  root.appendChild(section);
+}
+
 function renderSettings() {
   const itemsSection = document.querySelector('#page-settings [data-settings-section="items"]');
   if (itemsSection) bindSettingsSectionOpen(itemsSection, 'items');
@@ -97,6 +220,11 @@ function renderSettings() {
   if (historySection) bindSettingsSectionOpen(historySection, 'history');
   renderProductCatalog();
   renderHistoryList();
+  const cloudRoot = document.getElementById('settings-cloud-root');
+  if (cloudRoot) {
+    cloudRoot.innerHTML = '';
+    appendCloudConnectSection(cloudRoot);
+  }
   const root = document.getElementById('settings-list');
   if (!root) return;
   root.innerHTML = '';
