@@ -177,30 +177,8 @@ create policy "item_check_units_insert" on public.item_check_units for insert wi
 create policy "item_check_units_update" on public.item_check_units for update using (true);
 create policy "item_check_units_delete" on public.item_check_units for delete using (true);
 
-do $$
-begin
-  alter publication supabase_realtime add table public.households;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.locations;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.items;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.item_check_units;
-exception
-  when duplicate_object then null;
-end $$;
+-- Realtime は Broadcast で同期する。postgres_changes には載せない。
+-- 既存プロジェクトは supabase/realtime.sql を SQL Editor で実行する。
 
 -- チェック周期・チェック単位（周期×場所）・前回発注日
 alter table public.items add column if not exists last_ordered_on date;
@@ -306,19 +284,6 @@ create policy "check_units_insert" on public.check_units for insert with check (
 create policy "check_units_update" on public.check_units for update using (true);
 create policy "check_units_delete" on public.check_units for delete using (true);
 
-do $$
-begin
-  alter publication supabase_realtime add table public.cycles;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.check_units;
-exception
-  when duplicate_object then null;
-end $$;
-
 alter table public.items add column if not exists category text not null default '';
 alter table public.check_units alter column location_id drop not null;
 alter table public.items alter column location_id drop not null;
@@ -407,19 +372,6 @@ create policy "units_select" on public.units for select using (true);
 create policy "units_insert" on public.units for insert with check (true);
 create policy "units_update" on public.units for update using (true);
 create policy "units_delete" on public.units for delete using (true);
-
-do $$
-begin
-  alter publication supabase_realtime add table public.categories;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.units;
-exception
-  when duplicate_object then null;
-end $$;
 
 -- items.id / item_check_units.item_id を uuid に移行
 do $$
@@ -588,13 +540,6 @@ create policy "purchase_destinations_insert" on public.purchase_destinations for
 create policy "purchase_destinations_update" on public.purchase_destinations for update using (true);
 create policy "purchase_destinations_delete" on public.purchase_destinations for delete using (true);
 
-do $$
-begin
-  alter publication supabase_realtime add table public.purchase_destinations;
-exception
-  when duplicate_object then null;
-end $$;
-
 -- 商品（アイテム一対多）と購入履歴
 -- 既存プロジェクトへ足すだけなら supabase/products.sql を使う（このファイル全文は再実行しない）
 create table if not exists public.products (
@@ -645,17 +590,4 @@ create policy "purchase_history_select" on public.purchase_history for select us
 create policy "purchase_history_insert" on public.purchase_history for insert with check (true);
 create policy "purchase_history_update" on public.purchase_history for update using (true);
 create policy "purchase_history_delete" on public.purchase_history for delete using (true);
-
-do $$
-begin
-  alter publication supabase_realtime add table public.products;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.purchase_history;
-exception
-  when duplicate_object then null;
-end $$;
 

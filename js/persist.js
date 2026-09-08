@@ -4,6 +4,7 @@ function persistLocalState() {
   persistMasters();
   if (applyingRemote) return;
   if (isCloudReady() && !cloudHydrated) return;
+  if (isCloudReady() && DbMapper.localCloudSnapshot() === lastPushedCloudSnapshot) return;
   localSyncEpoch += 1;
   if (!skipScheduledCloudSave) scheduleCloudSave();
 }

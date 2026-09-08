@@ -27,3 +27,4 @@
 現行の実装は、発注と買い物・受け取りを分け、商品と購入履歴を設定で扱います。
 クラウド同期には `products` / `purchase_history` テーブルが必要です。
 既存プロジェクトへのスキーマ追加は [`supabase/products.sql`](supabase/products.sql) と [`supabase/fulfillment.sql`](supabase/fulfillment.sql) を SQL Editor で実行してください（全文の `setup.sql` は再実行しない）。
+Realtime の行イベント配信を止めるには、続けて [`supabase/realtime.sql`](supabase/realtime.sql) を実行してください。同期は Broadcast と、タブが前面に戻ったときの pull で行います。

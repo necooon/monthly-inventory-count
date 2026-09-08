@@ -84,7 +84,8 @@ function initCheckStockState() {
       pullAfterPush: false,
       skipScheduledCloudSave: false,
       localSyncEpoch: 0,
-      cloudHydrated: false
+      cloudHydrated: false,
+      lastPushedCloudSnapshot: null
     }
   };
 }
@@ -137,7 +138,8 @@ function bindGlobalState() {
     pullAfterPush: 'sync.pullAfterPush',
     skipScheduledCloudSave: 'sync.skipScheduledCloudSave',
     localSyncEpoch: 'sync.localSyncEpoch',
-    cloudHydrated: 'sync.cloudHydrated'
+    cloudHydrated: 'sync.cloudHydrated',
+    lastPushedCloudSnapshot: 'sync.lastPushedCloudSnapshot'
   };
   Object.entries(bindings).forEach(([globalName, statePath]) => {
     const accessor = bindPath(s, statePath);

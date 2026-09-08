@@ -1,4 +1,25 @@
-const SYNC_TABLES = ['items', 'locations', 'item_check_units', 'cycles', 'check_units', 'categories', 'purchase_destinations', 'units', 'products', 'purchase_history'];
+const CLOUD_INVALIDATE_EVENT = 'cloud-invalidate';
+
+let syncChannel = null;
+let cloudVisibilityBound = false;
+let cloudListenSeq = 0;
+
+function isSyncDebug() {
+  try {
+    return localStorage.getItem('debugSync') === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+function logSyncDebug(...args) {
+  if (!isSyncDebug()) return;
+  console.log('[sync]', ...args);
+}
+
+function rememberPushedCloudSnapshot() {
+  lastPushedCloudSnapshot = DbMapper.localCloudSnapshot();
+}
 
 function scheduleCloudSave() {
   if (applyingRemote || skipScheduledCloudSave || !isCloudReady()) return;
@@ -62,6 +83,7 @@ function applyFetchedState(state) {
   persistMasters();
   renderFilters();
   saveAndRender();
+  rememberPushedCloudSnapshot();
   applyingRemote = false;
 }
 
@@ -70,11 +92,31 @@ function seedEmptyCloudCollections(state) {
   if (!(state.history || []).length && purchaseHistory.length) state.history = purchaseHistory;
 }
 
+async function notifyCloudPeers() {
+  if (!syncChannel) {
+    logSyncDebug('skip broadcast: no channel');
+    return;
+  }
+  const result = await syncChannel.send({
+    type: 'broadcast',
+    event: CLOUD_INVALIDATE_EVENT,
+    payload: { at: Date.now() }
+  });
+  logSyncDebug('broadcast sent', result);
+}
+
 async function pushToCloud() {
   if (!isCloudReady()) return false;
+  const snapshot = DbMapper.localCloudSnapshot();
+  if (snapshot === lastPushedCloudSnapshot) return true;
   cloudPushInProgress = true;
   try {
-    return await DbRepository.pushLocalState();
+    const ok = await DbRepository.pushLocalState();
+    if (ok) {
+      rememberPushedCloudSnapshot();
+      await notifyCloudPeers();
+    }
+    return ok;
   } catch (e) {
     console.error('cloud save failed', e);
     return false;
@@ -98,7 +140,10 @@ async function pullFromCloud() {
       return;
     }
     seedEmptyCloudCollections(state);
-    if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) return;
+    if (DbMapper.cloudStateSnapshot(state) === DbMapper.localCloudSnapshot()) {
+      rememberPushedCloudSnapshot();
+      return;
+    }
     if (epoch !== localSyncEpoch) return;
     applyFetchedState(state);
   } catch (e) {
@@ -106,11 +151,74 @@ async function pullFromCloud() {
   }
 }
 
-async function startCloudListener() {
-  if (syncUnsub) {
-    syncUnsub();
-    syncUnsub = null;
+function stopCloudChannel() {
+  if (!syncUnsub) return;
+  syncUnsub();
+  syncUnsub = null;
+}
+
+function subscribeCloudChannel() {
+  if (!isCloudReady()) return;
+  stopCloudChannel();
+  const client = getSupabaseClient();
+  const channel = client.channel('app-sync', {
+    config: { broadcast: { self: false } }
+  });
+  syncChannel = channel;
+  channel.on('broadcast', { event: CLOUD_INVALIDATE_EVENT }, () => {
+    logSyncDebug('invalidate received');
+    scheduleCloudPull();
+  });
+  channel.subscribe(status => {
+    logSyncDebug('channel', status);
+  });
+  syncUnsub = () => {
+    logSyncDebug('removeChannel');
+    syncChannel = null;
+    client.removeChannel(channel);
+  };
+}
+
+async function pauseCloudListener() {
+  const seq = ++cloudListenSeq;
+  try {
+    await flushCloudSave({ quiet: true, onlyIfPending: true });
+  } catch (e) {
+    console.error('cloud flush failed', e);
   }
+  if (seq !== cloudListenSeq) return;
+  stopCloudChannel();
+}
+
+async function resumeCloudListener() {
+  const seq = ++cloudListenSeq;
+  if (!isCloudReady() || applyingRemote) return;
+  await pullFromCloud();
+  if (seq !== cloudListenSeq) return;
+  if (document.visibilityState === 'hidden') return;
+  subscribeCloudChannel();
+}
+
+function bindCloudVisibility() {
+  if (cloudVisibilityBound) return;
+  cloudVisibilityBound = true;
+  window.addEventListener('pagehide', () => {
+    pauseCloudListener();
+  });
+  window.addEventListener('pageshow', () => {
+    Promise.resolve(resumeCloudListener()).catch(e => console.error('cloud resume failed', e));
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      pauseCloudListener();
+      return;
+    }
+    Promise.resolve(resumeCloudListener()).catch(e => console.error('cloud resume failed', e));
+  });
+}
+
+async function startCloudListener() {
+  stopCloudChannel();
   if (!isCloudReady()) {
     cloudHydrated = true;
     return;
@@ -118,19 +226,7 @@ async function startCloudListener() {
 
   await pullFromCloud();
   cloudHydrated = true;
-
-  const client = getSupabaseClient();
-  let channel = client.channel('app-sync');
-  SYNC_TABLES.forEach(table => {
-    channel = channel.on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table },
-      () => { scheduleCloudPull(); }
-    );
-  });
-  channel.subscribe();
-
-  syncUnsub = () => {
-    client.removeChannel(channel);
-  };
+  rememberPushedCloudSnapshot();
+  subscribeCloudChannel();
+  bindCloudVisibility();
 }

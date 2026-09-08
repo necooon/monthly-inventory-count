@@ -226,6 +226,9 @@ const DbRepository = {
     }
     if (!membershipItemIds.length) return;
 
+    const cloudMemberships = await dbSelect('item_check_units', 'item_id,check_unit_id', q => q.in('item_id', membershipItemIds));
+    if (DbMapper.membershipsEqual(cloudMemberships, membershipRows)) return;
+
     await dbDelete('item_check_units', q => q.in('item_id', membershipItemIds));
     await dbInsert('item_check_units', membershipRows);
   },

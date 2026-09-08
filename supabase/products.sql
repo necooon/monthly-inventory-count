@@ -49,16 +49,3 @@ create policy "purchase_history_select" on public.purchase_history for select us
 create policy "purchase_history_insert" on public.purchase_history for insert with check (true);
 create policy "purchase_history_update" on public.purchase_history for update using (true);
 create policy "purchase_history_delete" on public.purchase_history for delete using (true);
-
-do $$
-begin
-  alter publication supabase_realtime add table public.products;
-exception
-  when duplicate_object then null;
-end $$;
-do $$
-begin
-  alter publication supabase_realtime add table public.purchase_history;
-exception
-  when duplicate_object then null;
-end $$;

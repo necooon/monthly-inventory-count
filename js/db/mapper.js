@@ -272,6 +272,17 @@ const DbMapper = {
     return { membershipRows, membershipItemIds, unresolvedMemberships };
   },
 
+  membershipSignature(rows) {
+    return (rows || [])
+      .map(row => `${String(row.item_id)}::${String(row.check_unit_id)}`)
+      .sort()
+      .join('\n');
+  },
+
+  membershipsEqual(left, right) {
+    return DbMapper.membershipSignature(left) === DbMapper.membershipSignature(right);
+  },
+
   findOrphanCheckUnitIds(cloudUnits, cycleRows, locs, localUnitKeys, customCycles, customPlaces) {
     return (cloudUnits || []).filter(row => {
       const cycle = (cycleRows || []).find(c => c.id === row.cycle_id);
