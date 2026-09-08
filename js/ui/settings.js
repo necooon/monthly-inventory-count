@@ -188,13 +188,22 @@ function appendCloudConnectSection(root) {
 
   form.onsubmit = async event => {
     event.preventDefault();
-    if (!confirm('接続先を切り替えますか？新しいプロジェクトにデータがあればそれを取り込み、空なら今のデータを送ります。')) {
+    let config;
+    try {
+      config = parseSupabaseConfig(urlInput.value, keyInput.value);
+    } catch (e) {
+      setCloudConnectStatus(status, e.message || '接続に失敗しました。', 'error');
+      return;
+    }
+    const current = getActiveSupabaseConfig();
+    const same = config.url === current.url && config.anonKey === current.anonKey;
+    if (!same && !confirm('接続先を切り替えますか？新しいプロジェクトにデータがあればそれを取り込み、空なら今のデータを送ります。')) {
       return;
     }
     connectBtn.disabled = true;
     setCloudConnectStatus(status, '接続しています…', '');
     try {
-      await reconnectSupabase(urlInput.value, keyInput.value);
+      await applySupabaseConfig(config, true);
       renderSettings();
     } catch (e) {
       setCloudConnectStatus(status, e.message || '接続に失敗しました。', 'error');
