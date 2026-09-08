@@ -14,7 +14,8 @@ const StorageKeys = {
   INVENTORY_COLLAPSED: 'inventoryCollapsedPlaces',
   ORDER_COLLAPSED: 'orderCollapsedDests',
   PRODUCTS: 'stockProducts',
-  HISTORY: 'purchaseHistory'
+  HISTORY: 'purchaseHistory',
+  SUPABASE_CONFIG: 'stockSupabaseConfig'
 };
 
 function loadJson(key, fallback) {
@@ -87,4 +88,24 @@ function loadSettingsOpenSections() {
   const parsed = loadJson(StorageKeys.SETTINGS_SECTIONS, null);
   if (Array.isArray(parsed)) return new Set(parsed.map(v => String(v)));
   return new Set(['items']);
+}
+
+function loadSupabaseOverride() {
+  const parsed = loadJson(StorageKeys.SUPABASE_CONFIG, null);
+  if (!parsed || typeof parsed !== 'object') return null;
+  const url = String(parsed.url || '').trim();
+  const anonKey = String(parsed.anonKey || '').trim();
+  if (!url || !anonKey) return null;
+  return { url, anonKey };
+}
+
+function persistSupabaseOverride(config) {
+  saveJson(StorageKeys.SUPABASE_CONFIG, {
+    url: config.url,
+    anonKey: config.anonKey
+  });
+}
+
+function clearSupabaseOverride() {
+  localStorage.removeItem(StorageKeys.SUPABASE_CONFIG);
 }

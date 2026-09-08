@@ -28,3 +28,13 @@
 クラウド同期には `products` / `purchase_history` テーブルが必要です。
 既存プロジェクトへのスキーマ追加は [`supabase/products.sql`](supabase/products.sql) と [`supabase/fulfillment.sql`](supabase/fulfillment.sql) を SQL Editor で実行してください（全文の `setup.sql` は再実行しない）。
 Realtime の行イベント配信を止めるには、続けて [`supabase/realtime.sql`](supabase/realtime.sql) を実行してください。同期は Broadcast と、タブが前面に戻ったときの pull で行います。
+
+## Supabase プロジェクトの切り替え
+
+新しいプロジェクトへ付け替える手順です。
+
+1. 新しいプロジェクトの SQL Editor で [`supabase/setup.sql`](supabase/setup.sql) を実行する（新規プロジェクトではこれが本体）。続けて [`supabase/realtime.sql`](supabase/realtime.sql) を実行する。
+2. アプリの **設定 → クラウド接続** に Project URL と anon public key を入れて再接続する。空のプロジェクトなら、今の端末のデータを送ります。
+3. GitHub Secrets の `SUPABASE_PROJECT_ID` を新しいプロジェクト ID（URL のサブドメイン）に更新し、必要なら `SUPABASE_ACCESS_TOKEN` も更新する。
+4. Actions の **Deploy Supabase Functions** を手動実行して `lohaco-product` を新しいプロジェクトへ出す。
+5. 他の端末でも同じ URL と key で再接続する。全端末の初期設定を書き換えたい場合は `js/constants.js` の `SUPABASE_CONFIG` と `supabase/config.toml` の `project_id` も更新する。

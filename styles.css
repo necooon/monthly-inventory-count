@@ -1729,6 +1729,54 @@ button.order-group-title:active {
   color: #666;
   line-height: 1.45;
 }
+.settings-cloud-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #555;
+}
+.settings-field input,
+.settings-field textarea {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: normal;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  resize: vertical;
+}
+.settings-connect-status {
+  margin: 0 0 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  color: #555;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.settings-connect-status.is-ok {
+  color: #2e7d32;
+}
+.settings-connect-status.is-error {
+  color: #c62828;
+}
+.settings-cloud-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.settings-connect-btn {
+  margin-bottom: 0;
+}
 .settings-row {
   display: flex;
   align-items: center;
